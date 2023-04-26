@@ -1,8 +1,9 @@
 package structures
 
 import (
-	"gonatus"
 	"io"
+
+	"github.com/SpongeData-cz/gonatus"
 )
 
 type Appender[T comparable] interface {
