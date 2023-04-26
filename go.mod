@@ -1,3 +1,3 @@
 go 1.20
 
-module gonatus
+module github.com/SpongeData-cz/gonatus
