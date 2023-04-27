@@ -10,6 +10,13 @@ type Conf struct {
 	Value map[string]any
 }
 
+func NewConf(class string, value map[string]any) *Conf {
+	return &Conf{
+		Class: class,
+		Value: value,
+	}
+}
+
 func (ego *Conf) Marshal() ([]byte, error) {
 	return json.Marshal(ego.Value)
 }
