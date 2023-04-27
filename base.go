@@ -59,7 +59,7 @@ func (ego *Gobject) Init(egoPtr any, conf *Conf) {
 	ego.conf = *conf
 }
 
-func (ego *Gobject) Serialize() Conf {
+func (ego *Gobject) Serialize() *Conf {
 	obj := reflect.ValueOf(ego.ptr).Elem()
 	res, err := json.Marshal(obj.Interface())
 	if err != nil {
@@ -71,5 +71,5 @@ func (ego *Gobject) Serialize() Conf {
 		panic(err)
 	}
 	conf.Class = reflect.TypeOf(ego.ptr).Elem().Name()
-	return conf
+	return &conf
 }
