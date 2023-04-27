@@ -53,10 +53,10 @@ func (ego *Gobject) Init(egoPtr any, conf *Conf) {
 		if err != nil {
 			panic(err)
 		}
+		// TODO conf.clone()
+		ego.conf = *conf
 	}
 	ego.ptr = egoPtr
-	// TODO conf.clone()
-	ego.conf = *conf
 }
 
 func (ego *Gobject) Serialize() *Conf {
