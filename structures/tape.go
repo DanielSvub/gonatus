@@ -32,7 +32,7 @@ type RAMTape[T comparable] struct {
 	closed bool
 }
 
-func NewRAMTape[T comparable](conf gonatus.Conf) *RAMTape[T] {
+func NewRAMTape[T comparable](conf *gonatus.Conf) *RAMTape[T] {
 	ego := &RAMTape[T]{}
 	ego.Init(ego, conf)
 	return ego
@@ -82,7 +82,7 @@ Type parameters:
 Returns:
   - pointer to the new frame.
 */
-func NewFrame[T comparable](conf gonatus.Conf) *Frame[T] {
+func NewFrame[T comparable](conf *gonatus.Conf) *Frame[T] {
 	ego := &Frame[T]{}
 	ego.Init(ego, conf)
 	return ego
