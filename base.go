@@ -34,7 +34,7 @@ func (ego *Conf) String() string {
 }
 
 type Gobjecter interface {
-	Serialize() Conf
+	Serialize() *Conf
 }
 
 type Gobject struct {
