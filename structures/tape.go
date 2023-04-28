@@ -32,22 +32,8 @@ type Taper[T comparable] interface {
 	Closed() bool
 }
 
-type RAMTape[T comparable] struct {
-	gonatus.Gobject
-	Slice  []T
-	Offset int
-	closed bool
-}
-
-func NewRAMTape[T comparable](conf gonatus.Conf) *RAMTape[T] {
-	ego := &RAMTape[T]{}
-	ego.Init(ego, conf)
-	return ego
-}
-
 /*
 Interface for a frame.
-
 Extends:
   - Gobjecter.
 
@@ -62,7 +48,6 @@ type Framer[T comparable] interface {
 
 /*
 Structure representing the frame - sliding window on the tape.
-
 Implements:
   - Framer.
 
@@ -79,7 +64,6 @@ type Frame[T comparable] struct {
 
 /*
 Creates a new frame.
-
 Parameters:
   - conf - Gonatus configuration structure.
 
@@ -98,7 +82,6 @@ func NewFrame[T comparable](conf gonatus.Conf) *Frame[T] {
 /*
 Shifts the frame offset by the number of the lastly loaded elements.
 Increases the offset by size and sets size to 0.
-
 Returns:
   - error, if no elements were loaded since last usage of this method.
 */
@@ -116,7 +99,6 @@ func (ego *Frame[T]) Next() error {
 /*
 Loads the maximum possible amount of elements into the slice and returns it.
 Also updates the size to number of actually loaded elements (0 <= size <= capacity).
-
 Returns:
   - slice of loaded elements,
   - error, if any occurred.
