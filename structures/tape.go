@@ -2,23 +2,30 @@ package structures
 
 import (
 	"errors"
-	"io"
 
 	"github.com/SpongeData-cz/gonatus"
 )
 
 type Appender[T comparable] interface {
-	Append(item []T)
+	Append(items ...T)
 }
 
 type Reader[T comparable] interface {
 	Read(p []T) (n int, err error)
 }
 
+type Seeker interface {
+	Seek(offset int, whence int) (int, error)
+}
+
+type Closer interface {
+	Close() error
+}
+
 type Taper[T comparable] interface {
 	gonatus.Gobjecter
-	io.Seeker
-	io.Closer
+	Seeker
+	Closer
 	Reader[T]
 	Appender[T]
 	Filter(dest Taper[T], fn func(T) bool) error
@@ -32,7 +39,7 @@ type RAMTape[T comparable] struct {
 	closed bool
 }
 
-func NewRAMTape[T comparable](conf *gonatus.Conf) *RAMTape[T] {
+func NewRAMTape[T comparable](conf gonatus.Conf) *RAMTape[T] {
 	ego := &RAMTape[T]{}
 	ego.Init(ego, conf)
 	return ego
@@ -82,7 +89,7 @@ Type parameters:
 Returns:
   - pointer to the new frame.
 */
-func NewFrame[T comparable](conf *gonatus.Conf) *Frame[T] {
+func NewFrame[T comparable](conf gonatus.Conf) *Frame[T] {
 	ego := &Frame[T]{}
 	ego.Init(ego, conf)
 	return ego
