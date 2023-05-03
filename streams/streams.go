@@ -38,17 +38,22 @@ type InputStream[T comparable] struct {
 	Stream
 }
 
-func NewInputStream[T comparable]() *InputStream[T] {
-	return &InputStream[T]{}
+func (ego *InputStream[T]) get() (T, error) {
+	panic("Not implemented.")
+}
+
+func (ego *InputStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
+	s.setSource(ego)
+	ts, hasOutput := s.(TransformStreamer[T])
+	if hasOutput {
+		return ts
+	}
+	return nil
 }
 
 type OutputStream[T comparable] struct {
 	Stream
 	source InputStreamer[T]
-}
-
-func NewOutputStream[T comparable]() *OutputStream[T] {
-	return &OutputStream[T]{}
 }
 
 func (ego *OutputStream[T]) setSource(s InputStreamer[T]) {
@@ -65,4 +70,12 @@ func NewTransformStream[T comparable](transform func(e T) T) *TransformStream[T]
 	return &TransformStream[T]{
 		transform: transform,
 	}
+}
+
+func (ego *TransformStream[T]) get() (T, error) {
+	val, err := ego.InputStream.get()
+	if err != nil {
+		return *new(T), err
+	}
+	return ego.transform(val), nil
 }
