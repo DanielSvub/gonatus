@@ -106,6 +106,7 @@ func NewPair(key string, value any) Pair {
 
 type Gobjecter interface {
 	Serialize() Conf
+	Ptr() any
 }
 
 type Gobject struct {
@@ -144,4 +145,8 @@ func (ego *Gobject) Serialize() Conf {
 	}
 	return conf
 
+}
+
+func (ego *Gobject) Ptr() any {
+	return ego.ptr
 }
