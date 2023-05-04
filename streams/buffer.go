@@ -1,12 +1,21 @@
 package streams
 
-import "errors"
+import (
+	"errors"
 
-// implement: get(), write()
+	"github.com/SpongeData-cz/gonatus"
+)
+
 type BufferInputStreamer[T comparable] interface {
 	InputStreamer[T]
 	get() (T, error)
 	Write(p ...T) (n int, err error)
+	Close()
+}
+
+type ReadableOutputStreamer[T comparable] interface {
+	OutputStreamer[T]
+	Read(p []T) (n int, err error)
 }
 
 type BufferInputStream[T comparable] struct {
@@ -14,23 +23,10 @@ type BufferInputStream[T comparable] struct {
 	buffer []T
 }
 
-func NewBufferInputStream[T comparable]() *BufferInputStream[T] {
-	return &BufferInputStream[T]{}
-}
-
-// implement: Read()
-type BufferOutputStreamer[T comparable] interface {
-	OutputStreamer[T]
-	Read(p []T) (n int, err error)
-}
-
-type BufferOutputStream[T comparable] struct {
-	OutputStream[T]
-	buffer []T
-}
-
-func NewBufferOutputStream[T comparable]() *BufferOutputStream[T] {
-	return &BufferOutputStream[T]{}
+func NewBufferInputStream[T comparable](conf gonatus.Conf) *BufferInputStream[T] {
+	ego := &BufferInputStream[T]{buffer: make([]T, 0)}
+	ego.Stream.Init(ego, conf)
+	return ego
 }
 
 func (ego *BufferInputStream[T]) get() (T, error) {
@@ -49,9 +45,7 @@ func (ego *BufferInputStream[T]) get() (T, error) {
 
 func (ego *BufferInputStream[T]) Write(p ...T) (int, error) {
 
-	if ego.buffer == nil {
-		return 0, errors.New("Buffer is not initialized!\n")
-	} else if p == nil {
+	if p == nil {
 		return 0, errors.New("Input slice is not initialized!\n")
 	}
 
@@ -61,27 +55,35 @@ func (ego *BufferInputStream[T]) Write(p ...T) (int, error) {
 	return n, nil
 }
 
-func (ego *BufferOutputStream[T]) Read(p []T) (int, error) {
+func (ego *BufferInputStream[T]) Close() {
+	ego.closed = true
+}
 
-	if ego.buffer == nil {
-		return 0, errors.New("Buffer is not initialized!\n")
-	} else if p == nil {
+type ReadableOutputStream[T comparable] struct {
+	OutputStream[T]
+}
+
+func NewReadableOutputStream[T comparable](conf gonatus.Conf) *ReadableOutputStream[T] {
+	ego := &ReadableOutputStream[T]{}
+	ego.Stream.Init(ego, conf)
+	return ego
+}
+
+func (ego *ReadableOutputStream[T]) Read(p []T) (int, error) {
+
+	if p == nil {
 		return 0, errors.New("Input slice is not initialized!\n")
 	}
 
-	var n int
-
-	if len(ego.buffer) < len(p) {
-		n = len(ego.buffer)
-	} else {
-		n = len(p)
-	}
+	n := len(p)
 
 	for i := 0; i < n; i++ {
-		p[i] = ego.buffer[i]
+		val, err := ego.source.get()
+		if err != nil {
+			return 0, err
+		}
+		p[i] = val
 	}
-
-	ego.buffer = ego.buffer[n:]
 
 	return n, nil
 }

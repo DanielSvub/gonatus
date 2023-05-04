@@ -1,19 +1,21 @@
 package streams
 
-type Streamer interface {
-	Close() error
-	Closed() bool
+import "github.com/SpongeData-cz/gonatus"
+
+type Streamer[T comparable] interface {
+	gonatus.Gobjecter
 }
 
 type InputStreamer[T comparable] interface {
-	Streamer
+	Streamer[T]
 	get() (T, error)
 	Pipe(dest OutputStreamer[T]) InputStreamer[T]
+	Closed() bool
 }
 
 type OutputStreamer[T comparable] interface {
-	Streamer
-	setSource(InputStreamer[T]) error
+	Streamer[T]
+	setSource(InputStreamer[T])
 }
 
 type TransformStreamer[T comparable] interface {
@@ -21,21 +23,13 @@ type TransformStreamer[T comparable] interface {
 	OutputStreamer[T]
 }
 
-type Stream struct {
-	closed bool
-}
-
-func (ego *Stream) Close() error {
-	ego.closed = true
-	return nil
-}
-
-func (ego *Stream) Closed() bool {
-	return ego.closed
+type Stream[T comparable] struct {
+	gonatus.Gobject
 }
 
 type InputStream[T comparable] struct {
-	Stream
+	Stream[T]
+	closed bool
 }
 
 func (ego *InputStream[T]) get() (T, error) {
@@ -43,7 +37,7 @@ func (ego *InputStream[T]) get() (T, error) {
 }
 
 func (ego *InputStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
-	s.setSource(ego)
+	s.setSource(ego.Ptr().(InputStreamer[T]))
 	ts, hasOutput := s.(TransformStreamer[T])
 	if hasOutput {
 		return ts
@@ -51,8 +45,12 @@ func (ego *InputStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
 	return nil
 }
 
+func (ego *InputStream[T]) Closed() bool {
+	return ego.closed
+}
+
 type OutputStream[T comparable] struct {
-	Stream
+	Stream[T]
 	source InputStreamer[T]
 }
 
@@ -61,21 +59,39 @@ func (ego *OutputStream[T]) setSource(s InputStreamer[T]) {
 }
 
 type TransformStream[T comparable] struct {
-	InputStream[T]
-	OutputStream[T]
-	transform func(e T) T
+	Stream[T]
+	source    InputStreamer[T]
+	closed    bool
+	Transform func(e T) T
 }
 
-func NewTransformStream[T comparable](transform func(e T) T) *TransformStream[T] {
-	return &TransformStream[T]{
-		transform: transform,
-	}
+func NewTransformStream[T comparable](conf gonatus.Conf) *TransformStream[T] {
+	ego := &TransformStream[T]{}
+	ego.Init(ego, conf)
+	return ego
 }
 
 func (ego *TransformStream[T]) get() (T, error) {
-	val, err := ego.InputStream.get()
+	val, err := ego.source.get()
 	if err != nil {
 		return *new(T), err
 	}
-	return ego.transform(val), nil
+	return ego.Transform(val), nil
+}
+
+func (ego *TransformStream[T]) setSource(s InputStreamer[T]) {
+	ego.source = s
+}
+
+func (ego *TransformStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
+	s.setSource(ego.Ptr().(InputStreamer[T]))
+	ts, hasOutput := s.(TransformStreamer[T])
+	if hasOutput {
+		return ts
+	}
+	return nil
+}
+
+func (ego *TransformStream[T]) Closed() bool {
+	return ego.closed
 }
