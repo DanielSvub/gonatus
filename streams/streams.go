@@ -4,13 +4,13 @@ import "github.com/SpongeData-cz/gonatus"
 
 type Streamer[T comparable] interface {
 	gonatus.Gobjecter
+	Closed() bool
 }
 
 type InputStreamer[T comparable] interface {
 	Streamer[T]
 	get() (T, error)
 	Pipe(dest OutputStreamer[T]) InputStreamer[T]
-	Closed() bool
 }
 
 type OutputStreamer[T comparable] interface {
@@ -25,11 +25,15 @@ type TransformStreamer[T comparable] interface {
 
 type Stream[T comparable] struct {
 	gonatus.Gobject
+	closed bool
+}
+
+func (ego *Stream[T]) Closed() bool {
+	return ego.closed
 }
 
 type InputStream[T comparable] struct {
 	Stream[T]
-	closed bool
 }
 
 func (ego *InputStream[T]) get() (T, error) {
@@ -45,10 +49,6 @@ func (ego *InputStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
 	return nil
 }
 
-func (ego *InputStream[T]) Closed() bool {
-	return ego.closed
-}
-
 type OutputStream[T comparable] struct {
 	Stream[T]
 	source InputStreamer[T]
@@ -61,7 +61,6 @@ func (ego *OutputStream[T]) setSource(s InputStreamer[T]) {
 type TransformStream[T comparable] struct {
 	Stream[T]
 	source    InputStreamer[T]
-	closed    bool
 	Transform func(e T) T
 }
 
@@ -74,6 +73,9 @@ func NewTransformStream[T comparable](conf gonatus.Conf) *TransformStream[T] {
 func (ego *TransformStream[T]) get() (T, error) {
 	val, err := ego.source.get()
 	if err != nil {
+		if ego.source.Closed() {
+			ego.closed = true
+		}
 		return *new(T), err
 	}
 	return ego.Transform(val), nil
@@ -90,8 +92,4 @@ func (ego *TransformStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
 		return ts
 	}
 	return nil
-}
-
-func (ego *TransformStream[T]) Closed() bool {
-	return ego.closed
 }
