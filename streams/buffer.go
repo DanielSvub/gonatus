@@ -8,7 +8,6 @@ import (
 
 type BufferInputStreamer[T comparable] interface {
 	InputStreamer[T]
-	get() (T, error)
 	Write(p ...T) (n int, err error)
 	Close()
 }
@@ -21,11 +20,11 @@ type ReadableOutputStreamer[T comparable] interface {
 
 type BufferInputStream[T comparable] struct {
 	InputStream[T]
-	buffer []T
+	buffer chan T
 }
 
 func NewBufferInputStream[T comparable](conf gonatus.Conf) *BufferInputStream[T] {
-	ego := &BufferInputStream[T]{buffer: make([]T, 0)}
+	ego := &BufferInputStream[T]{buffer: make(chan T, 100)}
 	ego.Stream.Init(ego, conf)
 	return ego
 }
@@ -36,17 +35,11 @@ func (ego *BufferInputStream[T]) get() (T, error) {
 		panic("Buffer is not initialized.")
 	}
 
-	if len(ego.buffer) == 0 {
-		if ego.closed {
-			return *new(T), errors.New("The stream is closed.")
-		}
-		return *new(T), errors.New("Buffer is empty.")
+	if ego.closed && len(ego.buffer) == 0 {
+		return *new(T), errors.New("The stream is closed.")
 	}
 
-	elem := ego.buffer[0]
-	ego.buffer = ego.buffer[1:]
-
-	return elem, nil
+	return <-ego.buffer, nil
 }
 
 func (ego *BufferInputStream[T]) Write(p ...T) (int, error) {
@@ -56,16 +49,18 @@ func (ego *BufferInputStream[T]) Write(p ...T) (int, error) {
 	}
 
 	if ego.Closed() {
-		panic("THe stream is closed.")
+		return 0, errors.New("The stream is closed.")
 	}
 
-	n := len(p)
-	ego.buffer = append(ego.buffer, p...)
+	for _, elem := range p {
+		ego.buffer <- elem
+	}
 
-	return n, nil
+	return len(p), nil
 }
 
 func (ego *BufferInputStream[T]) Close() {
+	close(ego.buffer)
 	ego.closed = true
 }
 
