@@ -1,6 +1,7 @@
 package streams_test
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/SpongeData-cz/gonatus"
@@ -50,6 +51,41 @@ func TestStreams(t *testing.T) {
 		if err != nil || len(result) != 3 {
 			t.Error("Collecting the results was unsuccessful.")
 		}
+
+	})
+
+	t.Run("async", func(t *testing.T) {
+
+		is := NewBufferInputStream[int](nil)
+		ts := NewTransformStream[int](gonatus.NewConf("TransformStream").Set(
+			gonatus.NewPair("Transform", func(x int) int {
+				return x + 1
+			}),
+		))
+		os := NewReadableOutputStream[int](nil)
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+
+		write := func() {
+			defer wg.Done()
+			defer is.Close()
+			is.Write(make([]int, 1000000)...)
+		}
+
+		is.Pipe(ts).Pipe(os)
+
+		read := func() {
+			defer wg.Done()
+			result, err := os.Collect()
+			if err != nil || len(result) != 1000000 {
+				t.Error("Collecting the results in parallel was unsuccessful.")
+			}
+		}
+
+		go write()
+		go read()
+		wg.Wait()
 
 	})
 
