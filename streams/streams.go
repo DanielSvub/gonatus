@@ -2,36 +2,36 @@ package streams
 
 import "github.com/SpongeData-cz/gonatus"
 
-type private[T comparable] struct {
+type private[T any] struct {
 	value T
 }
 
-func NewPrivate[T comparable](value T) private[T] {
+func NewPrivate[T any](value T) private[T] {
 	return private[T]{value}
 }
 
-type Streamer[T comparable] interface {
+type Streamer[T any] interface {
 	gonatus.Gobjecter
 	Closed() bool
 }
 
-type InputStreamer[T comparable] interface {
+type InputStreamer[T any] interface {
 	Streamer[T]
 	get() (T, error)
 	Pipe(dest OutputStreamer[T]) InputStreamer[T]
 }
 
-type OutputStreamer[T comparable] interface {
+type OutputStreamer[T any] interface {
 	Streamer[T]
 	setSource(InputStreamer[T])
 }
 
-type TransformStreamer[T comparable] interface {
+type TransformStreamer[T any] interface {
 	InputStreamer[T]
 	OutputStreamer[T]
 }
 
-type Stream[T comparable] struct {
+type Stream[T any] struct {
 	gonatus.Gobject
 	closed bool
 }
@@ -40,7 +40,7 @@ func (ego *Stream[T]) Closed() bool {
 	return ego.closed
 }
 
-type InputStream[T comparable] struct {
+type InputStream[T any] struct {
 	Stream[T]
 }
 
@@ -48,7 +48,7 @@ func (ego *InputStream[T]) get() (T, error) {
 	panic("Not implemented.")
 }
 
-func pipe[T comparable](ego InputStreamer[T], s OutputStreamer[T]) InputStreamer[T] {
+func pipe[T any](ego InputStreamer[T], s OutputStreamer[T]) InputStreamer[T] {
 	s.setSource(ego.Ptr().(InputStreamer[T]))
 	ts, hasOutput := s.(InputStreamer[T])
 	if hasOutput {
@@ -61,7 +61,7 @@ func (ego *InputStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
 	return pipe[T](ego, s)
 }
 
-type OutputStream[T comparable] struct {
+type OutputStream[T any] struct {
 	Stream[T]
 	source InputStreamer[T]
 }
@@ -70,13 +70,13 @@ func (ego *OutputStream[T]) setSource(s InputStreamer[T]) {
 	ego.source = s
 }
 
-type TransformStream[T comparable] struct {
+type TransformStream[T any] struct {
 	Stream[T]
 	source    InputStreamer[T]
 	Transform func(e T) T
 }
 
-func NewTransformStream[T comparable](conf gonatus.Conf) *TransformStream[T] {
+func NewTransformStream[T any](conf gonatus.Conf) *TransformStream[T] {
 	ego := &TransformStream[T]{}
 	ego.Init(ego, conf)
 	return ego

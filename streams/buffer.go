@@ -6,25 +6,25 @@ import (
 	"github.com/SpongeData-cz/gonatus"
 )
 
-type BufferInputStreamer[T comparable] interface {
+type BufferInputStreamer[T any] interface {
 	InputStreamer[T]
 	Write(p ...T) (n int, err error)
 	Close()
 }
 
-type ReadableOutputStreamer[T comparable] interface {
+type ReadableOutputStreamer[T any] interface {
 	OutputStreamer[T]
 	Read(p []T) (n int, err error)
 	Collect() ([]T, error)
 }
 
-type BufferInputStream[T comparable] struct {
+type BufferInputStream[T any] struct {
 	InputStream[T]
 	buffer     chan T
 	BufferSize private[int]
 }
 
-func NewBufferInputStream[T comparable](conf gonatus.Conf) *BufferInputStream[T] {
+func NewBufferInputStream[T any](conf gonatus.Conf) *BufferInputStream[T] {
 	ego := &BufferInputStream[T]{}
 	ego.Stream.Init(ego, conf)
 	ego.buffer = make(chan T, ego.BufferSize.value)
@@ -67,11 +67,11 @@ func (ego *BufferInputStream[T]) Close() {
 	ego.closed = true
 }
 
-type ReadableOutputStream[T comparable] struct {
+type ReadableOutputStream[T any] struct {
 	OutputStream[T]
 }
 
-func NewReadableOutputStream[T comparable](conf gonatus.Conf) *ReadableOutputStream[T] {
+func NewReadableOutputStream[T any](conf gonatus.Conf) *ReadableOutputStream[T] {
 	ego := &ReadableOutputStream[T]{}
 	ego.Stream.Init(ego, conf)
 	return ego
