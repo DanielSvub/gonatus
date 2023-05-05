@@ -2,6 +2,14 @@ package streams
 
 import "github.com/SpongeData-cz/gonatus"
 
+type private[T comparable] struct {
+	value T
+}
+
+func NewPrivate[T comparable](value T) private[T] {
+	return private[T]{value}
+}
+
 type Streamer[T comparable] interface {
 	gonatus.Gobjecter
 	Closed() bool
@@ -40,13 +48,17 @@ func (ego *InputStream[T]) get() (T, error) {
 	panic("Not implemented.")
 }
 
-func (ego *InputStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
+func pipe[T comparable](ego InputStreamer[T], s OutputStreamer[T]) InputStreamer[T] {
 	s.setSource(ego.Ptr().(InputStreamer[T]))
 	ts, hasOutput := s.(InputStreamer[T])
 	if hasOutput {
 		return ts
 	}
 	return nil
+}
+
+func (ego *InputStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
+	return pipe[T](ego, s)
 }
 
 type OutputStream[T comparable] struct {
@@ -86,10 +98,5 @@ func (ego *TransformStream[T]) setSource(s InputStreamer[T]) {
 }
 
 func (ego *TransformStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
-	s.setSource(ego.Ptr().(InputStreamer[T]))
-	ts, hasOutput := s.(InputStreamer[T])
-	if hasOutput {
-		return ts
-	}
-	return nil
+	return pipe[T](ego, s)
 }

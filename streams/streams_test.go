@@ -14,7 +14,9 @@ func TestStreams(t *testing.T) {
 
 		result := make([]int, 3)
 
-		is := NewBufferInputStream[int](nil)
+		is := NewBufferInputStream[int](gonatus.NewConf("NewBufferInputStream").Set(
+			gonatus.NewPair("BufferSize", NewPrivate(100)),
+		))
 		ts := NewTransformStream[int](gonatus.NewConf("TransformStream").Set(
 			gonatus.NewPair("Transform", func(x int) int {
 				return x * x
@@ -35,7 +37,9 @@ func TestStreams(t *testing.T) {
 
 	t.Run("collect", func(t *testing.T) {
 
-		is := NewBufferInputStream[int](nil)
+		is := NewBufferInputStream[int](gonatus.NewConf("NewBufferInputStream").Set(
+			gonatus.NewPair("BufferSize", NewPrivate(100)),
+		))
 		ts := NewTransformStream[int](gonatus.NewConf("TransformStream").Set(
 			gonatus.NewPair("Transform", func(x int) int {
 				return x * x
@@ -56,7 +60,9 @@ func TestStreams(t *testing.T) {
 
 	t.Run("async", func(t *testing.T) {
 
-		is := NewBufferInputStream[int](nil)
+		is := NewBufferInputStream[int](gonatus.NewConf("NewBufferInputStream").Set(
+			gonatus.NewPair("BufferSize", NewPrivate(100)),
+		))
 		ts := NewTransformStream[int](gonatus.NewConf("TransformStream").Set(
 			gonatus.NewPair("Transform", func(x int) int {
 				return x + 1

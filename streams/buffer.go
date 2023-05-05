@@ -20,12 +20,14 @@ type ReadableOutputStreamer[T comparable] interface {
 
 type BufferInputStream[T comparable] struct {
 	InputStream[T]
-	buffer chan T
+	buffer     chan T
+	BufferSize private[int]
 }
 
 func NewBufferInputStream[T comparable](conf gonatus.Conf) *BufferInputStream[T] {
-	ego := &BufferInputStream[T]{buffer: make(chan T, 100)}
+	ego := &BufferInputStream[T]{}
 	ego.Stream.Init(ego, conf)
+	ego.buffer = make(chan T, ego.BufferSize.value)
 	return ego
 }
 
