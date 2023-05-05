@@ -42,7 +42,7 @@ func (ego *InputStream[T]) get() (T, error) {
 
 func (ego *InputStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
 	s.setSource(ego.Ptr().(InputStreamer[T]))
-	ts, hasOutput := s.(TransformStreamer[T])
+	ts, hasOutput := s.(InputStreamer[T])
 	if hasOutput {
 		return ts
 	}
@@ -87,7 +87,7 @@ func (ego *TransformStream[T]) setSource(s InputStreamer[T]) {
 
 func (ego *TransformStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
 	s.setSource(ego.Ptr().(InputStreamer[T]))
-	ts, hasOutput := s.(TransformStreamer[T])
+	ts, hasOutput := s.(InputStreamer[T])
 	if hasOutput {
 		return ts
 	}
