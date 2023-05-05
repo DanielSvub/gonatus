@@ -34,12 +34,13 @@ func (ego *BufferInputStream[T]) get() (T, error) {
 	if ego.buffer == nil {
 		panic("Buffer is not initialized.")
 	}
+	value, valid := <-ego.buffer
 
-	if ego.closed && len(ego.buffer) == 0 {
+	if valid {
+		return value, nil
+	} else {
 		return *new(T), errors.New("The stream is closed.")
 	}
-
-	return <-ego.buffer, nil
 }
 
 func (ego *BufferInputStream[T]) Write(p ...T) (int, error) {

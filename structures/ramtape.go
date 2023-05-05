@@ -79,9 +79,6 @@ func (ego *RAMTape[T]) Read(p []T) (n int, err error) {
 	}
 	ego.Offset += itemsRed
 	return itemsRed, nil //TODO if there is nothing more to read, should we return "EOF" error? Or only if there is nothing less and moreover we are closed?
-
-	//TODO should read move offset?
-
 }
 
 func (ego *RAMTape[T]) Filter(dest Taper[T], fn func(T) bool) error {
