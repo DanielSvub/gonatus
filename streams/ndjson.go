@@ -2,7 +2,6 @@ package streams
 
 import (
 	"bufio"
-	"errors"
 	"os"
 
 	"github.com/SpongeData-cz/gonatus"
@@ -31,6 +30,12 @@ func NewNdjsonStream(conf gonatus.Conf) *NdjsonStream {
 	ego.file = file
 	ego.scanner = bufio.NewScanner(file)
 
+	if !ego.scanner.Scan() {
+		ego.file.Close()
+		ego.closed = true
+		panic("File is empty.")
+	}
+
 	return ego
 }
 
@@ -40,14 +45,13 @@ func (ego *NdjsonStream) get() (gonatus.Conf, error) {
 		panic("The file does not exist.")
 	}
 
+	newConf := gonatus.NewConf("")
+	newConf.Unmarshal([]byte(ego.scanner.Text()))
+
 	if !ego.scanner.Scan() {
 		ego.file.Close()
 		ego.closed = true
-		return nil, errors.New("No lines to read.")
 	}
-
-	newConf := gonatus.NewConf("")
-	newConf.Unmarshal([]byte(ego.scanner.Text()))
 
 	return newConf, nil
 }

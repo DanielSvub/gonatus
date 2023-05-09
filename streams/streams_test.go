@@ -145,4 +145,31 @@ func TestStreams(t *testing.T) {
 
 	})
 
+	t.Run("ndjson", func(t *testing.T) {
+
+		nds := NewNdjsonStream(gonatus.NewConf("NdjsonStream").Set(
+			gonatus.NewPair("Path",
+				NewPrivate("fixtures/example.ndjson")),
+		))
+		ts := NewTransformStream[gonatus.Conf](gonatus.NewConf("TransformStream").Set(
+			gonatus.NewPair("Transform", func(x gonatus.Conf) gonatus.Conf {
+				return x
+			}),
+		))
+		os := NewReadableOutputStream[gonatus.Conf](nil)
+
+		nds.Pipe(ts).Pipe(os)
+
+		result, err := os.Collect()
+		if err != nil || len(result) != 6 {
+			t.Error("Collecting the results was unsuccessful.")
+		}
+
+		val := result[2].Get("data").(map[string]any)["name"]
+		if val != "Arnold" {
+			t.Error("Name is not matching.")
+		}
+
+	})
+
 }
