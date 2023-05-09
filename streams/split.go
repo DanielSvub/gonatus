@@ -34,28 +34,28 @@ func (ego *SplitStream[T]) setSource(s InputStreamer[T]) {
 	go ego.doFilter()
 }
 
-func (ego SplitStream[T]) true() InputStreamer[T] {
+func (ego *SplitStream[T]) true() InputStreamer[T] {
 	return ego.trueStream
 }
 
-func (ego SplitStream[T]) false() InputStreamer[T] {
+func (ego *SplitStream[T]) false() InputStreamer[T] {
 	return ego.falseStream
 }
 
-func (ego SplitStream[T]) doFilter() {
+func (ego *SplitStream[T]) doFilter() {
 
 	for true {
 		val, err := ego.source.get()
 		if err != nil {
-			if ego.source.Closed() {
-				break
-			}
 			panic(err)
 		}
 		if ego.Filter(val) {
 			ego.trueStream.Write(val)
 		} else {
 			ego.falseStream.Write(val)
+		}
+		if ego.source.Closed() {
+			break
 		}
 	}
 

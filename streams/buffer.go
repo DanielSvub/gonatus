@@ -36,13 +36,18 @@ func (ego *BufferInputStream[T]) get() (T, error) {
 	if ego.buffer == nil {
 		panic("Buffer is not initialized.")
 	}
+
 	value, valid := <-ego.buffer
 
 	if valid {
 		return value, nil
-	} else {
-		return *new(T), errors.New("The stream is closed.")
 	}
+
+	return *new(T), errors.New("Read after channel closing.")
+}
+
+func (ego *BufferInputStream[T]) Closed() bool {
+	return ego.closed && len(ego.buffer) == 0
 }
 
 func (ego *BufferInputStream[T]) Write(p ...T) (int, error) {
@@ -51,7 +56,7 @@ func (ego *BufferInputStream[T]) Write(p ...T) (int, error) {
 		panic("Input slice is not initialized.")
 	}
 
-	if ego.Closed() {
+	if ego.closed {
 		return 0, errors.New("The stream is closed.")
 	}
 
@@ -91,14 +96,14 @@ func (ego *ReadableOutputStream[T]) Read(p []T) (int, error) {
 
 	for i := 0; i < n; i++ {
 		val, err := ego.source.get()
-		if ego.source.Closed() {
-			ego.closed = true
-			return i, errors.New("The stream is closed.")
-		}
 		if err != nil {
 			return i, err
 		}
 		p[i] = val
+		if ego.source.Closed() {
+			ego.closed = true
+			break
+		}
 	}
 
 	return n, nil
@@ -114,13 +119,16 @@ func (ego *ReadableOutputStream[T]) Collect() ([]T, error) {
 
 	for true {
 		val, err := ego.source.get()
-		if ego.source.Closed() {
-			break
-		}
 		if err != nil {
+			if ego.source.Closed() {
+				return output, nil
+			}
 			return output, err
 		}
 		output = append(output, val)
+		if ego.source.Closed() {
+			break
+		}
 	}
 
 	ego.closed = true

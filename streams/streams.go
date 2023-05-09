@@ -1,6 +1,8 @@
 package streams
 
-import "github.com/SpongeData-cz/gonatus"
+import (
+	"github.com/SpongeData-cz/gonatus"
+)
 
 type private[T any] struct {
 	value T
@@ -94,10 +96,10 @@ func NewTransformStream[T any](conf gonatus.Conf) *TransformStream[T] {
 func (ego *TransformStream[T]) get() (T, error) {
 	val, err := ego.source.get()
 	if err != nil {
-		if ego.source.Closed() {
-			ego.closed = true
-		}
 		return *new(T), err
+	}
+	if ego.source.Closed() {
+		ego.closed = true
 	}
 	return ego.Transform(val), nil
 }
