@@ -95,4 +95,54 @@ func TestStreams(t *testing.T) {
 
 	})
 
+	t.Run("split", func(t *testing.T) {
+
+		is := NewBufferInputStream[int](gonatus.NewConf("NewBufferInputStream").Set(
+			gonatus.NewPair("BufferSize", NewPrivate(100)),
+		))
+		ss := NewSplitStream[int](gonatus.NewConf("SplitStream").Set(
+			gonatus.NewPair("Filter", func(x int) bool {
+				return x <= 5
+			}),
+			gonatus.NewPair("BufferSize", NewPrivate(100)),
+		))
+		ost := NewReadableOutputStream[int](nil)
+		osf := NewReadableOutputStream[int](nil)
+
+		var wg sync.WaitGroup
+		wg.Add(3)
+
+		write := func() {
+			defer wg.Done()
+			defer is.Close()
+			is.Write(1, 6, 2, 7, 3, 8, 4, 9, 10, 5)
+		}
+
+		trueS, falseS := is.Split(ss)
+		trueS.Pipe(ost)
+		falseS.Pipe(osf)
+
+		readT := func() {
+			defer wg.Done()
+			result, err := ost.Collect()
+			if err != nil || len(result) != 5 {
+				t.Error("Collecting the results in parallel was unsuccessful.")
+			}
+		}
+
+		readF := func() {
+			defer wg.Done()
+			result, err := osf.Collect()
+			if err != nil || len(result) != 5 {
+				t.Error("Collecting the results in parallel was unsuccessful.")
+			}
+		}
+
+		go write()
+		go readT()
+		go readF()
+		wg.Wait()
+
+	})
+
 }

@@ -57,8 +57,17 @@ func pipe[T any](ego InputStreamer[T], s OutputStreamer[T]) InputStreamer[T] {
 	return nil
 }
 
+func split[T any](ego InputStreamer[T], s SplitStreamer[T]) (InputStreamer[T], InputStreamer[T]) {
+	s.setSource(ego.Ptr().(InputStreamer[T]))
+	return s.true(), s.false()
+}
+
 func (ego *InputStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
 	return pipe[T](ego, s)
+}
+
+func (ego *InputStream[T]) Split(s SplitStreamer[T]) (trueStream InputStreamer[T], falseStream InputStreamer[T]) {
+	return split[T](ego, s)
 }
 
 type OutputStream[T any] struct {
@@ -99,4 +108,8 @@ func (ego *TransformStream[T]) setSource(s InputStreamer[T]) {
 
 func (ego *TransformStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
 	return pipe[T](ego, s)
+}
+
+func (ego *TransformStream[T]) Split(s SplitStreamer[T]) (trueStream InputStreamer[T], falseStream InputStreamer[T]) {
+	return split[T](ego, s)
 }
