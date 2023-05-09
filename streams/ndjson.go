@@ -15,15 +15,14 @@ type NdjsonStream struct {
 	InputStream[gonatus.Conf]
 	file    *os.File
 	scanner *bufio.Scanner
-	Path    private[string]
 }
 
-func NewNdjsonStream(conf gonatus.Conf) *NdjsonStream {
+func NewNdjsonStream(path string) *NdjsonStream {
 
 	ego := &NdjsonStream{}
-	ego.Init(ego, conf)
+	ego.init(ego)
 
-	file, err := os.Open(ego.Path.value)
+	file, err := os.Open(path)
 	if err != nil {
 		panic("The file does not exist.")
 	}

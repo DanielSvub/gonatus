@@ -14,15 +14,11 @@ func TestStreams(t *testing.T) {
 
 		result := make([]int, 3)
 
-		is := NewBufferInputStream[int](gonatus.NewConf("NewBufferInputStream").Set(
-			gonatus.NewPair("BufferSize", NewPrivate(100)),
-		))
-		ts := NewTransformStream[int](gonatus.NewConf("TransformStream").Set(
-			gonatus.NewPair("Transform", func(x int) int {
-				return x * x
-			}),
-		))
-		os := NewReadableOutputStream[int](nil)
+		is := NewBufferInputStream[int](3)
+		ts := NewTransformStream(func(x int) int {
+			return x * x
+		})
+		os := NewReadableOutputStream[int]()
 
 		is.Write(1, 2, 3)
 		is.Close()
@@ -37,15 +33,11 @@ func TestStreams(t *testing.T) {
 
 	t.Run("collect", func(t *testing.T) {
 
-		is := NewBufferInputStream[int](gonatus.NewConf("NewBufferInputStream").Set(
-			gonatus.NewPair("BufferSize", NewPrivate(100)),
-		))
-		ts := NewTransformStream[int](gonatus.NewConf("TransformStream").Set(
-			gonatus.NewPair("Transform", func(x int) int {
-				return x * x
-			}),
-		))
-		os := NewReadableOutputStream[int](nil)
+		is := NewBufferInputStream[int](3)
+		ts := NewTransformStream(func(x int) int {
+			return x * x
+		})
+		os := NewReadableOutputStream[int]()
 
 		is.Write(1, 2, 3)
 		is.Close()
@@ -60,15 +52,11 @@ func TestStreams(t *testing.T) {
 
 	t.Run("async", func(t *testing.T) {
 
-		is := NewBufferInputStream[int](gonatus.NewConf("NewBufferInputStream").Set(
-			gonatus.NewPair("BufferSize", NewPrivate(100)),
-		))
-		ts := NewTransformStream[int](gonatus.NewConf("TransformStream").Set(
-			gonatus.NewPair("Transform", func(x int) int {
-				return x + 1
-			}),
-		))
-		os := NewReadableOutputStream[int](nil)
+		is := NewBufferInputStream[int](100)
+		ts := NewTransformStream(func(x int) int {
+			return x + 1
+		})
+		os := NewReadableOutputStream[int]()
 
 		var wg sync.WaitGroup
 		wg.Add(2)
@@ -97,17 +85,12 @@ func TestStreams(t *testing.T) {
 
 	t.Run("split", func(t *testing.T) {
 
-		is := NewBufferInputStream[int](gonatus.NewConf("NewBufferInputStream").Set(
-			gonatus.NewPair("BufferSize", NewPrivate(100)),
-		))
-		ss := NewSplitStream[int](gonatus.NewConf("SplitStream").Set(
-			gonatus.NewPair("Filter", func(x int) bool {
-				return x <= 5
-			}),
-			gonatus.NewPair("BufferSize", NewPrivate(100)),
-		))
-		ost := NewReadableOutputStream[int](nil)
-		osf := NewReadableOutputStream[int](nil)
+		is := NewBufferInputStream[int](10)
+		ss := NewSplitStream(5, func(x int) bool {
+			return x <= 5
+		})
+		ost := NewReadableOutputStream[int]()
+		osf := NewReadableOutputStream[int]()
 
 		var wg sync.WaitGroup
 		wg.Add(3)
@@ -147,16 +130,11 @@ func TestStreams(t *testing.T) {
 
 	t.Run("ndjson", func(t *testing.T) {
 
-		nds := NewNdjsonStream(gonatus.NewConf("NdjsonStream").Set(
-			gonatus.NewPair("Path",
-				NewPrivate("fixtures/example.ndjson")),
-		))
-		ts := NewTransformStream[gonatus.Conf](gonatus.NewConf("TransformStream").Set(
-			gonatus.NewPair("Transform", func(x gonatus.Conf) gonatus.Conf {
-				return x
-			}),
-		))
-		os := NewReadableOutputStream[gonatus.Conf](nil)
+		nds := NewNdjsonStream("fixtures/example.ndjson")
+		ts := NewTransformStream(func(x gonatus.Conf) gonatus.Conf {
+			return x
+		})
+		os := NewReadableOutputStream[gonatus.Conf]()
 
 		nds.Pipe(ts).Pipe(os)
 

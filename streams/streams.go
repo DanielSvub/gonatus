@@ -1,19 +1,8 @@
 package streams
 
-import (
-	"github.com/SpongeData-cz/gonatus"
-)
-
-type private[T any] struct {
-	value T
-}
-
-func NewPrivate[T any](value T) private[T] {
-	return private[T]{value}
-}
-
 type Streamer[T any] interface {
-	gonatus.Gobjecter
+	ptr() Streamer[T]
+	init(ptr Streamer[T])
 	Closed() bool
 }
 
@@ -34,8 +23,16 @@ type TransformStreamer[T any] interface {
 }
 
 type Stream[T any] struct {
-	gonatus.Gobject
 	closed bool
+	egoPtr Streamer[T]
+}
+
+func (ego *Stream[T]) ptr() Streamer[T] {
+	return ego.egoPtr
+}
+
+func (ego *Stream[T]) init(ptr Streamer[T]) {
+	ego.egoPtr = ptr
 }
 
 func (ego *Stream[T]) Closed() bool {
@@ -51,7 +48,7 @@ func (ego *InputStream[T]) get() (T, error) {
 }
 
 func pipe[T any](ego InputStreamer[T], s OutputStreamer[T]) InputStreamer[T] {
-	s.setSource(ego.Ptr().(InputStreamer[T]))
+	s.setSource(ego.ptr().(InputStreamer[T]))
 	ts, hasOutput := s.(InputStreamer[T])
 	if hasOutput {
 		return ts
@@ -60,7 +57,7 @@ func pipe[T any](ego InputStreamer[T], s OutputStreamer[T]) InputStreamer[T] {
 }
 
 func split[T any](ego InputStreamer[T], s SplitStreamer[T]) (InputStreamer[T], InputStreamer[T]) {
-	s.setSource(ego.Ptr().(InputStreamer[T]))
+	s.setSource(ego.ptr().(InputStreamer[T]))
 	return s.true(), s.false()
 }
 
@@ -84,12 +81,14 @@ func (ego *OutputStream[T]) setSource(s InputStreamer[T]) {
 type TransformStream[T any] struct {
 	Stream[T]
 	source    InputStreamer[T]
-	Transform func(e T) T
+	transform func(e T) T
 }
 
-func NewTransformStream[T any](conf gonatus.Conf) *TransformStream[T] {
-	ego := &TransformStream[T]{}
-	ego.Init(ego, conf)
+func NewTransformStream[T any](transform func(e T) T) *TransformStream[T] {
+	ego := &TransformStream[T]{
+		transform: transform,
+	}
+	ego.init(ego)
 	return ego
 }
 
@@ -101,7 +100,7 @@ func (ego *TransformStream[T]) get() (T, error) {
 	if ego.source.Closed() {
 		ego.closed = true
 	}
-	return ego.Transform(val), nil
+	return ego.transform(val), nil
 }
 
 func (ego *TransformStream[T]) setSource(s InputStreamer[T]) {

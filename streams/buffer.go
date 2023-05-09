@@ -2,8 +2,6 @@ package streams
 
 import (
 	"errors"
-
-	"github.com/SpongeData-cz/gonatus"
 )
 
 type BufferInputStreamer[T any] interface {
@@ -20,14 +18,14 @@ type ReadableOutputStreamer[T any] interface {
 
 type BufferInputStream[T any] struct {
 	InputStream[T]
-	buffer     chan T
-	BufferSize private[int]
+	buffer chan T
 }
 
-func NewBufferInputStream[T any](conf gonatus.Conf) *BufferInputStream[T] {
-	ego := &BufferInputStream[T]{}
-	ego.Stream.Init(ego, conf)
-	ego.buffer = make(chan T, ego.BufferSize.value)
+func NewBufferInputStream[T any](bufferSize int) *BufferInputStream[T] {
+	ego := &BufferInputStream[T]{
+		buffer: make(chan T, bufferSize),
+	}
+	ego.init(ego)
 	return ego
 }
 
@@ -76,9 +74,9 @@ type ReadableOutputStream[T any] struct {
 	OutputStream[T]
 }
 
-func NewReadableOutputStream[T any](conf gonatus.Conf) *ReadableOutputStream[T] {
+func NewReadableOutputStream[T any]() *ReadableOutputStream[T] {
 	ego := &ReadableOutputStream[T]{}
-	ego.Stream.Init(ego, conf)
+	ego.init(ego)
 	return ego
 }
 

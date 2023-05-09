@@ -1,7 +1,5 @@
 package streams
 
-import "github.com/SpongeData-cz/gonatus"
-
 type SplitStreamer[T any] interface {
 	OutputStreamer[T]
 	true() InputStreamer[T]
@@ -13,19 +11,16 @@ type SplitStream[T comparable] struct {
 	source      InputStreamer[T]
 	trueStream  BufferInputStreamer[T]
 	falseStream BufferInputStreamer[T]
-	Filter      func(e T) bool
-	BufferSize  private[int]
+	filter      func(e T) bool
 }
 
-func NewSplitStream[T comparable](conf gonatus.Conf) *SplitStream[T] {
-	ego := &SplitStream[T]{}
-	ego.Init(ego, conf)
-	ego.trueStream = NewBufferInputStream[T](gonatus.NewConf("NewBufferInputStream").Set(
-		gonatus.NewPair("BufferSize", NewPrivate(ego.BufferSize)),
-	))
-	ego.falseStream = NewBufferInputStream[T](gonatus.NewConf("NewBufferInputStream").Set(
-		gonatus.NewPair("BufferSize", NewPrivate(ego.BufferSize)),
-	))
+func NewSplitStream[T comparable](bufferSize int, filter func(e T) bool) *SplitStream[T] {
+	ego := &SplitStream[T]{
+		trueStream:  NewBufferInputStream[T](bufferSize),
+		falseStream: NewBufferInputStream[T](bufferSize),
+		filter:      filter,
+	}
+	ego.init(ego)
 	return ego
 }
 
@@ -49,7 +44,7 @@ func (ego *SplitStream[T]) doFilter() {
 		if err != nil {
 			panic(err)
 		}
-		if ego.Filter(val) {
+		if ego.filter(val) {
 			ego.trueStream.Write(val)
 		} else {
 			ego.falseStream.Write(val)
