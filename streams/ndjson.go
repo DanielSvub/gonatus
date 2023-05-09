@@ -42,6 +42,7 @@ func (ego *NdjsonStream) get() (gonatus.Conf, error) {
 
 	if !ego.scanner.Scan() {
 		ego.file.Close()
+		ego.closed = true
 		return nil, errors.New("No lines to read.")
 	}
 
