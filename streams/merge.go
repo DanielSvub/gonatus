@@ -81,3 +81,7 @@ func (ego *RRMergeStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
 func (ego *RRMergeStream[T]) Split(s SplitStreamer[T]) (trueStream InputStreamer[T], falseStream InputStreamer[T]) {
 	return split[T](ego, s)
 }
+
+func (ego *RRMergeStream[T]) Duplicate(s DuplicationStreamer[T]) (stream1 InputStreamer[T], stream2 InputStreamer[T]) {
+	return duplicate[T](ego, s)
+}
