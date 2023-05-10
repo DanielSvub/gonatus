@@ -84,7 +84,7 @@ func NewNdjsonOutputStream(path string, mode int) *NdjsonOutputStream {
 		flags = os.O_CREATE | os.O_WRONLY | os.O_APPEND
 	}
 
-	file, err := os.OpenFile(path, flags, 0666)
+	file, err := os.OpenFile(path, flags, 0664)
 	check(err)
 
 	ego.file = file
