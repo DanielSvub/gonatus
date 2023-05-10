@@ -1,11 +1,5 @@
 package streams
 
-func check(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
 type Streamer[T any] interface {
 	ptr() Streamer[T]
 	init(ptr Streamer[T])
@@ -26,6 +20,26 @@ type OutputStreamer[T any] interface {
 type TransformStreamer[T any] interface {
 	InputStreamer[T]
 	OutputStreamer[T]
+}
+
+func check(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+func pipe[T any](ego InputStreamer[T], s OutputStreamer[T]) InputStreamer[T] {
+	s.setSource(ego.ptr().(InputStreamer[T]))
+	ts, hasOutput := s.(InputStreamer[T])
+	if hasOutput {
+		return ts
+	}
+	return nil
+}
+
+func split[T any](ego InputStreamer[T], s SplitStreamer[T]) (InputStreamer[T], InputStreamer[T]) {
+	s.setSource(ego.ptr().(InputStreamer[T]))
+	return s.true(), s.false()
 }
 
 type Stream[T any] struct {
@@ -51,20 +65,6 @@ type InputStream[T any] struct {
 
 func (ego *InputStream[T]) get() (T, error) {
 	panic("Not implemented.")
-}
-
-func pipe[T any](ego InputStreamer[T], s OutputStreamer[T]) InputStreamer[T] {
-	s.setSource(ego.ptr().(InputStreamer[T]))
-	ts, hasOutput := s.(InputStreamer[T])
-	if hasOutput {
-		return ts
-	}
-	return nil
-}
-
-func split[T any](ego InputStreamer[T], s SplitStreamer[T]) (InputStreamer[T], InputStreamer[T]) {
-	s.setSource(ego.ptr().(InputStreamer[T]))
-	return s.true(), s.false()
 }
 
 func (ego *InputStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
