@@ -50,6 +50,25 @@ func TestBasic(t *testing.T) {
 
 	})
 
+	t.Run("filter", func(t *testing.T) {
+
+		is := NewBufferInputStream[int](10)
+		fs := NewFilterStream(func(x int) bool {
+			return x <= 5
+		})
+		os := NewReadableOutputStream[int]()
+
+		is.Write(1, 6, 2, 7, 3, 8, 4, 9, 5, 10)
+		is.Close()
+		is.Pipe(fs).Pipe(os)
+
+		result, err := os.Collect()
+		if err != nil || len(result) != 5 {
+			t.Error("Collecting the filtered results was unsuccessful.")
+		}
+
+	})
+
 }
 func TestParallel(t *testing.T) {
 

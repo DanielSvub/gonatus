@@ -16,6 +16,10 @@ type NdjsonInputStreamer interface {
 	InputStreamer[gonatus.Conf]
 }
 
+type NdjsonOutputStreamer interface {
+	OutputStreamer[gonatus.Conf]
+}
+
 type NdjsonInputStream struct {
 	InputStream[gonatus.Conf]
 	file    *os.File
@@ -56,10 +60,6 @@ func (ego *NdjsonInputStream) get() (gonatus.Conf, error) {
 	}
 
 	return newConf, nil
-}
-
-type NdjsonOutputStreamer interface {
-	OutputStreamer[gonatus.Conf]
 }
 
 type NdjsonOutputStream struct {
