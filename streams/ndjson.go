@@ -2,7 +2,6 @@ package streams
 
 import (
 	"bufio"
-	"fmt"
 	"os"
 
 	"github.com/SpongeData-cz/gonatus"
@@ -98,11 +97,9 @@ func (ego *NdjsonOutputStream) setSource(s InputStreamer[gonatus.Conf]) {
 }
 
 func (ego *NdjsonOutputStream) export() {
-	fmt.Println("export")
 	for true {
 		val, err := ego.source.get()
 		check(err)
-		fmt.Println("v ", val)
 		nd, err := val.Marshal()
 		check(err)
 		_, err = ego.file.Write(nd)
