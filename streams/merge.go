@@ -9,26 +9,26 @@ type MergeStreamer[T any] interface {
 	Close()
 }
 
-type RRMergeStream[T comparable] struct {
-	Stream[T]
+type rrMergeStream[T comparable] struct {
+	stream[T]
 	sources   []InputStreamer[T]
 	currIndex int
 	autoclose bool
 }
 
-func NewRRMergeStream[T comparable](autoclose bool) *RRMergeStream[T] {
-	ego := &RRMergeStream[T]{
+func NewRRMergeStream[T comparable](autoclose bool) *rrMergeStream[T] {
+	ego := &rrMergeStream[T]{
 		autoclose: autoclose,
 	}
 	ego.init(ego)
 	return ego
 }
 
-func (ego *RRMergeStream[T]) setSource(s InputStreamer[T]) {
+func (ego *rrMergeStream[T]) setSource(s InputStreamer[T]) {
 	ego.sources = append(ego.sources, s)
 }
 
-func (ego *RRMergeStream[T]) unsetSource(s InputStreamer[T]) {
+func (ego *rrMergeStream[T]) unsetSource(s InputStreamer[T]) {
 	for i, source := range ego.sources {
 		if source == s {
 			ego.sources = append(ego.sources[:i], ego.sources[i+1:]...)
@@ -37,7 +37,7 @@ func (ego *RRMergeStream[T]) unsetSource(s InputStreamer[T]) {
 	}
 }
 
-func (ego *RRMergeStream[T]) get() (T, error) {
+func (ego *rrMergeStream[T]) get() (T, error) {
 
 	if len(ego.sources) == 0 {
 		return *new(T), errors.New("The stream is closed.")
@@ -67,21 +67,21 @@ func (ego *RRMergeStream[T]) get() (T, error) {
 	return val, nil
 }
 
-func (ego *RRMergeStream[T]) Close() {
+func (ego *rrMergeStream[T]) Close() {
 	if ego.autoclose {
 		panic("Cannot close explicitly, autoclose is active.")
 	}
 	ego.closed = true
 }
 
-func (ego *RRMergeStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
+func (ego *rrMergeStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
 	return pipe[T](ego, s)
 }
 
-func (ego *RRMergeStream[T]) Split(s SplitStreamer[T]) (trueStream InputStreamer[T], falseStream InputStreamer[T]) {
+func (ego *rrMergeStream[T]) Split(s SplitStreamer[T]) (trueStream InputStreamer[T], falseStream InputStreamer[T]) {
 	return split[T](ego, s)
 }
 
-func (ego *RRMergeStream[T]) Duplicate(s DuplicationStreamer[T]) (stream1 InputStreamer[T], stream2 InputStreamer[T]) {
+func (ego *rrMergeStream[T]) Duplicate(s DuplicationStreamer[T]) (stream1 InputStreamer[T], stream2 InputStreamer[T]) {
 	return duplicate[T](ego, s)
 }

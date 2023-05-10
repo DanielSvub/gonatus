@@ -20,15 +20,15 @@ type NdjsonOutputStreamer interface {
 	OutputStreamer[gonatus.Conf]
 }
 
-type NdjsonInputStream struct {
-	InputStream[gonatus.Conf]
+type ndjsonInputStream struct {
+	inputStream[gonatus.Conf]
 	file    *os.File
 	scanner *bufio.Scanner
 }
 
-func NewNdjsonInputStream(path string) *NdjsonInputStream {
+func NewNdjsonInputStream(path string) NdjsonInputStreamer {
 
-	ego := &NdjsonInputStream{}
+	ego := &ndjsonInputStream{}
 	ego.init(ego)
 
 	file, err := os.Open(path)
@@ -45,7 +45,7 @@ func NewNdjsonInputStream(path string) *NdjsonInputStream {
 	return ego
 }
 
-func (ego *NdjsonInputStream) get() (gonatus.Conf, error) {
+func (ego *ndjsonInputStream) get() (gonatus.Conf, error) {
 
 	if ego.file == nil {
 		panic("The file does not exist.")
@@ -62,18 +62,18 @@ func (ego *NdjsonInputStream) get() (gonatus.Conf, error) {
 	return newConf, nil
 }
 
-type NdjsonOutputStream struct {
-	OutputStream[gonatus.Conf]
+type ndjsonOutputStream struct {
+	outputStream[gonatus.Conf]
 	file *os.File
 }
 
-func NewNdjsonOutputStream(path string, mode int) *NdjsonOutputStream {
+func NewNdjsonOutputStream(path string, mode int) NdjsonOutputStreamer {
 
 	if mode != FileAppend && mode != FileWrite {
 		panic("Wrong mode.")
 	}
 
-	ego := &NdjsonOutputStream{}
+	ego := &ndjsonOutputStream{}
 	ego.init(ego)
 
 	var flags int
@@ -91,12 +91,12 @@ func NewNdjsonOutputStream(path string, mode int) *NdjsonOutputStream {
 	return ego
 }
 
-func (ego *NdjsonOutputStream) setSource(s InputStreamer[gonatus.Conf]) {
+func (ego *ndjsonOutputStream) setSource(s InputStreamer[gonatus.Conf]) {
 	ego.source = s
 	ego.export()
 }
 
-func (ego *NdjsonOutputStream) export() {
+func (ego *ndjsonOutputStream) export() {
 	for true {
 		val, err := ego.source.get()
 		check(err)

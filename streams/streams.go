@@ -10,6 +10,8 @@ type InputStreamer[T any] interface {
 	Streamer[T]
 	get() (T, error)
 	Pipe(dest OutputStreamer[T]) InputStreamer[T]
+	Split(s SplitStreamer[T]) (trueStream InputStreamer[T], falseStream InputStreamer[T])
+	Duplicate(s DuplicationStreamer[T]) (stream1 InputStreamer[T], stream2 InputStreamer[T])
 }
 
 type OutputStreamer[T any] interface {
@@ -17,49 +19,49 @@ type OutputStreamer[T any] interface {
 	setSource(InputStreamer[T])
 }
 
-type Stream[T any] struct {
+type stream[T any] struct {
 	closed bool
 	egoPtr Streamer[T]
 }
 
-func (ego *Stream[T]) ptr() Streamer[T] {
+func (ego *stream[T]) ptr() Streamer[T] {
 	return ego.egoPtr
 }
 
-func (ego *Stream[T]) init(ptr Streamer[T]) {
+func (ego *stream[T]) init(ptr Streamer[T]) {
 	ego.egoPtr = ptr
 }
 
-func (ego *Stream[T]) Closed() bool {
+func (ego *stream[T]) Closed() bool {
 	return ego.closed
 }
 
-type InputStream[T any] struct {
-	Stream[T]
+type inputStream[T any] struct {
+	stream[T]
 }
 
-func (ego *InputStream[T]) get() (T, error) {
+func (ego *inputStream[T]) get() (T, error) {
 	panic("Not implemented.")
 }
 
-func (ego *InputStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
+func (ego *inputStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
 	return pipe[T](ego, s)
 }
 
-func (ego *InputStream[T]) Split(s SplitStreamer[T]) (trueStream InputStreamer[T], falseStream InputStreamer[T]) {
+func (ego *inputStream[T]) Split(s SplitStreamer[T]) (trueStream InputStreamer[T], falseStream InputStreamer[T]) {
 	return split[T](ego, s)
 }
 
-func (ego *InputStream[T]) Duplicate(s DuplicationStreamer[T]) (stream1 InputStreamer[T], stream2 InputStreamer[T]) {
+func (ego *inputStream[T]) Duplicate(s DuplicationStreamer[T]) (stream1 InputStreamer[T], stream2 InputStreamer[T]) {
 	return duplicate[T](ego, s)
 }
 
-type OutputStream[T any] struct {
-	Stream[T]
+type outputStream[T any] struct {
+	stream[T]
 	source InputStreamer[T]
 }
 
-func (ego *OutputStream[T]) setSource(s InputStreamer[T]) {
+func (ego *outputStream[T]) setSource(s InputStreamer[T]) {
 	ego.source = s
 }
 

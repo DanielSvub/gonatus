@@ -16,20 +16,20 @@ type ReadableOutputStreamer[T any] interface {
 	Collect() ([]T, error)
 }
 
-type BufferInputStream[T any] struct {
-	InputStream[T]
+type bufferInputStream[T any] struct {
+	inputStream[T]
 	buffer chan T
 }
 
-func NewBufferInputStream[T any](bufferSize int) *BufferInputStream[T] {
-	ego := &BufferInputStream[T]{
+func NewBufferInputStream[T any](bufferSize int) BufferInputStreamer[T] {
+	ego := &bufferInputStream[T]{
 		buffer: make(chan T, bufferSize),
 	}
 	ego.init(ego)
 	return ego
 }
 
-func (ego *BufferInputStream[T]) get() (T, error) {
+func (ego *bufferInputStream[T]) get() (T, error) {
 
 	if ego.buffer == nil {
 		panic("Buffer is not initialized.")
@@ -44,11 +44,11 @@ func (ego *BufferInputStream[T]) get() (T, error) {
 	return *new(T), errors.New("Read after channel closing.")
 }
 
-func (ego *BufferInputStream[T]) Closed() bool {
+func (ego *bufferInputStream[T]) Closed() bool {
 	return ego.closed && len(ego.buffer) == 0
 }
 
-func (ego *BufferInputStream[T]) Write(p ...T) (int, error) {
+func (ego *bufferInputStream[T]) Write(p ...T) (int, error) {
 
 	if p == nil {
 		panic("Input slice is not initialized.")
@@ -65,22 +65,22 @@ func (ego *BufferInputStream[T]) Write(p ...T) (int, error) {
 	return len(p), nil
 }
 
-func (ego *BufferInputStream[T]) Close() {
+func (ego *bufferInputStream[T]) Close() {
 	close(ego.buffer)
 	ego.closed = true
 }
 
-type ReadableOutputStream[T any] struct {
-	OutputStream[T]
+type readableOutputStream[T any] struct {
+	outputStream[T]
 }
 
-func NewReadableOutputStream[T any]() *ReadableOutputStream[T] {
-	ego := &ReadableOutputStream[T]{}
+func NewReadableOutputStream[T any]() ReadableOutputStreamer[T] {
+	ego := &readableOutputStream[T]{}
 	ego.init(ego)
 	return ego
 }
 
-func (ego *ReadableOutputStream[T]) Read(p []T) (int, error) {
+func (ego *readableOutputStream[T]) Read(p []T) (int, error) {
 
 	if p == nil {
 		panic("Input slice is not initialized.")
@@ -107,7 +107,7 @@ func (ego *ReadableOutputStream[T]) Read(p []T) (int, error) {
 	return n, nil
 }
 
-func (ego *ReadableOutputStream[T]) Collect() ([]T, error) {
+func (ego *readableOutputStream[T]) Collect() ([]T, error) {
 
 	if ego.closed {
 		return nil, errors.New("The stream is closed.")

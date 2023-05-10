@@ -6,15 +6,15 @@ type DuplicationStreamer[T any] interface {
 	second() InputStreamer[T]
 }
 
-type DuplicationStream[T comparable] struct {
-	Stream[T]
+type duplicationStream[T comparable] struct {
+	stream[T]
 	source  InputStreamer[T]
 	stream1 BufferInputStreamer[T]
 	stream2 BufferInputStreamer[T]
 }
 
-func NewDuplicationStream[T comparable](bufferSize int) *DuplicationStream[T] {
-	ego := &DuplicationStream[T]{
+func NewDuplicationStream[T comparable](bufferSize int) DuplicationStreamer[T] {
+	ego := &duplicationStream[T]{
 		stream1: NewBufferInputStream[T](bufferSize),
 		stream2: NewBufferInputStream[T](bufferSize),
 	}
@@ -22,20 +22,20 @@ func NewDuplicationStream[T comparable](bufferSize int) *DuplicationStream[T] {
 	return ego
 }
 
-func (ego *DuplicationStream[T]) setSource(s InputStreamer[T]) {
+func (ego *duplicationStream[T]) setSource(s InputStreamer[T]) {
 	ego.source = s
 	go ego.duplicate()
 }
 
-func (ego *DuplicationStream[T]) first() InputStreamer[T] {
+func (ego *duplicationStream[T]) first() InputStreamer[T] {
 	return ego.stream1
 }
 
-func (ego *DuplicationStream[T]) second() InputStreamer[T] {
+func (ego *duplicationStream[T]) second() InputStreamer[T] {
 	return ego.stream2
 }
 
-func (ego *DuplicationStream[T]) duplicate() {
+func (ego *duplicationStream[T]) duplicate() {
 
 	for true {
 		val, err := ego.source.get()

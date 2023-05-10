@@ -6,16 +6,16 @@ type SplitStreamer[T any] interface {
 	false() InputStreamer[T]
 }
 
-type SplitStream[T comparable] struct {
-	Stream[T]
+type splitStream[T comparable] struct {
+	stream[T]
 	source      InputStreamer[T]
 	trueStream  BufferInputStreamer[T]
 	falseStream BufferInputStreamer[T]
 	filter      func(e T) bool
 }
 
-func NewSplitStream[T comparable](bufferSize int, filter func(e T) bool) *SplitStream[T] {
-	ego := &SplitStream[T]{
+func NewSplitStream[T comparable](bufferSize int, filter func(e T) bool) SplitStreamer[T] {
+	ego := &splitStream[T]{
 		trueStream:  NewBufferInputStream[T](bufferSize),
 		falseStream: NewBufferInputStream[T](bufferSize),
 		filter:      filter,
@@ -24,20 +24,20 @@ func NewSplitStream[T comparable](bufferSize int, filter func(e T) bool) *SplitS
 	return ego
 }
 
-func (ego *SplitStream[T]) setSource(s InputStreamer[T]) {
+func (ego *splitStream[T]) setSource(s InputStreamer[T]) {
 	ego.source = s
 	go ego.doFilter()
 }
 
-func (ego *SplitStream[T]) true() InputStreamer[T] {
+func (ego *splitStream[T]) true() InputStreamer[T] {
 	return ego.trueStream
 }
 
-func (ego *SplitStream[T]) false() InputStreamer[T] {
+func (ego *splitStream[T]) false() InputStreamer[T] {
 	return ego.falseStream
 }
 
-func (ego *SplitStream[T]) doFilter() {
+func (ego *splitStream[T]) doFilter() {
 
 	for true {
 		val, err := ego.source.get()
