@@ -1,5 +1,11 @@
 package streams
 
+func check(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 type Streamer[T any] interface {
 	ptr() Streamer[T]
 	init(ptr Streamer[T])

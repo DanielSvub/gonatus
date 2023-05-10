@@ -128,9 +128,9 @@ func TestStreams(t *testing.T) {
 
 	})
 
-	t.Run("ndjson", func(t *testing.T) {
+	t.Run("ndjsonInput", func(t *testing.T) {
 
-		nds := NewNdjsonStream("fixtures/example.ndjson")
+		nds := NewNdjsonInputStream("fixtures/example.ndjson")
 		ts := NewTransformStream(func(x gonatus.Conf) gonatus.Conf {
 			return x
 		})
@@ -147,6 +147,30 @@ func TestStreams(t *testing.T) {
 		if val != "Arnold" {
 			t.Error("Name is not matching.")
 		}
+
+	})
+
+	t.Run("ndjsonOutputTs", func(t *testing.T) {
+
+		ndi := NewNdjsonInputStream("fixtures/example.ndjson")
+		ts := NewTransformStream(func(x gonatus.Conf) gonatus.Conf {
+			id := x.Get("data").(map[string]any)["id"].(float64)
+			x.Get("data").(map[string]any)["id"] = id + 1
+			return x
+		})
+		ndo := NewNdjsonOutputStream("fixtures/test.ndjson", FileWrite)
+
+		ndi.Pipe(ts).Pipe(ndo)
+
+	})
+
+	t.Run("ndjsonOutput", func(t *testing.T) {
+
+		ndi := NewNdjsonInputStream("fixtures/example.ndjson")
+
+		ndo := NewNdjsonOutputStream("fixtures/test_.ndjson", FileWrite)
+
+		ndi.Pipe(ndo)
 
 	})
 
