@@ -75,6 +75,36 @@ func TestParallel(t *testing.T) {
 	t.Run("async", func(t *testing.T) {
 
 		is := NewBufferInputStream[int](100)
+		os := NewReadableOutputStream[int]()
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+
+		write := func() {
+			defer wg.Done()
+			defer is.Close()
+			is.Write(make([]int, 1000000)...)
+		}
+
+		is.Pipe(os)
+
+		read := func() {
+			defer wg.Done()
+			result, err := os.Collect()
+			if err != nil || len(result) != 1000000 {
+				t.Error("Collecting the results in parallel was unsuccessful.")
+			}
+		}
+
+		go write()
+		go read()
+		wg.Wait()
+
+	})
+
+	t.Run("asyncTs", func(t *testing.T) {
+
+		is := NewBufferInputStream[int](100)
 		ts := NewTransformStream(func(x int) int {
 			return x + 1
 		})
@@ -95,7 +125,7 @@ func TestParallel(t *testing.T) {
 			defer wg.Done()
 			result, err := os.Collect()
 			if err != nil || len(result) != 1000000 {
-				t.Error("Collecting the results in parallel was unsuccessful.")
+				t.Error("Collecting the results transformed in parallel was unsuccessful.")
 			}
 		}
 
@@ -263,9 +293,7 @@ func TestNdjson(t *testing.T) {
 	t.Run("ndjsonOutput", func(t *testing.T) {
 
 		ndi := NewNdjsonInputStream("fixtures/example.ndjson")
-
-		ndo := NewNdjsonOutputStream("fixtures/test_.ndjson", FileWrite)
-
+		ndo := NewNdjsonOutputStream("fixtures/test.ndjson", FileWrite)
 		ndi.Pipe(ndo)
 
 	})

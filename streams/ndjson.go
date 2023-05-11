@@ -43,9 +43,10 @@ func NewNdjsonInputStream(path string) NdjsonInputStreamer {
 	}
 
 	return ego
+
 }
 
-func (ego *ndjsonInputStream) get() (gonatus.Conf, error) {
+func (ego *ndjsonInputStream) get() (value gonatus.Conf, valid bool, err error) {
 
 	if ego.file == nil {
 		panic("The file does not exist.")
@@ -59,7 +60,8 @@ func (ego *ndjsonInputStream) get() (gonatus.Conf, error) {
 		ego.closed = true
 	}
 
-	return newConf, nil
+	return newConf, true, nil
+
 }
 
 type ndjsonOutputStream struct {
@@ -70,7 +72,7 @@ type ndjsonOutputStream struct {
 func NewNdjsonOutputStream(path string, mode int) NdjsonOutputStreamer {
 
 	if mode != FileAppend && mode != FileWrite {
-		panic("Wrong mode.")
+		panic("Unknown mode.")
 	}
 
 	ego := &ndjsonOutputStream{}
@@ -89,6 +91,7 @@ func NewNdjsonOutputStream(path string, mode int) NdjsonOutputStreamer {
 	ego.file = file
 
 	return ego
+
 }
 
 func (ego *ndjsonOutputStream) setSource(s InputStreamer[gonatus.Conf]) {
@@ -97,20 +100,29 @@ func (ego *ndjsonOutputStream) setSource(s InputStreamer[gonatus.Conf]) {
 }
 
 func (ego *ndjsonOutputStream) export() {
+
 	for true {
-		val, err := ego.source.get()
+
+		value, valid, err := ego.source.get()
+		if !valid {
+			break
+		}
+
 		check(err)
-		nd, err := val.Marshal()
+		nd, err := value.Marshal()
 		check(err)
 		_, err = ego.file.Write(nd)
 		check(err)
 		_, err = ego.file.WriteString("\n")
 		check(err)
+
 		if ego.source.Closed() {
 			break
 		}
+
 	}
 
 	ego.closed = true
 	ego.file.Close()
+
 }

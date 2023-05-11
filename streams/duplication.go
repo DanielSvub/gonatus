@@ -38,16 +38,18 @@ func (ego *duplicationStream[T]) second() InputStreamer[T] {
 func (ego *duplicationStream[T]) duplicate() {
 
 	for true {
-		val, err := ego.source.get()
+		value, valid, err := ego.source.get()
 		check(err)
-		ego.stream1.Write(val)
-		ego.stream2.Write(val)
+		if valid {
+			ego.stream1.Write(value)
+			ego.stream2.Write(value)
+		}
 		if ego.source.Closed() {
 			break
 		}
 	}
 
-	ego.closed = true
+	ego.close()
 	ego.stream1.Close()
 	ego.stream2.Close()
 

@@ -29,19 +29,16 @@ func NewBufferInputStream[T any](bufferSize int) BufferInputStreamer[T] {
 	return ego
 }
 
-func (ego *bufferInputStream[T]) get() (T, error) {
+func (ego *bufferInputStream[T]) get() (value T, valid bool, err error) {
 
 	if ego.buffer == nil {
-		panic("Buffer is not initialized.")
+		err = errors.New("Buffer is not initialized.")
+		return
 	}
 
-	value, valid := <-ego.buffer
+	value, valid = <-ego.buffer
+	return
 
-	if valid {
-		return value, nil
-	}
-
-	return *new(T), errors.New("Read after channel closing.")
 }
 
 func (ego *bufferInputStream[T]) Closed() bool {
@@ -63,11 +60,12 @@ func (ego *bufferInputStream[T]) Write(p ...T) (int, error) {
 	}
 
 	return len(p), nil
+
 }
 
 func (ego *bufferInputStream[T]) Close() {
 	close(ego.buffer)
-	ego.closed = true
+	ego.close()
 }
 
 type readableOutputStream[T any] struct {
@@ -83,7 +81,7 @@ func NewReadableOutputStream[T any]() ReadableOutputStreamer[T] {
 func (ego *readableOutputStream[T]) Read(p []T) (int, error) {
 
 	if p == nil {
-		panic("Input slice is not initialized.")
+		return 0, errors.New("Input slice is not initialized.")
 	}
 
 	if ego.closed {
@@ -93,18 +91,19 @@ func (ego *readableOutputStream[T]) Read(p []T) (int, error) {
 	n := len(p)
 
 	for i := 0; i < n; i++ {
-		val, err := ego.source.get()
-		if err != nil {
+		value, valid, err := ego.source.get()
+		if err != nil || !valid {
 			return i, err
 		}
-		p[i] = val
+		p[i] = value
 		if ego.source.Closed() {
-			ego.closed = true
+			ego.close()
 			break
 		}
 	}
 
 	return n, nil
+
 }
 
 func (ego *readableOutputStream[T]) Collect() ([]T, error) {
@@ -116,19 +115,17 @@ func (ego *readableOutputStream[T]) Collect() ([]T, error) {
 	output := make([]T, 0)
 
 	for true {
-		val, err := ego.source.get()
-		if err != nil {
-			if ego.source.Closed() {
-				return output, nil
-			}
+		value, valid, err := ego.source.get()
+		if err != nil || !valid {
 			return output, err
 		}
-		output = append(output, val)
+		output = append(output, value)
 		if ego.source.Closed() {
 			break
 		}
 	}
 
-	ego.closed = true
+	ego.close()
 	return output, nil
+
 }

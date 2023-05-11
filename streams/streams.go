@@ -3,12 +3,13 @@ package streams
 type Streamer[T any] interface {
 	ptr() Streamer[T]
 	init(ptr Streamer[T])
+	close()
 	Closed() bool
 }
 
 type InputStreamer[T any] interface {
 	Streamer[T]
-	get() (T, error)
+	get() (value T, valid bool, err error)
 	Pipe(dest OutputStreamer[T]) InputStreamer[T]
 	Split(s SplitStreamer[T]) (trueStream InputStreamer[T], falseStream InputStreamer[T])
 	Duplicate(s DuplicationStreamer[T]) (stream1 InputStreamer[T], stream2 InputStreamer[T])
@@ -32,6 +33,10 @@ func (ego *stream[T]) init(ptr Streamer[T]) {
 	ego.egoPtr = ptr
 }
 
+func (ego *stream[T]) close() {
+	ego.closed = true
+}
+
 func (ego *stream[T]) Closed() bool {
 	return ego.closed
 }
@@ -40,7 +45,7 @@ type inputStream[T any] struct {
 	stream[T]
 }
 
-func (ego *inputStream[T]) get() (T, error) {
+func (ego *inputStream[T]) get() (value T, valid bool, err error) {
 	panic("Not implemented.")
 }
 

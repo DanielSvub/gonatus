@@ -40,19 +40,19 @@ func (ego *splitStream[T]) false() InputStreamer[T] {
 func (ego *splitStream[T]) doFilter() {
 
 	for true {
-		val, err := ego.source.get()
+		value, valid, err := ego.source.get()
 		check(err)
-		if ego.filter(val) {
-			ego.trueStream.Write(val)
+		if valid && ego.filter(value) {
+			ego.trueStream.Write(value)
 		} else {
-			ego.falseStream.Write(val)
+			ego.falseStream.Write(value)
 		}
 		if ego.source.Closed() {
 			break
 		}
 	}
 
-	ego.closed = true
+	ego.close()
 	ego.trueStream.Close()
 	ego.falseStream.Close()
 

@@ -37,20 +37,21 @@ func (ego *rrMergeStream[T]) unsetSource(s InputStreamer[T]) {
 	}
 }
 
-func (ego *rrMergeStream[T]) get() (T, error) {
+func (ego *rrMergeStream[T]) get() (value T, valid bool, err error) {
 
 	if len(ego.sources) == 0 {
-		return *new(T), errors.New("The stream is closed.")
+		return *new(T), false, errors.New("The stream has no sources.")
 	}
-	val, err := ego.sources[ego.currIndex].get()
+
+	value, valid, err = ego.sources[ego.currIndex].get()
 
 	if ego.sources[ego.currIndex].Closed() {
 		ego.unsetSource(ego.sources[ego.currIndex])
 		if len(ego.sources) == 0 {
 			if ego.autoclose {
-				ego.closed = true
+				ego.close()
 			}
-			return val, nil
+			return
 		}
 	}
 
@@ -60,18 +61,15 @@ func (ego *rrMergeStream[T]) get() (T, error) {
 		ego.currIndex++
 	}
 
-	if err != nil {
-		return *new(T), err
-	}
+	return
 
-	return val, nil
 }
 
 func (ego *rrMergeStream[T]) Close() {
 	if ego.autoclose {
 		panic("Cannot close explicitly, autoclose is active.")
 	}
-	ego.closed = true
+	ego.close()
 }
 
 func (ego *rrMergeStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {

@@ -1,7 +1,5 @@
 package streams
 
-import "errors"
-
 type FilterStreamer[T any] interface {
 	InputStreamer[T]
 	OutputStreamer[T]
@@ -21,23 +19,22 @@ func NewFilterStream[T any](filter func(e T) bool) FilterStreamer[T] {
 	return ego
 }
 
-func (ego *filterStream[T]) get() (T, error) {
+func (ego *filterStream[T]) get() (value T, valid bool, err error) {
 	for true {
-		val, err := ego.source.get()
-		if err != nil {
-			return *new(T), err
+		value, valid, err = ego.source.get()
+		closed := ego.source.Closed()
+		if closed {
+			ego.close()
 		}
-		if ego.source.Closed() {
-			ego.closed = true
+		if valid && ego.filter(value) {
+			return
 		}
-		if ego.filter(val) {
-			return val, nil
-		}
-		if ego.closed {
+		if closed {
 			break
 		}
 	}
-	return *new(T), errors.New("No more values satisfying the filter.")
+	valid = false
+	return
 }
 
 func (ego *filterStream[T]) setSource(s InputStreamer[T]) {

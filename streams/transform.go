@@ -19,15 +19,15 @@ func NewTransformStream[T any](transform func(e T) T) TransformStreamer[T] {
 	return ego
 }
 
-func (ego *transformStream[T]) get() (T, error) {
-	val, err := ego.source.get()
-	if err != nil {
-		return *new(T), err
-	}
+func (ego *transformStream[T]) get() (value T, valid bool, err error) {
+	value, valid, err = ego.source.get()
 	if ego.source.Closed() {
-		ego.closed = true
+		ego.close()
 	}
-	return ego.transform(val), nil
+	if valid {
+		value = ego.transform(value)
+	}
+	return
 }
 
 func (ego *transformStream[T]) setSource(s InputStreamer[T]) {
