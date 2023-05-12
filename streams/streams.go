@@ -11,7 +11,7 @@ type InputStreamer[T any] interface {
 	Streamer
 	get() (value T, valid bool, err error)
 	Pipe(dest OutputStreamer[T]) InputStreamer[T]
-	Split(s SplitStreamer[T]) (trueStream InputStreamer[T], falseStream InputStreamer[T])
+	Split(s SplitStreamer[T]) (positiveStream InputStreamer[T], negativeStream InputStreamer[T])
 	Duplicate(s DuplicationStreamer[T]) (stream1 InputStreamer[T], stream2 InputStreamer[T])
 }
 
@@ -70,12 +70,6 @@ func (ego *outputStream[T]) setSource(s InputStreamer[T]) {
 	ego.source = s
 }
 
-func check(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
 func pipe[T any](ego InputStreamer[T], s OutputStreamer[T]) InputStreamer[T] {
 	s.setSource(ego.ptr().(InputStreamer[T]))
 	ts, hasOutput := s.(InputStreamer[T])
@@ -87,7 +81,7 @@ func pipe[T any](ego InputStreamer[T], s OutputStreamer[T]) InputStreamer[T] {
 
 func split[T any](ego InputStreamer[T], s SplitStreamer[T]) (InputStreamer[T], InputStreamer[T]) {
 	s.setSource(ego.ptr().(InputStreamer[T]))
-	return s.true(), s.false()
+	return s.positive(), s.negative()
 }
 
 func duplicate[T any](ego InputStreamer[T], s DuplicationStreamer[T]) (InputStreamer[T], InputStreamer[T]) {

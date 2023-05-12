@@ -2,23 +2,23 @@ package streams
 
 type SplitStreamer[T any] interface {
 	OutputStreamer[T]
-	true() InputStreamer[T]
-	false() InputStreamer[T]
+	positive() InputStreamer[T]
+	negative() InputStreamer[T]
 }
 
 type splitStream[T comparable] struct {
 	stream
-	source      InputStreamer[T]
-	trueStream  BufferInputStreamer[T]
-	falseStream BufferInputStreamer[T]
-	filter      func(e T) bool
+	source         InputStreamer[T]
+	positiveStream BufferInputStreamer[T]
+	negativeStream BufferInputStreamer[T]
+	condition      func(e T) bool
 }
 
-func NewSplitStream[T comparable](bufferSize int, filter func(e T) bool) SplitStreamer[T] {
+func NewSplitStream[T comparable](bufferSize int, condition func(e T) bool) SplitStreamer[T] {
 	ego := &splitStream[T]{
-		trueStream:  NewBufferInputStream[T](bufferSize),
-		falseStream: NewBufferInputStream[T](bufferSize),
-		filter:      filter,
+		positiveStream: NewBufferInputStream[T](bufferSize),
+		negativeStream: NewBufferInputStream[T](bufferSize),
+		condition:      condition,
 	}
 	ego.init(ego)
 	return ego
@@ -29,12 +29,12 @@ func (ego *splitStream[T]) setSource(s InputStreamer[T]) {
 	go ego.doFilter()
 }
 
-func (ego *splitStream[T]) true() InputStreamer[T] {
-	return ego.trueStream
+func (ego *splitStream[T]) positive() InputStreamer[T] {
+	return ego.positiveStream
 }
 
-func (ego *splitStream[T]) false() InputStreamer[T] {
-	return ego.falseStream
+func (ego *splitStream[T]) negative() InputStreamer[T] {
+	return ego.negativeStream
 }
 
 func (ego *splitStream[T]) doFilter() {
@@ -42,14 +42,14 @@ func (ego *splitStream[T]) doFilter() {
 	for true {
 		value, valid, err := ego.source.get()
 		if err != nil {
-			ego.trueStream.error(err)
-			ego.falseStream.error(err)
+			ego.positiveStream.error(err)
+			ego.negativeStream.error(err)
 			break
 		}
-		if valid && ego.filter(value) {
-			ego.trueStream.Write(value)
+		if valid && ego.condition(value) {
+			ego.positiveStream.Write(value)
 		} else {
-			ego.falseStream.Write(value)
+			ego.negativeStream.Write(value)
 		}
 		if ego.source.Closed() {
 			break
@@ -57,7 +57,7 @@ func (ego *splitStream[T]) doFilter() {
 	}
 
 	ego.close()
-	ego.trueStream.Close()
-	ego.falseStream.Close()
+	ego.positiveStream.Close()
+	ego.negativeStream.Close()
 
 }

@@ -45,7 +45,7 @@ func (ego *filterStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
 	return pipe[T](ego, s)
 }
 
-func (ego *filterStream[T]) Split(s SplitStreamer[T]) (trueStream InputStreamer[T], falseStream InputStreamer[T]) {
+func (ego *filterStream[T]) Split(s SplitStreamer[T]) (positiveStream InputStreamer[T], negativeStream InputStreamer[T]) {
 	return split[T](ego, s)
 }
 
