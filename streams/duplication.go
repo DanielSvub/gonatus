@@ -39,7 +39,11 @@ func (ego *duplicationStream[T]) duplicate() {
 
 	for true {
 		value, valid, err := ego.source.get()
-		check(err)
+		if err != nil {
+			ego.stream1.error(err)
+			ego.stream2.error(err)
+			break
+		}
 		if valid {
 			ego.stream1.Write(value)
 			ego.stream2.Write(value)

@@ -6,6 +6,7 @@ import (
 
 type BufferInputStreamer[T any] interface {
 	InputStreamer[T]
+	error(err error)
 	Write(p ...T) (n int, err error)
 	Close()
 }
@@ -19,6 +20,7 @@ type ReadableOutputStreamer[T any] interface {
 type bufferInputStream[T any] struct {
 	inputStream[T]
 	buffer chan T
+	err    error
 }
 
 func NewBufferInputStream[T any](bufferSize int) BufferInputStreamer[T] {
@@ -29,6 +31,10 @@ func NewBufferInputStream[T any](bufferSize int) BufferInputStreamer[T] {
 	return ego
 }
 
+func (ego *bufferInputStream[T]) error(err error) {
+	ego.err = err
+}
+
 func (ego *bufferInputStream[T]) get() (value T, valid bool, err error) {
 
 	if ego.buffer == nil {
@@ -37,6 +43,10 @@ func (ego *bufferInputStream[T]) get() (value T, valid bool, err error) {
 	}
 
 	value, valid = <-ego.buffer
+
+	if ego.err != nil {
+		err = ego.err
+	}
 	return
 
 }

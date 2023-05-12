@@ -41,7 +41,11 @@ func (ego *splitStream[T]) doFilter() {
 
 	for true {
 		value, valid, err := ego.source.get()
-		check(err)
+		if err != nil {
+			ego.trueStream.error(err)
+			ego.falseStream.error(err)
+			break
+		}
 		if valid && ego.filter(value) {
 			ego.trueStream.Write(value)
 		} else {
