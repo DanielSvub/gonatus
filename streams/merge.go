@@ -3,9 +3,8 @@ package streams
 import "errors"
 
 type MergeStreamer[T any] interface {
+	InputStreamer[T]
 	OutputStreamer[T]
-	true() InputStreamer[T]
-	false() InputStreamer[T]
 	Close()
 }
 
@@ -16,7 +15,7 @@ type rrMergeStream[T comparable] struct {
 	autoclose bool
 }
 
-func NewRRMergeStream[T comparable](autoclose bool) *rrMergeStream[T] {
+func NewRRMergeStream[T comparable](autoclose bool) MergeStreamer[T] {
 	ego := &rrMergeStream[T]{
 		autoclose: autoclose,
 	}
