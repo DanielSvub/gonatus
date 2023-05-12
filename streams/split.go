@@ -7,7 +7,7 @@ type SplitStreamer[T any] interface {
 }
 
 type splitStream[T comparable] struct {
-	stream[T]
+	stream
 	source      InputStreamer[T]
 	trueStream  BufferInputStreamer[T]
 	falseStream BufferInputStreamer[T]

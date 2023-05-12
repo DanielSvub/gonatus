@@ -1,14 +1,14 @@
 package streams
 
-type Streamer[T any] interface {
-	ptr() Streamer[T]
-	init(ptr Streamer[T])
+type Streamer interface {
+	ptr() Streamer
+	init(ptr Streamer)
 	close()
 	Closed() bool
 }
 
 type InputStreamer[T any] interface {
-	Streamer[T]
+	Streamer
 	get() (value T, valid bool, err error)
 	Pipe(dest OutputStreamer[T]) InputStreamer[T]
 	Split(s SplitStreamer[T]) (trueStream InputStreamer[T], falseStream InputStreamer[T])
@@ -16,33 +16,33 @@ type InputStreamer[T any] interface {
 }
 
 type OutputStreamer[T any] interface {
-	Streamer[T]
+	Streamer
 	setSource(InputStreamer[T])
 }
 
-type stream[T any] struct {
+type stream struct {
 	closed bool
-	egoPtr Streamer[T]
+	egoPtr Streamer
 }
 
-func (ego *stream[T]) ptr() Streamer[T] {
+func (ego *stream) ptr() Streamer {
 	return ego.egoPtr
 }
 
-func (ego *stream[T]) init(ptr Streamer[T]) {
+func (ego *stream) init(ptr Streamer) {
 	ego.egoPtr = ptr
 }
 
-func (ego *stream[T]) close() {
+func (ego *stream) close() {
 	ego.closed = true
 }
 
-func (ego *stream[T]) Closed() bool {
+func (ego *stream) Closed() bool {
 	return ego.closed
 }
 
 type inputStream[T any] struct {
-	stream[T]
+	stream
 }
 
 func (ego *inputStream[T]) get() (value T, valid bool, err error) {
@@ -62,7 +62,7 @@ func (ego *inputStream[T]) Duplicate(s DuplicationStreamer[T]) (stream1 InputStr
 }
 
 type outputStream[T any] struct {
-	stream[T]
+	stream
 	source InputStreamer[T]
 }
 

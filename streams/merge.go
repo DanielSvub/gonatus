@@ -10,7 +10,7 @@ type MergeStreamer[T any] interface {
 }
 
 type rrMergeStream[T comparable] struct {
-	stream[T]
+	stream
 	sources   []InputStreamer[T]
 	currIndex int
 	autoclose bool

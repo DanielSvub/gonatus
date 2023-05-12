@@ -7,7 +7,7 @@ type DuplicationStreamer[T any] interface {
 }
 
 type duplicationStream[T comparable] struct {
-	stream[T]
+	stream
 	source  InputStreamer[T]
 	stream1 BufferInputStreamer[T]
 	stream2 BufferInputStreamer[T]

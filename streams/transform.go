@@ -1,47 +1,47 @@
 package streams
 
-type TransformStreamer[T any] interface {
-	InputStreamer[T]
+type TransformStreamer[T any, U any] interface {
+	InputStreamer[U]
 	OutputStreamer[T]
 }
 
-type transformStream[T any] struct {
-	stream[T]
+type transformStream[T any, U any] struct {
+	stream
 	source    InputStreamer[T]
-	transform func(e T) T
+	transform func(e T) U
 }
 
-func NewTransformStream[T any](transform func(e T) T) TransformStreamer[T] {
-	ego := &transformStream[T]{
+func NewTransformStream[T any, U any](transform func(e T) U) TransformStreamer[T, U] {
+	ego := &transformStream[T, U]{
 		transform: transform,
 	}
 	ego.init(ego)
 	return ego
 }
 
-func (ego *transformStream[T]) get() (value T, valid bool, err error) {
-	value, valid, err = ego.source.get()
+func (ego *transformStream[T, U]) get() (value U, valid bool, err error) {
+	val, valid, err := ego.source.get()
 	if ego.source.Closed() {
 		ego.close()
 	}
 	if valid {
-		value = ego.transform(value)
+		value = ego.transform(val)
 	}
 	return
 }
 
-func (ego *transformStream[T]) setSource(s InputStreamer[T]) {
+func (ego *transformStream[T, U]) setSource(s InputStreamer[T]) {
 	ego.source = s
 }
 
-func (ego *transformStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
-	return pipe[T](ego, s)
+func (ego *transformStream[T, U]) Pipe(s OutputStreamer[U]) InputStreamer[U] {
+	return pipe[U](ego, s)
 }
 
-func (ego *transformStream[T]) Split(s SplitStreamer[T]) (trueStream InputStreamer[T], falseStream InputStreamer[T]) {
-	return split[T](ego, s)
+func (ego *transformStream[T, U]) Split(s SplitStreamer[U]) (trueStream InputStreamer[U], falseStream InputStreamer[U]) {
+	return split[U](ego, s)
 }
 
-func (ego *transformStream[T]) Duplicate(s DuplicationStreamer[T]) (stream1 InputStreamer[T], stream2 InputStreamer[T]) {
-	return duplicate[T](ego, s)
+func (ego *transformStream[T, U]) Duplicate(s DuplicationStreamer[U]) (stream1 InputStreamer[U], stream2 InputStreamer[U]) {
+	return duplicate[U](ego, s)
 }

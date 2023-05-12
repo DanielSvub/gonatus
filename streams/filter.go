@@ -6,7 +6,7 @@ type FilterStreamer[T any] interface {
 }
 
 type filterStream[T any] struct {
-	stream[T]
+	stream
 	source InputStreamer[T]
 	filter func(e T) bool
 }
