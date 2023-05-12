@@ -299,6 +299,9 @@ func TestNdjson(t *testing.T) {
 		ndo := NewNdjsonOutputStream("fixtures/exampleCopy.ndjson", FileWrite)
 
 		ndi.Pipe(ndo)
+		if ndo.Run() != nil {
+			t.Error("Problem with exporting to file.")
+		}
 
 		origF, err := os.Open("fixtures/example.ndjson")
 		if err != nil {
@@ -358,6 +361,9 @@ func TestNdjson(t *testing.T) {
 		ndo := NewNdjsonOutputStream("fixtures/exampleModified.ndjson", FileWrite)
 
 		ndi.Pipe(ts).Pipe(ndo)
+		if ndo.Run() != nil {
+			t.Error("Problem with exporting to file.")
+		}
 
 		origF, err := os.Open("fixtures/example.ndjson")
 		if err != nil {

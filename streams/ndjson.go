@@ -18,6 +18,7 @@ type NdjsonInputStreamer interface {
 
 type NdjsonOutputStreamer interface {
 	OutputStreamer[gonatus.Conf]
+	Run() error
 }
 
 type ndjsonInputStream struct {
@@ -32,7 +33,9 @@ func NewNdjsonInputStream(path string) NdjsonInputStreamer {
 	ego.init(ego)
 
 	file, err := os.Open(path)
-	check(err)
+	if err != nil {
+		panic(err)
+	}
 	ego.file = file
 	ego.scanner = bufio.NewScanner(file)
 
@@ -86,7 +89,9 @@ func NewNdjsonOutputStream(path string, mode int) NdjsonOutputStreamer {
 	}
 
 	file, err := os.OpenFile(path, flags, 0664)
-	check(err)
+	if err != nil {
+		panic(err)
+	}
 
 	ego.file = file
 
@@ -96,10 +101,9 @@ func NewNdjsonOutputStream(path string, mode int) NdjsonOutputStreamer {
 
 func (ego *ndjsonOutputStream) setSource(s InputStreamer[gonatus.Conf]) {
 	ego.source = s
-	ego.export()
 }
 
-func (ego *ndjsonOutputStream) export() {
+func (ego *ndjsonOutputStream) Run() error {
 
 	for true {
 
@@ -108,14 +112,21 @@ func (ego *ndjsonOutputStream) export() {
 			break
 		}
 
-		check(err)
+		if err != nil {
+			return err
+		}
 		nd, err := value.Marshal()
-		check(err)
+		if err != nil {
+			return err
+		}
 		_, err = ego.file.Write(nd)
-		check(err)
+		if err != nil {
+			return err
+		}
 		_, err = ego.file.WriteString("\n")
-		check(err)
-
+		if err != nil {
+			return err
+		}
 		if ego.source.Closed() {
 			break
 		}
@@ -124,5 +135,7 @@ func (ego *ndjsonOutputStream) export() {
 
 	ego.closed = true
 	ego.file.Close()
+
+	return nil
 
 }
