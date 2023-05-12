@@ -34,6 +34,9 @@ func (ego *rrMergeStream[T]) unsetSource(s InputStreamer[T]) {
 			break
 		}
 	}
+	if ego.currIndex == len(ego.sources) {
+		ego.currIndex = 0
+	}
 }
 
 func (ego *rrMergeStream[T]) get() (value T, valid bool, err error) {
@@ -50,8 +53,8 @@ func (ego *rrMergeStream[T]) get() (value T, valid bool, err error) {
 			if ego.autoclose {
 				ego.close()
 			}
-			return
 		}
+		return
 	}
 
 	if ego.currIndex == len(ego.sources)-1 {
