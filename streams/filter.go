@@ -1,16 +1,51 @@
 package streams
 
+/*
+Two-sided stream, filters the data with the given filter function.
+
+Extends:
+  - InputStreamer,
+  - OutputStreamer.
+
+Type parameters:
+  - T - type of the data.
+*/
 type FilterStreamer[T any] interface {
 	InputStreamer[T]
 	OutputStreamer[T]
 }
 
+/*
+Transform stream.
+
+Extends:
+  - stream.
+
+Implements:
+  - InputStreamer,
+  - OutputStreamer.
+
+Type parameters:
+  - T - type of the data.
+*/
 type filterStream[T any] struct {
 	stream
 	source InputStreamer[T]
-	filter func(e T) bool
+	filter func(e T) bool // filter function
 }
 
+/*
+Filter stream constructor.
+
+Parameters:
+  - filter - filter function.
+
+Type parameters:
+  - T - type of the data..
+
+Returns:
+  - pointer to the created filter stream.
+*/
 func NewFilterStream[T any](filter func(e T) bool) FilterStreamer[T] {
 	ego := &filterStream[T]{
 		filter: filter,

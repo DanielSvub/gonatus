@@ -1,16 +1,54 @@
 package streams
 
+/*
+Two-sided stream, transforms the data with the given transformation function.
+
+Extends:
+  - InputStreamer,
+  - OutputStreamer.
+
+Type parameters:
+  - T - input type,
+  - U - output type.
+*/
 type TransformStreamer[T any, U any] interface {
 	InputStreamer[U]
 	OutputStreamer[T]
 }
 
+/*
+Transform stream.
+
+Extends:
+  - stream.
+
+Implements:
+  - InputStreamer,
+  - OutputStreamer.
+
+Type parameters:
+  - T - input type,
+  - U - output type.
+*/
 type transformStream[T any, U any] struct {
 	stream
 	source    InputStreamer[T]
-	transform func(e T) U
+	transform func(e T) U // transformation function
 }
 
+/*
+Transform stream constructor.
+
+Parameters:
+  - transform - transformation function.
+
+Type parameters:
+  - T - input type,
+  - U - output type.
+
+Returns:
+  - pointer to the created transform stream.
+*/
 func NewTransformStream[T any, U any](transform func(e T) U) TransformStreamer[T, U] {
 	ego := &transformStream[T, U]{
 		transform: transform,
