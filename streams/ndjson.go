@@ -39,12 +39,6 @@ func NewNdjsonInputStream(path string) NdjsonInputStreamer {
 	ego.file = file
 	ego.scanner = bufio.NewScanner(file)
 
-	if !ego.scanner.Scan() {
-		ego.file.Close()
-		ego.closed = true
-		panic("File is empty.")
-	}
-
 	return ego
 
 }
@@ -55,16 +49,17 @@ func (ego *ndjsonInputStream) get() (value gonatus.Conf, valid bool, err error) 
 		panic("The file does not exist.")
 	}
 
-	newConf := gonatus.NewConf("")
-	newConf.Unmarshal([]byte(ego.scanner.Text()))
+	valid = ego.scanner.Scan()
 
-	if !ego.scanner.Scan() {
+	if valid {
+		value = gonatus.NewConf("")
+		value.Unmarshal([]byte(ego.scanner.Text()))
+	} else {
 		ego.file.Close()
-		ego.closed = true
+		ego.close()
 	}
 
-	return newConf, true, nil
-
+	return
 }
 
 type ndjsonOutputStream struct {

@@ -415,4 +415,18 @@ func TestNdjson(t *testing.T) {
 
 	})
 
+	t.Run("ndjsonEmpty", func(t *testing.T) {
+
+		nds := NewNdjsonInputStream("fixtures/empty.ndjson")
+		os := NewReadableOutputStream[gonatus.Conf]()
+
+		nds.Pipe(os)
+
+		result, err := os.Collect()
+		if err != nil || len(result) != 0 {
+			t.Error("Collecting the results was unsuccessful.")
+		}
+
+	})
+
 }
