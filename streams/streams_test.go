@@ -1,6 +1,9 @@
 package streams_test
 
 import (
+	"bufio"
+	"math/rand"
+	"os"
 	"sync"
 	"testing"
 
@@ -293,8 +296,54 @@ func TestNdjson(t *testing.T) {
 	t.Run("ndjsonOutput", func(t *testing.T) {
 
 		ndi := NewNdjsonInputStream("fixtures/example.ndjson")
-		ndo := NewNdjsonOutputStream("fixtures/test.ndjson", FileWrite)
+		ndo := NewNdjsonOutputStream("fixtures/exampleCopy.ndjson", FileWrite)
+
 		ndi.Pipe(ndo)
+
+		origF, err := os.Open("fixtures/example.ndjson")
+		if err != nil {
+			t.Error("Problem with opening a file.")
+		}
+
+		copyF, err := os.Open("fixtures/exampleCopy.ndjson")
+		if err != nil {
+			t.Error("Problem with opening a file.")
+		}
+
+		origFScanner := bufio.NewScanner(origF)
+		copyFScanner := bufio.NewScanner(copyF)
+
+		origFConfs := make([]gonatus.Conf, 0)
+		for origFScanner.Scan() {
+			newConf := gonatus.NewConf("")
+			newConf.Unmarshal([]byte(origFScanner.Text()))
+			origFConfs = append(origFConfs, newConf)
+		}
+
+		copyFConfs := make([]gonatus.Conf, 0)
+		for copyFScanner.Scan() {
+			newConf := gonatus.NewConf("")
+			newConf.Unmarshal([]byte(copyFScanner.Text()))
+			copyFConfs = append(copyFConfs, newConf)
+		}
+
+		if len(origFConfs) != len(copyFConfs) {
+			t.Error("Different number of elements.")
+		}
+
+		i := rand.Intn(len(origFConfs))
+
+		if origFConfs[i].Get("type").(string) != copyFConfs[i].Get("type").(string) {
+			t.Error("The value doesn't match.")
+		}
+
+		origF.Close()
+		copyF.Close()
+
+		err = os.Remove("fixtures/exampleCopy.ndjson")
+		if err != nil {
+			t.Error("Problem with removing a file.")
+		}
 
 	})
 
@@ -306,9 +355,57 @@ func TestNdjson(t *testing.T) {
 			x.Get("data").(map[string]any)["id"] = id + 1
 			return x
 		})
-		ndo := NewNdjsonOutputStream("fixtures/test.ndjson", FileWrite)
+		ndo := NewNdjsonOutputStream("fixtures/exampleModified.ndjson", FileWrite)
 
 		ndi.Pipe(ts).Pipe(ndo)
+
+		origF, err := os.Open("fixtures/example.ndjson")
+		if err != nil {
+			t.Error("Problem with opening a file.")
+		}
+
+		modF, err := os.Open("fixtures/exampleModified.ndjson")
+		if err != nil {
+			t.Error("Problem with opening a file.")
+		}
+
+		origFScanner := bufio.NewScanner(origF)
+		modFScanner := bufio.NewScanner(modF)
+
+		origFConfs := make([]gonatus.Conf, 0)
+		for origFScanner.Scan() {
+			newConf := gonatus.NewConf("")
+			newConf.Unmarshal([]byte(origFScanner.Text()))
+			origFConfs = append(origFConfs, newConf)
+		}
+
+		modFConfs := make([]gonatus.Conf, 0)
+		for modFScanner.Scan() {
+			newConf := gonatus.NewConf("")
+			newConf.Unmarshal([]byte(modFScanner.Text()))
+			modFConfs = append(modFConfs, newConf)
+		}
+
+		if len(origFConfs) != len(modFConfs) {
+			t.Error("Different number of elements.")
+		}
+
+		i := rand.Intn(len(origFConfs))
+
+		val1 := origFConfs[i].Get("data").(map[string]any)["id"].(float64)
+		val2 := modFConfs[i].Get("data").(map[string]any)["id"].(float64)
+
+		if (val1 + 1) != val2 {
+			t.Error("The value doesn't match.")
+		}
+
+		origF.Close()
+		modF.Close()
+
+		err = os.Remove("fixtures/exampleModified.ndjson")
+		if err != nil {
+			t.Error("Problem with removing a file.")
+		}
 
 	})
 
