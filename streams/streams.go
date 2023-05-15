@@ -164,6 +164,7 @@ Implements:
 */
 type inputStream[T any] struct {
 	stream
+	piped bool
 }
 
 func (ego *inputStream[T]) get() (value T, valid bool, err error) {
@@ -171,6 +172,10 @@ func (ego *inputStream[T]) get() (value T, valid bool, err error) {
 }
 
 func (ego *inputStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
+	if ego.piped {
+		panic("The stream is already piped.")
+	}
+	ego.piped = true
 	return pipe[T](ego, s)
 }
 
@@ -197,6 +202,9 @@ type outputStream[T any] struct {
 }
 
 func (ego *outputStream[T]) setSource(s InputStreamer[T]) {
+	if ego.source != nil {
+		panic("The stream is already attached.")
+	}
 	ego.source = s
 }
 

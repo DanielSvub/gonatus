@@ -1,5 +1,7 @@
 package streams
 
+import "errors"
+
 /*
 Two-sided stream, transforms the data with the given transformation function.
 
@@ -33,6 +35,7 @@ Type parameters:
 type transformStream[T any, U any] struct {
 	stream
 	source    InputStreamer[T]
+	piped     bool
 	transform func(e T) U // transformation function
 }
 
@@ -58,6 +61,9 @@ func NewTransformStream[T any, U any](transform func(e T) U) TransformStreamer[T
 }
 
 func (ego *transformStream[T, U]) get() (value U, valid bool, err error) {
+	if ego.source == nil {
+		return *new(U), false, errors.New("The stream is not attached.")
+	}
 	val, valid, err := ego.source.get()
 	if ego.source.Closed() {
 		ego.close()
@@ -69,10 +75,17 @@ func (ego *transformStream[T, U]) get() (value U, valid bool, err error) {
 }
 
 func (ego *transformStream[T, U]) setSource(s InputStreamer[T]) {
+	if ego.source != nil {
+		panic("The stream is already attached.")
+	}
 	ego.source = s
 }
 
 func (ego *transformStream[T, U]) Pipe(s OutputStreamer[U]) InputStreamer[U] {
+	if ego.piped {
+		panic("The stream is already piped.")
+	}
+	ego.piped = true
 	return pipe[U](ego, s)
 }
 

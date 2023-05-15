@@ -94,10 +94,6 @@ func NewNdjsonOutputStream(path string, mode int) NdjsonOutputStreamer {
 
 }
 
-func (ego *ndjsonOutputStream) setSource(s InputStreamer[gonatus.Conf]) {
-	ego.source = s
-}
-
 func (ego *ndjsonOutputStream) Run() error {
 
 	for true {

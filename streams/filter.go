@@ -1,5 +1,7 @@
 package streams
 
+import "errors"
+
 /*
 Two-sided stream, filters the data with the given filter function.
 
@@ -31,6 +33,7 @@ Type parameters:
 type filterStream[T any] struct {
 	stream
 	source InputStreamer[T]
+	piped  bool
 	filter func(e T) bool // filter function
 }
 
@@ -55,6 +58,9 @@ func NewFilterStream[T any](filter func(e T) bool) FilterStreamer[T] {
 }
 
 func (ego *filterStream[T]) get() (value T, valid bool, err error) {
+	if ego.source == nil {
+		return *new(T), false, errors.New("The stream is not attached.")
+	}
 	for true {
 		value, valid, err = ego.source.get()
 		closed := ego.source.Closed()
@@ -73,10 +79,17 @@ func (ego *filterStream[T]) get() (value T, valid bool, err error) {
 }
 
 func (ego *filterStream[T]) setSource(s InputStreamer[T]) {
+	if ego.source != nil {
+		panic("The stream is already attached.")
+	}
 	ego.source = s
 }
 
 func (ego *filterStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
+	if ego.piped {
+		panic("The stream is already piped.")
+	}
+	ego.piped = true
 	return pipe[T](ego, s)
 }
 

@@ -13,6 +13,7 @@ type rrMergeStream[T comparable] struct {
 	sources   []InputStreamer[T]
 	currIndex int
 	autoclose bool
+	piped     bool
 }
 
 func NewRRMergeStream[T comparable](autoclose bool) MergeStreamer[T] {
@@ -75,6 +76,10 @@ func (ego *rrMergeStream[T]) Close() {
 }
 
 func (ego *rrMergeStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
+	if ego.piped {
+		panic("The stream is already piped.")
+	}
+	ego.piped = true
 	return pipe[T](ego, s)
 }
 

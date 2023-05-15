@@ -23,6 +23,9 @@ func NewDuplicationStream[T comparable](bufferSize int) DuplicationStreamer[T] {
 }
 
 func (ego *duplicationStream[T]) setSource(s InputStreamer[T]) {
+	if ego.source != nil {
+		panic("The stream is already attached.")
+	}
 	ego.source = s
 	go ego.duplicate()
 }
