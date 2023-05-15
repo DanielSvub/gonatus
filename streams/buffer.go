@@ -200,7 +200,7 @@ func (ego *readableOutputStream[T]) Read(p []T) (int, error) {
 		p[i] = value
 		if ego.source.Closed() {
 			ego.close()
-			break
+			return i + 1, nil
 		}
 	}
 
