@@ -109,7 +109,7 @@ type InputStreamer[T any] interface {
 Possible destination for the data.
 
 Extends:
-  - OutputStreamer.
+  - Streamer.
 
 Type parameters:
   - T - type of the data.

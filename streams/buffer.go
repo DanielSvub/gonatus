@@ -4,25 +4,102 @@ import (
 	"errors"
 )
 
+/*
+Buffered source of data.
+
+Extends:
+  - InputStreamer.
+
+Type parameters:
+  - T - type of the data.
+*/
 type BufferInputStreamer[T any] interface {
 	InputStreamer[T]
+
+	/*
+		Sets an error. In case the error needs to be propagated.
+
+		Parameters:
+		  - err - error to be set.
+	*/
 	error(err error)
+
+	/*
+		Writes individual elements from the slice to the stream buffer.
+
+		Parameters:
+		  - p - A slice of elements to be written.
+
+		Returns:
+		  - n - number of written elements,
+		  - err - error, if any occurred.
+	*/
 	Write(p ...T) (n int, err error)
+
+	/*
+		Closes the stream.
+	*/
 	Close()
 }
 
+/*
+A output stream that can be read into the slice.
+
+Extends:
+  - OutputStreamer.
+
+Type parameters:
+  - T - type of the data.
+*/
 type ReadableOutputStreamer[T any] interface {
 	OutputStreamer[T]
+
+	/*
+		Reads a maximum of len(p) elements from the stream and writes them to the p.
+
+		Parameters:
+		  - p - A slice where elements from the stream are read.
+
+		Returns:
+		  - n - number of read elements,
+		  - err - error, if any occurred.
+	*/
 	Read(p []T) (n int, err error)
+
+	/*
+		Reads all the elements from the stream and returns them.
+
+		Returns:
+		  - []T - slice in which all elements from the stream are,
+		  - error - error, if any occurred.
+	*/
 	Collect() ([]T, error)
 }
 
+/*
+Buffered source stream.
+
+Extends:
+  - inputStream.
+
+Implements:
+  - BufferInputStreamer.
+*/
 type bufferInputStream[T any] struct {
 	inputStream[T]
 	buffer chan T
 	err    error
 }
 
+/*
+Buffer input stream constructor.
+
+Parameters:
+  - bufferSize - size of the buffer.
+
+Returns:
+  - pointer to the created buffer input stream.
+*/
 func NewBufferInputStream[T any](bufferSize int) BufferInputStreamer[T] {
 	ego := &bufferInputStream[T]{
 		buffer: make(chan T, bufferSize),
@@ -78,10 +155,25 @@ func (ego *bufferInputStream[T]) Close() {
 	ego.close()
 }
 
+/*
+Destination readable stream.
+
+Extends:
+  - outputStream.
+
+Implements:
+  - ReadableOutputStreamer.
+*/
 type readableOutputStream[T any] struct {
 	outputStream[T]
 }
 
+/*
+Readable output stream constructor.
+
+Returns:
+  - pointer to the created readable output stream.
+*/
 func NewReadableOutputStream[T any]() ReadableOutputStreamer[T] {
 	ego := &readableOutputStream[T]{}
 	ego.init(ego)

@@ -12,21 +12,62 @@ const (
 	FileAppend
 )
 
+/*
+Source of the ndjson data.
+
+Extends:
+  - InputStreamer
+*/
 type NdjsonInputStreamer interface {
 	InputStreamer[gonatus.Conf]
 }
 
+/*
+Output stream that writes json to the ndjson file.
+
+Extends:
+  - OutputStreamer
+*/
 type NdjsonOutputStreamer interface {
 	OutputStreamer[gonatus.Conf]
+
+	/*
+		Writes individual items as json to the ndjson file.
+
+		Returns:
+		  - error - error, if any occurred.
+
+	*/
 	Run() error
 }
 
+/*
+Ndjson source stream.
+
+Extends:
+  - inputStream.
+
+Implements:
+  - NdjsonInputStreamer.
+*/
 type ndjsonInputStream struct {
 	inputStream[gonatus.Conf]
 	file    *os.File
 	scanner *bufio.Scanner
 }
 
+/*
+Ndjson input stream constructor.
+
+Parameters:
+  - path - path to ndjson file.
+
+Type parameters:
+  - string
+
+Returns:
+  - pointer to the created ndjson input stream.
+*/
 func NewNdjsonInputStream(path string) NdjsonInputStreamer {
 
 	ego := &ndjsonInputStream{}
@@ -62,11 +103,34 @@ func (ego *ndjsonInputStream) get() (value gonatus.Conf, valid bool, err error) 
 	return
 }
 
+/*
+Destination ndjson stream.
+
+Extends:
+  - outputStream.
+
+Implements:
+  - NdjsonOutputStreamer.
+*/
 type ndjsonOutputStream struct {
 	outputStream[gonatus.Conf]
 	file *os.File
 }
 
+/*
+Ndjson output stream constructor.
+
+Parameters:
+  - path - path to ndjson file,
+  - mode - mode of how to write to the file.
+
+Type parameters:
+  - path - string,
+  - mode - int.
+
+Returns:
+  - pointer to the created ndjson output stream.
+*/
 func NewNdjsonOutputStream(path string, mode int) NdjsonOutputStreamer {
 
 	if mode != FileAppend && mode != FileWrite {
