@@ -46,10 +46,12 @@ func (ego *splitStream[T]) doFilter() {
 			ego.negativeStream.error(err)
 			break
 		}
-		if valid && ego.condition(value) {
-			ego.positiveStream.Write(value)
-		} else {
-			ego.negativeStream.Write(value)
+		if valid {
+			if ego.condition(value) {
+				ego.positiveStream.Write(value)
+			} else {
+				ego.negativeStream.Write(value)
+			}
 		}
 		if ego.source.Closed() {
 			break
