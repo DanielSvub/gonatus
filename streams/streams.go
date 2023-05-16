@@ -180,10 +180,16 @@ func (ego *inputStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
 }
 
 func (ego *inputStream[T]) Split(s SplitStreamer[T]) (trueStream InputStreamer[T], falseStream InputStreamer[T]) {
+	if ego.piped {
+		panic("The stream is already piped.")
+	}
 	return split[T](ego, s)
 }
 
 func (ego *inputStream[T]) Duplicate(s DuplicationStreamer[T]) (stream1 InputStreamer[T], stream2 InputStreamer[T]) {
+	if ego.piped {
+		panic("The stream is already piped.")
+	}
 	return duplicate[T](ego, s)
 }
 
