@@ -50,12 +50,14 @@ Output stream terminates the pipe and exports the data to some destination. The 
 In this case, the destination is a slice. Two methods can be used to initiate the processing: *Read*, which reads concrete amount of items to a precreated slice, and *Collect*, which reads until the source stream is closed and then returns the result. When no data to read (but the source is open), the stream waits.
 
 ```go
-result := make([]int, 3)
+os := NewReadableOutputStream[int]()
 is.Pipe(os)
+result := make([]int, 3)
 n, err := os.Read(result)
 ```
 
 ```go
+os := NewReadableOutputStream[int]()
 is.Pipe(os)
 result, err := os.Collect()
 ```
