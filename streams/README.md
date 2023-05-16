@@ -1,10 +1,10 @@
 # Gonatus streams
 
-This package provides generic data streams with a lazy init capability. Data are not loaded until they are needed, which allowes to process a large amount of data with constant space complexity. To operate, the streams have to be connected together, creating a data flow called *pipe*. The processing is then initiated by reading from the end of the pipe.
+This package provides lazy generic data streams. Data are not loaded until they are needed, which allows to process a large amount of data with constant space complexity. To operate, the streams have to be connected together, creating a data flow called *pipe*. The processing is initiated then by reading from the end of the pipe.
 
 Each stream can be in two states - open or closed. The stream is closed, when there is no more data to read. The closed state propagates from the start to the end of the pipe, until the output is closed, what makes the whole process to end.
 
-All streams inplement at least one of these two main interfaces:
+All streams implement at least one of these two main interfaces:
 
 - **InputStreamer -** A stream to which an output stream can be attached,
 - **OutputStreamer -** A stream which can be attached to an input stream.
@@ -12,7 +12,7 @@ All streams inplement at least one of these two main interfaces:
 Some types of streams implement both of them. These are called *two-sided* streams and are used to modify the data. There are five of them:
 
 - **Transform stream -** transforms a value of each item,
-- **Filter stream -** discards items not safisfying a certain condition,
+- **Filter stream -** discards items not satisfying a certain condition,
 - **Duplication stream -** creates two streams identical to the source stream,
 - **Split stream -** splits one stream into two based on a certain condition,
 - **Merge stream -** merges multiple streams into one.
