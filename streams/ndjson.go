@@ -2,6 +2,7 @@ package streams
 
 import (
 	"bufio"
+	"errors"
 	"os"
 
 	"github.com/SpongeData-cz/gonatus"
@@ -33,6 +34,7 @@ type NdjsonOutputStreamer interface {
 
 	/*
 		Writes individual items as json to the ndjson file.
+		The file is opened or created here.
 
 		Returns:
 		  - error - error, if any occurred.
@@ -52,6 +54,7 @@ Implements:
 */
 type ndjsonInputStream struct {
 	inputStream[gonatus.Conf]
+	path    string
 	file    *os.File
 	scanner *bufio.Scanner
 }
@@ -73,12 +76,7 @@ func NewNdjsonInputStream(path string) NdjsonInputStreamer {
 	ego := &ndjsonInputStream{}
 	ego.init(ego)
 
-	file, err := os.Open(path)
-	if err != nil {
-		panic(err)
-	}
-	ego.file = file
-	ego.scanner = bufio.NewScanner(file)
+	ego.path = path
 
 	return ego
 
@@ -87,7 +85,13 @@ func NewNdjsonInputStream(path string) NdjsonInputStreamer {
 func (ego *ndjsonInputStream) get() (value gonatus.Conf, valid bool, err error) {
 
 	if ego.file == nil {
-		panic("The file does not exist.")
+		var file *os.File
+		file, err = os.Open(ego.path)
+		if err != nil {
+			return
+		}
+		ego.file = file
+		ego.scanner = bufio.NewScanner(file)
 	}
 
 	valid = ego.scanner.Scan()
@@ -114,6 +118,8 @@ Implements:
 */
 type ndjsonOutputStream struct {
 	outputStream[gonatus.Conf]
+	path string
+	mode int
 	file *os.File
 }
 
@@ -140,25 +146,35 @@ func NewNdjsonOutputStream(path string, mode int) NdjsonOutputStreamer {
 	ego := &ndjsonOutputStream{}
 	ego.init(ego)
 
-	var flags int
-	if mode == FileWrite {
-		flags = os.O_CREATE | os.O_WRONLY | os.O_TRUNC
-	} else {
-		flags = os.O_CREATE | os.O_WRONLY | os.O_APPEND
-	}
-
-	file, err := os.OpenFile(path, flags, 0664)
-	if err != nil {
-		panic(err)
-	}
-
-	ego.file = file
+	ego.mode = mode
+	ego.path = path
 
 	return ego
 
 }
 
 func (ego *ndjsonOutputStream) Run() error {
+
+	if ego.closed {
+		return errors.New("The stream is closed.")
+	}
+
+	if ego.file != nil {
+		return errors.New("The stream has been already run.")
+	}
+
+	var flags int
+	if ego.mode == FileWrite {
+		flags = os.O_CREATE | os.O_WRONLY | os.O_TRUNC
+	} else {
+		flags = os.O_CREATE | os.O_WRONLY | os.O_APPEND
+	}
+
+	file, err := os.OpenFile(ego.path, flags, 0664)
+	if err != nil {
+		return err
+	}
+	ego.file = file
 
 	for true {
 
@@ -185,7 +201,6 @@ func (ego *ndjsonOutputStream) Run() error {
 		if ego.source.Closed() {
 			break
 		}
-
 	}
 
 	ego.closed = true
