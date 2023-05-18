@@ -259,6 +259,11 @@ func TestNdjson(t *testing.T) {
 			t.Error("The stream was not closed properly.")
 		}
 
+		err := os.Remove("fixtures/exampleCopy.ndjson")
+		if err != nil {
+			t.Error("Problem with removing a file.")
+		}
+
 	})
 
 	t.Run("errNdjsonWrongPath", func(t *testing.T) {
@@ -277,13 +282,7 @@ func TestNdjson(t *testing.T) {
 			ndo.Closed()
 		}
 
-		// testWrongPath := func() {
-		// 	ndo := NewNdjsonOutputStream("wrong\\path/nonExist.ndjson", FileAppend)
-		// 	ndo.Closed()
-		// }
-
 		shouldPanic(t, testWrongMode)
-		// shouldPanic(t, testWrongPath)
 
 	})
 
