@@ -195,6 +195,7 @@ func (ego *readableOutputStream[T]) Read(p []T) (int, error) {
 	for i := 0; i < n; i++ {
 		value, valid, err := ego.source.get()
 		if err != nil || !valid {
+			ego.close()
 			return i, err
 		}
 		p[i] = value
@@ -219,6 +220,7 @@ func (ego *readableOutputStream[T]) Collect() ([]T, error) {
 	for true {
 		value, valid, err := ego.source.get()
 		if err != nil || !valid {
+			ego.close()
 			return output, err
 		}
 		output = append(output, value)

@@ -179,33 +179,30 @@ func (ego *ndjsonOutputStream) Run() error {
 	for true {
 
 		value, valid, err := ego.source.get()
-		if !valid {
+		if !valid || err != nil {
 			break
 		}
 
-		if err != nil {
-			return err
-		}
 		nd, err := value.Marshal()
 		if err != nil {
-			return err
+			break
 		}
 		_, err = ego.file.Write(nd)
 		if err != nil {
-			return err
+			break
 		}
 		_, err = ego.file.WriteString("\n")
 		if err != nil {
-			return err
+			break
 		}
 		if ego.source.Closed() {
 			break
 		}
 	}
 
-	ego.closed = true
+	ego.close()
 	ego.file.Close()
 
-	return nil
+	return err
 
 }
