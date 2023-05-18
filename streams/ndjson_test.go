@@ -234,7 +234,7 @@ func TestNdjson(t *testing.T) {
 
 	})
 
-	t.Run("errNdjson", func(t *testing.T) {
+	t.Run("errNdjsonNonExistFile", func(t *testing.T) {
 
 		nds := NewNdjsonInputStream("fixtures/nonExist.ndjson")
 		os := NewReadableOutputStream[gonatus.Conf]()
@@ -247,6 +247,28 @@ func TestNdjson(t *testing.T) {
 		}
 
 	})
+	t.Run("errNdjsonClosed", func(t *testing.T) {
+		ndi := NewNdjsonInputStream("fixtures/example.ndjson")
+		ndo := NewNdjsonOutputStream("fixtures/exampleCopy.ndjson", FileWrite)
+
+		ndi.Pipe(ndo)
+		if ndo.Run() != nil {
+			t.Error("Problem with exporting to file.")
+		}
+		if ndo.Run() == nil {
+			t.Error("The stream was not closed properly.")
+		}
+
+	})
+
+	t.Run("errNdjsonWrongPath", func(t *testing.T) {
+		ndo := NewNdjsonOutputStream("wrong\\path/nonExist.ndjson", FileAppend)
+
+		if ndo.Run() == nil {
+			t.Error("Path magically deciphered and alien file created")
+		}
+
+	})
 
 	t.Run("panicNdjson", func(t *testing.T) {
 
@@ -255,13 +277,13 @@ func TestNdjson(t *testing.T) {
 			ndo.Closed()
 		}
 
-		testWrongPath := func() {
-			ndo := NewNdjsonOutputStream("wrong\\path/nonExist.ndjson", FileAppend)
-			ndo.Closed()
-		}
+		// testWrongPath := func() {
+		// 	ndo := NewNdjsonOutputStream("wrong\\path/nonExist.ndjson", FileAppend)
+		// 	ndo.Closed()
+		// }
 
 		shouldPanic(t, testWrongMode)
-		shouldPanic(t, testWrongPath)
+		// shouldPanic(t, testWrongPath)
 
 	})
 
