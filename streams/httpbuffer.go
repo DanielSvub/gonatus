@@ -142,7 +142,7 @@ func (ego *bufferedHttpInputStream[T]) fillBuffer() (int, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return 0, errors.New(fmt.Sprintf("Server responded with ", resp.StatusCode))
+		return 0, errors.New(fmt.Sprintf("Server responded with %d", resp.StatusCode))
 	}
 	breader := bufio.NewReader(resp.Body)
 	for i := 0; i < ego.bufferSize; i++ {

@@ -27,7 +27,7 @@ func TestNdjson(t *testing.T) {
 			t.Error("Collecting the results was unsuccessful.")
 		}
 
-		val := result[2].Get("data").(map[string]any)["name"]
+		val := result[2]["data"].(gonatus.Conf)["name"]
 		if val != "Arnold" {
 			t.Error("Name is not matching.")
 		}
@@ -77,7 +77,7 @@ func TestNdjson(t *testing.T) {
 
 		i := rand.Intn(len(origFConfs))
 
-		if origFConfs[i].Get("type").(string) != copyFConfs[i].Get("type").(string) {
+		if origFConfs[i]["type"].(string) != copyFConfs[i]["type"].(string) {
 			t.Error("The value doesn't match.")
 		}
 
@@ -95,8 +95,8 @@ func TestNdjson(t *testing.T) {
 
 		ndi := NewNdjsonInputStream("fixtures/example.ndjson")
 		ts := NewTransformStream(func(x gonatus.Conf) gonatus.Conf {
-			id := x.Get("data").(map[string]any)["id"].(float64)
-			x.Get("data").(map[string]any)["id"] = id + 1
+			id := x["data"].(gonatus.Conf)["id"].(float64)
+			x["data"].(gonatus.Conf)["id"] = id + 1
 			return x
 		})
 		ndo := NewNdjsonOutputStream("fixtures/exampleModified.ndjson", FileWrite)
@@ -139,8 +139,8 @@ func TestNdjson(t *testing.T) {
 
 		i := rand.Intn(len(origFConfs))
 
-		val1 := origFConfs[i].Get("data").(map[string]any)["id"].(float64)
-		val2 := modFConfs[i].Get("data").(map[string]any)["id"].(float64)
+		val1 := origFConfs[i]["data"].(gonatus.Conf)["id"].(float64)
+		val2 := modFConfs[i]["data"].(gonatus.Conf)["id"].(float64)
 
 		if (val1 + 1) != val2 {
 			t.Error("The value doesn't match.")
@@ -206,7 +206,7 @@ func TestNdjson(t *testing.T) {
 
 		i := rand.Intn(len(origFConfs))
 
-		if origFConfs[i].Get("type").(string) != copyFConfs[i+1].Get("type").(string) {
+		if origFConfs[i]["type"].(string) != copyFConfs[i+1]["type"].(string) {
 			t.Error("The value doesn't match.")
 		}
 

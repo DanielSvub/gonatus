@@ -7,84 +7,101 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-type Conf interface {
-	Class() string
-	SetClass(class string) Conf
-
-	Set(pairs ...Pair) Conf
-	Get(key string) any
-
-	Clone() Conf
-
-	Marshal() ([]byte, error)
-	Unmarshal(jsonBytes []byte) error
-	Encode(ptr any) error
-	Decode(ptr any) error
-
-	String() string
-}
-
-type MapConf struct {
-	class string
-	value map[string]any
-}
+type Conf map[string]any
 
 func NewConf(class string) Conf {
-	return &MapConf{
-		class: class,
-		value: map[string]any{},
-	}
-}
-
-func (ego *MapConf) Class() string {
-	return ego.class
-}
-
-func (ego *MapConf) SetClass(class string) Conf {
-	ego.class = class
+	ego := Conf{}
+	ego["CLASS"] = class
 	return ego
 }
 
-func (ego *MapConf) Set(pairs ...Pair) Conf {
-	for _, pair := range pairs {
-		ego.value[pair.Key] = pair.Value
+func (ego Conf) unfold() {
+	for key, value := range ego {
+		ego[key] = unfold(value)
 	}
-	return ego
 }
 
-func (ego *MapConf) Get(key string) any {
-	return ego.value[key]
+func unfold(value any) any {
+	nestedMap, isMap := value.(map[string]any)
+	if isMap {
+		for key, value := range nestedMap {
+			nestedMap[key] = unfold(value)
+		}
+		return Conf(nestedMap)
+	}
+	nestedSlice, isSlice := value.([]any)
+	if isSlice {
+		for _, value := range nestedSlice {
+			nestedSlice = append(nestedSlice, unfold(value))
+		}
+	}
+	return value
 }
 
-func (ego *MapConf) Clone() Conf {
-	new := &MapConf{
-		class: ego.Class(),
-		value: map[string]any{},
+func (ego Conf) Load(target Gobjecter) error {
+
+	className := reflect.TypeOf(target).Elem().Name()
+
+	if ego != nil {
+
+		if err := ego.Decode(target); err != nil {
+			return err
+		}
+		target.setConf(ego.Clone())
+
+	} else {
+
+		target.setConf(NewConf(className))
+
 	}
-	for key, value := range ego.value {
-		new.value[key] = value
+
+	target.setPtr(target)
+	return nil
+
+}
+
+func (ego Conf) Class() string {
+	class, ok := ego["CLASS"].(string)
+	if !ok {
+		panic("The class property is not set.")
+	}
+	return class
+}
+
+func (ego Conf) Clone() Conf {
+	new := Conf{}
+	for key, value := range ego {
+		new[key] = value
 	}
 	return new
 }
 
-func (ego *MapConf) Marshal() ([]byte, error) {
-	return json.Marshal(ego.value)
+func (ego Conf) Marshal() ([]byte, error) {
+	return json.Marshal(ego)
 }
 
-func (ego *MapConf) Unmarshal(jsonBytes []byte) error {
-	return json.Unmarshal(jsonBytes, &ego.value)
+func (ego Conf) Unmarshal(jsonBytes []byte) error {
+	if err := json.Unmarshal(jsonBytes, &ego); err != nil {
+		return err
+	}
+	ego.unfold()
+	return nil
 }
 
-func (ego *MapConf) Encode(ptr any) error {
+func (ego Conf) Encode(ptr any) error {
 	obj := reflect.ValueOf(ptr).Elem()
-	return mapstructure.Decode(obj.Interface(), &ego.value)
+	if err := mapstructure.Decode(obj.Interface(), &ego); err != nil {
+		return err
+	}
+	ego.unfold()
+	return nil
 }
 
-func (ego *MapConf) Decode(ptr any) error {
-	return mapstructure.Decode(ego.value, ptr)
+func (ego Conf) Decode(ptr any) error {
+	return mapstructure.Decode(ego, ptr)
 }
 
-func (ego *MapConf) String() string {
+func (ego Conf) String() string {
 	bytes, err := ego.Marshal()
 	if err != nil {
 		panic("Unable to serialize the conf.")
@@ -92,53 +109,24 @@ func (ego *MapConf) String() string {
 	return string(bytes)
 }
 
-type Pair struct {
-	Key   string
-	Value any
-}
-
-func NewPair(key string, value any) Pair {
-	if key == "" {
-		panic("Conf key has to be non-empty string.")
-	}
-	return Pair{key, value}
-}
-
 type Gobjecter interface {
 	Serialize() Conf
 	Ptr() any
+	setPtr(ptr Gobjecter)
+	setConf(conf Conf)
 }
 
 type Gobject struct {
-	ptr  any
-	conf Conf
+	ptr   Gobjecter
+	conf  Conf
+	CLASS string
 }
 
-func (ego *Gobject) Init(egoPtr any, conf Conf) {
-
-	className := reflect.TypeOf(egoPtr).Elem().Name()
-
-	if conf != nil {
-
-		err := conf.Decode(egoPtr)
-		if err != nil {
-			panic(err)
-		}
-		ego.conf = conf.Clone()
-
-	} else {
-
-		ego.conf = NewConf(className)
-
-	}
-
-	ego.ptr = egoPtr
-
-}
+func (ego *Gobject) Init() {}
 
 func (ego *Gobject) Serialize() Conf {
 
-	conf := NewConf(ego.conf.Class())
+	conf := NewConf(reflect.TypeOf(ego.ptr).Elem().Name())
 	err := conf.Encode(ego.ptr)
 	if err != nil {
 		panic(err)
@@ -149,4 +137,12 @@ func (ego *Gobject) Serialize() Conf {
 
 func (ego *Gobject) Ptr() any {
 	return ego.ptr
+}
+
+func (ego *Gobject) setPtr(ptr Gobjecter) {
+	ego.ptr = ptr
+}
+
+func (ego *Gobject) setConf(conf Conf) {
+	ego.conf = conf
 }

@@ -15,30 +15,33 @@ func TestGonatusBase(t *testing.T) {
 	}
 
 	NewDog := func(conf Conf) *Dog {
-		ego := &Dog{}
-		ego.Init(ego, conf)
+		ego := new(Dog)
+		conf.Load(ego)
+		ego.Init()
 		return ego
 	}
 
-	init := NewConf("Dog").Set(
-		NewPair("Name", "Doge"),
-		NewPair("Age", 2),
-	)
+	init := NewConf("Dog")
+	init["Name"] = "Doge"
+	init["Age"] = 2
 	dog := NewDog(init)
 
 	conf := dog.Serialize()
 	copy := conf.Clone()
 
-	if conf.Get("Name") != copy.Get("Name") {
+	if dog.Ptr() != dog {
+		t.Errorf("Object and its pointer are not equal.")
+	}
+
+	if conf["Name"] != copy["Name"] {
 		t.Errorf("Names are not equal.")
 	}
 
-	if conf.Get("Age") != copy.Get("Age") {
+	if conf["Age"] != copy["Age"] {
 		t.Errorf("Ages are not equal.")
 	}
 
-	test := NewConf("Default")
-	test.SetClass("Dog")
+	test := NewConf("Dog")
 	if test.Class() != "Dog" {
 		t.Errorf("Invalid class.")
 	}
