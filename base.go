@@ -2,6 +2,7 @@ package gonatus
 
 import (
 	"encoding/json"
+	"errors"
 	"reflect"
 
 	"github.com/mitchellh/mapstructure"
@@ -39,25 +40,15 @@ func unfold(value any) any {
 }
 
 func (ego Conf) Load(target Gobjecter) error {
-
-	className := reflect.TypeOf(target).Elem().Name()
-
 	if ego != nil {
-
 		if err := ego.Decode(target); err != nil {
 			return err
 		}
 		target.setConf(ego.Clone())
-
 	} else {
-
-		target.setConf(NewConf(className))
-
+		return errors.New("Cannot load an empty Conf.")
 	}
-
-	target.setPtr(target)
 	return nil
-
 }
 
 func (ego Conf) Class() string {
@@ -122,7 +113,14 @@ type Gobject struct {
 	CLASS string
 }
 
-func (ego *Gobject) Init() {}
+func (ego *Gobject) Init(ptr Gobjecter) {
+	ego.setPtr(ptr)
+	if ego.conf == nil {
+		className := reflect.TypeOf(ptr).Elem().Name()
+		ego.setConf(NewConf(className))
+		ego.CLASS = className
+	}
+}
 
 func (ego *Gobject) Serialize() Conf {
 

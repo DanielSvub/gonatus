@@ -17,7 +17,7 @@ func TestGonatusBase(t *testing.T) {
 	NewDog := func(conf Conf) *Dog {
 		ego := new(Dog)
 		conf.Load(ego)
-		ego.Init()
+		ego.Init(ego)
 		return ego
 	}
 
