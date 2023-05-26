@@ -25,7 +25,7 @@ func (ego TestObject) String() string {
 }
 
 var is BufferInputStreamer[*TestObject]
-var hos HttpOutputStreamer[*TestObject]
+var hos HttpOutputStream[*TestObject]
 var outs ReadableOutputStreamer[*TestObject]
 var server *http.Server
 var port int16
@@ -34,25 +34,20 @@ var testData []*TestObject
 var testDataCount int
 
 func createSource() {
-	fmt.Println("Creating source stream")
-	testDataCount = 10
 	is = NewBufferInputStream[*TestObject](testDataCount)
+	is.Pipe(hos)
+}
+
+func fillData() {
 	testData = make([]*TestObject, testDataCount)
 	for i := 0; i < testDataCount; i++ {
 		testData[i] = NewTestObject(fmt.Sprintf("%d", i))
 		is.Write(testData[i])
-		fmt.Printf("Data sent: %+v\n", testData[i])
 	}
 	is.Close()
-	is.Pipe(hos)
-	fmt.Println("Source stream created and piped")
 }
 
 func setupServer() {
-
-	fmt.Println("Setup server side")
-	hos = NewHttpOutputStream[*TestObject]()
-	fmt.Println("Trying to run server")
 	port = int16(9991)
 	server = &http.Server{
 		Addr: fmt.Sprintf(":%d", port),
@@ -64,9 +59,8 @@ func setupServer() {
 			log.Default().Println(err)
 		}
 	}()
-	time.Sleep(1 * time.Second)
-	fmt.Println("Server is listening on port", port)
-	fmt.Println("Server setup done")
+	time.Sleep(1 * time.Second) //TODO this seems to be antipattern, what is a correct way?
+
 }
 
 func stopServer() {
@@ -77,56 +71,79 @@ func stopServer() {
 	}
 }
 
-func TestHttpStream(t *testing.T) {
+func TestStreamHttpConverter(t *testing.T) {
+	testDataCount = 100
+	hos = NewStreamToHttpConverter[*TestObject]()
 	setupServer()
 	createSource()
-	t.Run("Send and recieve data", func(t *testing.T) {
-
-		his := NewHttpInputStream[*TestObject]("http://127.0.0.1", port)
+	go fillData()
+	t.Run("Pull 'streaming', pipeline conversion to http", func(t *testing.T) {
+		his := NewHttpToStreamConverter[*TestObject]("http://127.0.0.1", port, "")
 		outs = NewReadableOutputStream[*TestObject]()
-		fmt.Println("Client HttpInputStream created, piping ReadableOutpuStream")
 		his.Pipe(outs)
-
 		var result []*TestObject
 		var err error
-
 		if result, err = outs.Collect(); err != nil {
 			fmt.Println(err)
 		}
-		i := 0
-		for _, r := range result {
-			fmt.Println(fmt.Sprintf("Data red:  %+v", r))
+		if len(result) != testDataCount {
+			t.Error("Diffrent data count sent and red", testDataCount, len(result))
+		}
+		for i, r := range result {
 			if testData[i].Text != r.Text {
 				t.Error(fmt.Sprintf("Different data sent and red. %v, %v", testData[i], r))
 			}
-			i++
 		}
 
 	})
 	stopServer()
 }
 
-func TestBufferedHttpStream(t *testing.T) {
+func TestBufferedStreamHttpConverter(t *testing.T) {
+	testDataCount = 100
+	hos = NewStreamToHttpConverter[*TestObject]()
 	setupServer()
 	createSource()
-	t.Run("Send and recieve data", func(t *testing.T) {
-
-		his := NewBufferedHttpInputStream[*TestObject]("http://127.0.0.1", port, 2)
+	go fillData()
+	t.Run("Pull 'streaming' with buffering, pipeline conversion to http", func(t *testing.T) {
+		his := NewBufferedHttpToStreamConverter[*TestObject]("http://127.0.0.1", port, "", 2)
 		outs = NewReadableOutputStream[*TestObject]()
-		fmt.Println("Client HttpInputStream created, piping ReadableOutpuStream")
 		his.Pipe(outs)
 		result := make([]*TestObject, 1)
-
 		for i := 0; i < testDataCount; i++ {
-			var n int
-			var err error
-			if n, err = outs.Read(result); err != nil {
-				fmt.Println(err)
+			if _, err := outs.Read(result); err != nil {
+				t.Error(err)
+				continue
 			}
-			fmt.Println(fmt.Sprintf("%d Data red:  %+v", n, result))
 			if testData[i].Text != result[0].Text {
 				t.Error(fmt.Sprintf("Different data sent and red. %v, %v", testData[i], result[0]))
 			}
+		}
+
+	})
+	stopServer()
+}
+
+func TestHttpStreaming(t *testing.T) {
+	testDataCount = 500
+	hos = NewHttpOutputStream[*TestObject]()
+	setupServer()
+	createSource()
+	go fillData()
+	t.Run("Proper http streaming through response", func(t *testing.T) {
+		his := NewHttpInputStream[*TestObject]("http://127.0.0.1", port, "", 10)
+		outs = NewReadableOutputStream[*TestObject]()
+		his.Pipe(outs)
+		result := make([]*TestObject, 1)
+		for i := 0; i < testDataCount; i++ {
+			if n, err := outs.Read(result); err != nil || n == 0 {
+				t.Error(err)
+				continue
+			}
+			if testData[i].Text != result[0].Text {
+				t.Error(fmt.Sprintf("Different data sent and red. %v, %v", testData[i], result[0]))
+			}
+
 		}
 
 	})
