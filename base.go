@@ -101,6 +101,7 @@ func (ego Conf) String() string {
 }
 
 type Gobjecter interface {
+	Init()
 	Serialize() Conf
 	Ptr() any
 	setPtr(ptr Gobjecter)
