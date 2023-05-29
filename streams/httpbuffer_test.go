@@ -1,34 +1,42 @@
 package streams_test
 
 import (
-	"context"
 	"fmt"
-	"log"
 	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
-	"time"
 
 	. "github.com/SpongeData-cz/gonatus/streams"
 )
 
+// TestObject is simple object for testing
 type TestObject struct {
-	Text string
+	Text  string
+	Value int
 }
 
-func NewTestObject(text string) *TestObject {
-	res := &TestObject{Text: text}
+func NewTestObject(text string, value int) *TestObject {
+	res := &TestObject{Text: text, Value: value}
 	return res
 }
 
 func (ego TestObject) String() string {
-	return fmt.Sprintf("Text: %s", ego.Text)
+	return fmt.Sprintf("Text: %s, Value: %d", ego.Text, ego.Value)
+}
+
+func (ego TestObject) equals(other TestObject) bool {
+	return ego.Text == other.Text && ego.Value == other.Value
 }
 
 var is BufferInputStreamer[*TestObject]
 var hos HttpOutputStream[*TestObject]
 var outs ReadableOutputStreamer[*TestObject]
-var server *http.Server
-var port int16
+
+var srv *httptest.Server
+var serverAddress string
+var port uint16
 
 var testData []*TestObject
 var testDataCount int
@@ -41,44 +49,40 @@ func createSource() {
 func fillData() {
 	testData = make([]*TestObject, testDataCount)
 	for i := 0; i < testDataCount; i++ {
-		testData[i] = NewTestObject(fmt.Sprintf("%d", i))
+		testData[i] = NewTestObject(fmt.Sprintf("%d", i), i)
 		is.Write(testData[i])
 	}
 	is.Close()
 }
 
 func setupServer() {
-	port = int16(9991)
-	server = &http.Server{
-		Addr: fmt.Sprintf(":%d", port),
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			hos.Handle(w, r)
-		})}
-	go func() {
-		if err := server.ListenAndServe(); err != nil {
-			log.Default().Println(err)
-		}
-	}()
-	time.Sleep(1 * time.Second) //TODO this seems to be antipattern, what is a correct way?
+	port = uint16(9991)
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hos.Handle(w, r)
+	}))
+	parts := strings.Split(srv.URL, ":")
+	serverAddress = parts[0] + ":" + parts[1]
+	prtInt, _ := strconv.Atoi(parts[2])
+	port = uint16(prtInt)
 
 }
 
 func stopServer() {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := server.Shutdown(ctx); err != nil {
-		log.Default().Println(err)
-	}
+	srv.Close()
 }
 
-func TestStreamHttpConverter(t *testing.T) {
-	testDataCount = 100
-	hos = NewStreamToHttpConverter[*TestObject]()
+func initTest(dataCount int) {
+	testDataCount = dataCount
 	setupServer()
 	createSource()
 	go fillData()
+}
+
+func TestStreamHttpConverter(t *testing.T) {
+	hos = NewStreamToHttpConverter[*TestObject]()
+	initTest(1000)
 	t.Run("Pull 'streaming', pipeline conversion to http", func(t *testing.T) {
-		his := NewHttpToStreamConverter[*TestObject]("http://127.0.0.1", port, "")
+		his := NewHttpToStreamConverter[*TestObject](serverAddress, port, "")
 		outs = NewReadableOutputStream[*TestObject]()
 		his.Pipe(outs)
 		var result []*TestObject
@@ -90,7 +94,7 @@ func TestStreamHttpConverter(t *testing.T) {
 			t.Error("Diffrent data count sent and red", testDataCount, len(result))
 		}
 		for i, r := range result {
-			if testData[i].Text != r.Text {
+			if !testData[i].equals(*r) {
 				t.Error(fmt.Sprintf("Different data sent and red. %v, %v", testData[i], r))
 			}
 		}
@@ -100,13 +104,10 @@ func TestStreamHttpConverter(t *testing.T) {
 }
 
 func TestBufferedStreamHttpConverter(t *testing.T) {
-	testDataCount = 100
 	hos = NewStreamToHttpConverter[*TestObject]()
-	setupServer()
-	createSource()
-	go fillData()
+	initTest(1000)
 	t.Run("Pull 'streaming' with buffering, pipeline conversion to http", func(t *testing.T) {
-		his := NewBufferedHttpToStreamConverter[*TestObject]("http://127.0.0.1", port, "", 2)
+		his := NewBufferedHttpToStreamConverter[*TestObject](serverAddress, port, "", 2)
 		outs = NewReadableOutputStream[*TestObject]()
 		his.Pipe(outs)
 		result := make([]*TestObject, 1)
@@ -115,7 +116,7 @@ func TestBufferedStreamHttpConverter(t *testing.T) {
 				t.Error(err)
 				continue
 			}
-			if testData[i].Text != result[0].Text {
+			if !testData[i].equals(*result[0]) {
 				t.Error(fmt.Sprintf("Different data sent and red. %v, %v", testData[i], result[0]))
 			}
 		}
@@ -125,13 +126,10 @@ func TestBufferedStreamHttpConverter(t *testing.T) {
 }
 
 func TestHttpStreaming(t *testing.T) {
-	testDataCount = 500
 	hos = NewHttpOutputStream[*TestObject]()
-	setupServer()
-	createSource()
-	go fillData()
+	initTest(1000)
 	t.Run("Proper http streaming through response", func(t *testing.T) {
-		his := NewHttpInputStream[*TestObject]("http://127.0.0.1", port, "", 10)
+		his := NewHttpInputStream[*TestObject](serverAddress, port, "", 10)
 		outs = NewReadableOutputStream[*TestObject]()
 		his.Pipe(outs)
 		result := make([]*TestObject, 1)
@@ -140,7 +138,7 @@ func TestHttpStreaming(t *testing.T) {
 				t.Error(err)
 				continue
 			}
-			if testData[i].Text != result[0].Text {
+			if !testData[i].equals(*result[0]) {
 				t.Error(fmt.Sprintf("Different data sent and red. %v, %v", testData[i], result[0]))
 			}
 

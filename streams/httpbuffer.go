@@ -96,9 +96,11 @@ Implements:
 type httpToStreamConverter[T any] struct {
 	inputStream[T]
 	server string
-	port   int16
+	port   uint16
 	path   string
 }
+
+//TODO keep it atomic or use just URL?
 
 /*
 Http to stream converter constructor.
@@ -112,7 +114,7 @@ Parameters:
 Returns:
   - pointer to the created http input stream
 */
-func NewHttpToStreamConverter[T any](server string, port int16, path string) HttpInputStream[T] {
+func NewHttpToStreamConverter[T any](server string, port uint16, path string) HttpInputStream[T] {
 	ego := &httpToStreamConverter[T]{
 		server: server,
 		port:   port,
@@ -155,7 +157,7 @@ Implements:
 type bufferedHttpToStreamConverter[T any] struct {
 	inputStream[T]
 	server     string
-	port       int16
+	port       uint16
 	path       string
 	buffer     chan transferData[T]
 	bufferSize int
@@ -175,7 +177,7 @@ Parameters:
 Returns:
   - pointer to the created http input stream
 */
-func NewBufferedHttpToStreamConverter[T any](server string, port int16, path string, bufferSize int) HttpInputStream[T] {
+func NewBufferedHttpToStreamConverter[T any](server string, port uint16, path string, bufferSize int) HttpInputStream[T] {
 	ego := &bufferedHttpToStreamConverter[T]{
 		server:     server,
 		port:       port,
@@ -247,7 +249,7 @@ Implements:
 type httpInputStream[T any] struct {
 	inputStream[T]
 	server     string
-	port       int16
+	port       uint16
 	path       string
 	buffer     chan transferData[T]
 	bufferSize int
@@ -267,7 +269,7 @@ Parameters:
 Returns:
   - pointer to the created http input stream.
 */
-func NewHttpInputStream[T any](server string, port int16, path string, bufferSize int) HttpInputStream[T] {
+func NewHttpInputStream[T any](server string, port uint16, path string, bufferSize int) HttpInputStream[T] {
 	ego := &httpInputStream[T]{
 		server:     server,
 		port:       port,
@@ -283,7 +285,7 @@ func NewHttpInputStream[T any](server string, port int16, path string, bufferSiz
 
 func (ego *httpInputStream[T]) get() (T, bool, error) {
 	ego.mu.Lock()
-	if !ego.connected { //TODO lock?
+	if !ego.connected {
 		go ego.connectAndRead()
 	} else {
 		ego.mu.Unlock()
@@ -300,9 +302,10 @@ func (ego *httpInputStream[T]) connectAndRead() error {
 	resp, err := http.Get(fmt.Sprintf("%s:%d/%s", ego.server, ego.port, ego.path))
 	if err != nil {
 		log.Default().Println("Could not reach the server: ", err)
+		ego.mu.Unlock()
 		return err
 	}
-	ego.connected = true //TODO lock?
+	ego.connected = true
 	ego.mu.Unlock()
 	defer resp.Body.Close()
 
