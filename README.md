@@ -1,11 +1,11 @@
 # Gonatus
-Gonatus is an opensource Golang library for highly scalable environments for unstructured, structured and relational data analysis.
+Gonatus is an opensource Golang library for highly scalable environments for unstructured, structured, and relational data analysis.
 
 # Gonatus Basics
 
 ## Gonatus System
-While Gonatus is meant to be Big Data framework for large scalable environments, we define designed those areas:
-  * objective system with functional serialization,
+While Gonatus is meant to be Big Data framework for large scalable environments, we cover these areas:
+  * object system with functional serialization,
   * lazy streams,
   * reinvented file system,
   * logging,
@@ -19,14 +19,14 @@ While Gonatus is meant to be Big Data framework for large scalable environments,
   * dynamic scaling of gonatus nodes with scheduling.
 
 ## Principles & Best Practices
-We define Pseudo-Objective system for Golang (however not recommended by Golang to say objective system).
+We define Pseudo-Object system for Golang (however it is not recommended by Golang to say object system).
 
-We use instead of `self` or `this` receiver the `ego` naming (however not recommended by Golang).
+We use instead of `self` or `this` receiver the `ego` naming (however it is not recommended by Golang).
 
-## Objective system
-To be a valid Gobject you have to implement `Gobjecter` interface and you have to include `Gobject` struct to the first line of your struct fields.
+## Object system
+To be a valid Gobject you have to implement `Gobjecter` interface and you have to embed `Gobject` struct into your struct.
 
-The Constructor for a class A must be in form of  `func NewA(AConf) *A` or `func NewA(AConf) A` if class A is interface. `AConf` is structure containing Golang atomic types (numbers, strings, structures, serializable slices, arrays and maps). Pointers, instances, interfaces are not allowed.
+The Constructor for a class A must be in form of `func NewA(AConf) *A` or `func NewA(AConf) A` if class A is interface. `AConf` is structure containing Golang atomic types (numbers, strings, structures, serializable slices, arrays and maps). Pointers, instances, interfaces are not allowed.
 
 Constructors must set field `Gobject.CLASS` to `"A"`.
 
@@ -38,7 +38,7 @@ For those purpose every class X must implement `serialize()` and `NewX()` leadin
 Serialize/deserialize scheme as follows:
 
 ```go
-// let a be a Gonatus object A be its class
+// let a be a Gonatus object and A be its class
 NewA(a.serialize()).serialize() == a.serialize()
 ```
 
@@ -100,7 +100,7 @@ func (ego *Dog) Woof() Dog {
 ```
 
 ## The Lazy Streams
-Lazy streams are implemented due to ability of perfomance management during the stream lifetime.
+Lazy streams are implemented for ability of perfomance management during the stream lifetime.
 
 ### Stream Node Types
   * Buffered Stream
@@ -124,7 +124,7 @@ Lazy streams are implemented due to ability of perfomance management during the 
 ### Example
 
 ## Reinvented File System
-Due to classic filesystem limitations (max path, max name size, unicode problems, reserved characters, inode count, ...) we redefined classical Filesystem. First change in comparation to classical filesystem is that we recognize multiple states of entries - undetermined, topology, content, topology & content. Due to this file may also have children (as only directory can in normal fs) and directory may also hold a content. So we may expand archives for example into the original file topology.
+Due to classic filesystem limitations (max path, max name size, unicode problems, reserved characters, inode count, ...) we redefined classical Filesystem. First change in comparison to classical filesystem is that we recognize multiple states of entries - undetermined, topology, content, topology & content. Due to this file may also have children (as only directory can in normal fs) and directory may also hold a content. So we may expand archives for example into the original file topology.
 
 ### Record types
   * `undetermined` - Unknown reserved kind of a record - state when the record is empty and have no topology.
