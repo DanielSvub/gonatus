@@ -1,11 +1,13 @@
 package gonatus
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"reflect"
 
 	"github.com/mitchellh/mapstructure"
+	"golang.org/x/exp/slog"
 )
 
 type Conf map[string]any
@@ -106,12 +108,15 @@ type Gobjecter interface {
 	Ptr() any
 	setPtr(ptr Gobjecter)
 	setConf(conf Conf)
+	SetLog(slog.Logger)
+	Log() slog.Logger
 }
 
 type Gobject struct {
 	ptr   Gobjecter
 	conf  Conf
 	CLASS string
+	log   *slog.Logger
 }
 
 func (ego *Gobject) Init(ptr Gobjecter) {
@@ -121,6 +126,11 @@ func (ego *Gobject) Init(ptr Gobjecter) {
 		ego.setConf(NewConf(className))
 		ego.CLASS = className
 	}
+
+	if ego.log == nil {
+		ego.log = slog.New(ThrowawayHandler{})
+	}
+
 }
 
 func (ego *Gobject) Serialize() Conf {
@@ -144,4 +154,37 @@ func (ego *Gobject) setPtr(ptr Gobjecter) {
 
 func (ego *Gobject) setConf(conf Conf) {
 	ego.conf = conf
+}
+
+func (ego *Gobject) Log() *slog.Logger {
+	return ego.log
+}
+
+func (ego *Gobject) SetLog(log *slog.Logger) {
+	if log == nil {
+		ego.log = slog.New(ThrowawayHandler{})
+	} else {
+
+		ego.log = log
+	}
+}
+
+// ThrowawayHandler is a slog.Handler which does not process any Record (i.e. it throws everything away)
+// this behaviour propagates to any derived handlers/loggers
+type ThrowawayHandler struct{}
+
+func (h ThrowawayHandler) Enabled(context.Context, slog.Level) bool {
+	return false
+}
+
+func (h ThrowawayHandler) Handle(context.Context, slog.Record) error {
+	return nil
+}
+
+func (h ThrowawayHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return h
+}
+
+func (h ThrowawayHandler) WithGroup(name string) slog.Handler {
+	return h
 }
