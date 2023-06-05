@@ -128,7 +128,7 @@ func (ego *Gobject) Init(ptr Gobjecter) {
 	}
 
 	if ego.log == nil {
-		ego.log = slog.New(ThrowawayHandler{})
+		ego.log = throwAwayLogger
 	}
 
 }
@@ -156,35 +156,43 @@ func (ego *Gobject) setConf(conf Conf) {
 	ego.conf = conf
 }
 
-func (ego *Gobject) Log() *slog.Logger {
-	return ego.log
+func (ego *Gobject) Log() slog.Logger {
+	if ego.log == nil {
+		return *throwAwayLogger
+	} else {
+		return *ego.log
+	}
 }
 
 func (ego *Gobject) SetLog(log *slog.Logger) {
 	if log == nil {
-		ego.log = slog.New(ThrowawayHandler{})
+		ego.log = throwAwayLogger
 	} else {
 
 		ego.log = log
 	}
 }
 
-// ThrowawayHandler is a slog.Handler which does not process any Record (i.e. it throws everything away)
+// throwawayHandler is a slog.Handler which does not process any Record (i.e. it throws everything away)
 // this behaviour propagates to any derived handlers/loggers
-type ThrowawayHandler struct{}
+type throwawayHandler struct{}
 
-func (h ThrowawayHandler) Enabled(context.Context, slog.Level) bool {
+func (h throwawayHandler) Enabled(context.Context, slog.Level) bool {
 	return false
 }
 
-func (h ThrowawayHandler) Handle(context.Context, slog.Record) error {
+func (h throwawayHandler) Handle(context.Context, slog.Record) error {
 	return nil
 }
 
-func (h ThrowawayHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+func (h throwawayHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	return h
 }
 
-func (h ThrowawayHandler) WithGroup(name string) slog.Handler {
+func (h throwawayHandler) WithGroup(name string) slog.Handler {
 	return h
 }
+
+// throwAwayLogger is (a pointer to) a single instance of "throwAwayLogger"
+// as it is unexported and has no consturctor nor modifying methods, it is pracically a singleton
+var throwAwayLogger = slog.New(throwawayHandler{})
