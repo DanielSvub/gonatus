@@ -57,12 +57,12 @@ func NewFilterStream[T any](filter func(e T) bool) FilterStreamer[T] {
 	return ego
 }
 
-func (ego *filterStream[T]) get() (value T, valid bool, err error) {
+func (ego *filterStream[T]) Get() (value T, valid bool, err error) {
 	if ego.source == nil {
 		return *new(T), false, errors.New("The stream is not attached.")
 	}
 	for true {
-		value, valid, err = ego.source.get()
+		value, valid, err = ego.source.Get()
 		closed := ego.source.Closed()
 		if closed {
 			ego.close()

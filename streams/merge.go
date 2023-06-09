@@ -40,13 +40,13 @@ func (ego *rrMergeStream[T]) unsetSource(s InputStreamer[T]) {
 	}
 }
 
-func (ego *rrMergeStream[T]) get() (value T, valid bool, err error) {
+func (ego *rrMergeStream[T]) Get() (value T, valid bool, err error) {
 
 	if len(ego.sources) == 0 {
 		return *new(T), false, errors.New("The stream has no sources.")
 	}
 
-	value, valid, err = ego.sources[ego.currIndex].get()
+	value, valid, err = ego.sources[ego.currIndex].Get()
 
 	if ego.sources[ego.currIndex].Closed() {
 		ego.unsetSource(ego.sources[ego.currIndex])

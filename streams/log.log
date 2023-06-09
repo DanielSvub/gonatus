@@ -1,0 +1,107 @@
+{"time":"2023-05-29T13:47:59.542810114+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.54340963+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.543432874+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.543491815+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.543571654+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"Item count":1}
+{"time":"2023-05-29T13:47:59.543588276+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.543666192+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.543684116+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.543694084+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.543736354+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"Item count":1}
+{"time":"2023-05-29T13:47:59.543744579+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.543782921+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.543791738+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.54379799+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.543834017+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"Item count":1}
+{"time":"2023-05-29T13:47:59.543843976+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.543885554+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.5438942+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.543900462+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.543948913+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"Item count":1}
+{"time":"2023-05-29T13:47:59.543960645+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.544003826+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.544011641+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.544019766+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.544075581+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"Item count":1}
+{"time":"2023-05-29T13:47:59.544099646+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.544142447+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.544159879+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.544178434+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.544244969+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"Item count":1}
+{"time":"2023-05-29T13:47:59.544257122+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.544310713+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.544323176+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.544333415+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.544421561+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"Item count":1}
+{"time":"2023-05-29T13:47:59.544444504+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.544547878+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.544580569+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.544598353+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.544701507+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"Item count":1}
+{"time":"2023-05-29T13:47:59.544722887+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.544785765+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.54479939+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.544811253+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.544897585+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"Item count":1}
+{"time":"2023-05-29T13:47:59.544914417+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.544992082+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.54500697+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.545023341+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.545074147+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"Item count":1}
+{"time":"2023-05-29T13:47:59.545090167+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.545147404+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.545155229+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":1}
+{"time":"2023-05-29T13:47:59.545160589+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":0}
+{"time":"2023-05-29T13:47:59.545198169+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":1,"Server":"http://127.0.0.1","Port":33637,"Endpoint":""},"Item count":1}
+{"time":"2023-05-29T13:47:59.545434043+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":110,"Server":"http://127.0.0.1","Port":32853,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.545640049+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.545652212+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":110}
+{"time":"2023-05-29T13:47:59.545736551+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":110}
+{"time":"2023-05-29T13:47:59.54599198+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":110,"Server":"http://127.0.0.1","Port":32853,"Endpoint":""},"Item count":110}
+{"time":"2023-05-29T13:47:59.546015855+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":110,"Server":"http://127.0.0.1","Port":32853,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.546063314+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.546074245+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":110}
+{"time":"2023-05-29T13:47:59.546134578+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":110}
+{"time":"2023-05-29T13:47:59.546366895+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":110,"Server":"http://127.0.0.1","Port":32853,"Endpoint":""},"Item count":110}
+{"time":"2023-05-29T13:47:59.546388686+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":110,"Server":"http://127.0.0.1","Port":32853,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.54645494+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.546617596+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":110}
+{"time":"2023-05-29T13:47:59.546767697+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":110}
+{"time":"2023-05-29T13:47:59.547034268+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":110,"Server":"http://127.0.0.1","Port":32853,"Endpoint":""},"Item count":110}
+{"time":"2023-05-29T13:47:59.547056249+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":110,"Server":"http://127.0.0.1","Port":32853,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.547137041+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.547148653+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":110}
+{"time":"2023-05-29T13:47:59.547224295+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":110}
+{"time":"2023-05-29T13:47:59.547459908+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":110,"Server":"http://127.0.0.1","Port":32853,"Endpoint":""},"Item count":110}
+{"time":"2023-05-29T13:47:59.547489954+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":110,"Server":"http://127.0.0.1","Port":32853,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.547531843+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.547539838+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":110}
+{"time":"2023-05-29T13:47:59.547606333+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":110}
+{"time":"2023-05-29T13:47:59.547824893+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":110,"Server":"http://127.0.0.1","Port":32853,"Endpoint":""},"Item count":110}
+{"time":"2023-05-29T13:47:59.547842797+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":110,"Server":"http://127.0.0.1","Port":32853,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.547885547+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.547894895+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":110}
+{"time":"2023-05-29T13:47:59.547968733+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":110}
+{"time":"2023-05-29T13:47:59.548192173+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":110,"Server":"http://127.0.0.1","Port":32853,"Endpoint":""},"Item count":110}
+{"time":"2023-05-29T13:47:59.548209956+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":110,"Server":"http://127.0.0.1","Port":32853,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.548248439+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.548253979+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":110}
+{"time":"2023-05-29T13:47:59.54832366+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":110}
+{"time":"2023-05-29T13:47:59.548555876+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":110,"Server":"http://127.0.0.1","Port":32853,"Endpoint":""},"Item count":110}
+{"time":"2023-05-29T13:47:59.548574211+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":110,"Server":"http://127.0.0.1","Port":32853,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.548626138+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.54863244+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":110}
+{"time":"2023-05-29T13:47:59.548692833+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":110}
+{"time":"2023-05-29T13:47:59.548931492+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":110,"Server":"http://127.0.0.1","Port":32853,"Endpoint":""},"Item count":110}
+{"time":"2023-05-29T13:47:59.548949896+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":110,"Server":"http://127.0.0.1","Port":32853,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.548990783+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.54899988+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":110}
+{"time":"2023-05-29T13:47:59.54906892+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":110}
+{"time":"2023-05-29T13:47:59.54931955+02:00","level":"INFO","msg":"Done reading","httpToStreamConverter fillBuffer":{"buffer size":110,"Server":"http://127.0.0.1","Port":32853,"Endpoint":""},"Item count":110}
+{"time":"2023-05-29T13:47:59.549338907+02:00","level":"INFO","msg":"New HTTP GET request","httpToStreamConverter fillBuffer":{"buffer size":110,"Server":"http://127.0.0.1","Port":32853,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.549390935+02:00","level":"INFO","msg":"New HTTP request","streamToHttpConverter":{"request ID":0}}
+{"time":"2023-05-29T13:47:59.549400573+02:00","level":"INFO","msg":"Request params","streamToHttpConverter":{"request ID":0},"Item count":110}
+{"time":"2023-05-29T13:47:59.549410742+02:00","level":"INFO","msg":"Response sent","streamToHttpConverter":{"request ID":0},"Item count":10}
+{"time":"2023-05-29T13:47:59.549662765+02:00","level":"INFO","msg":"New HTTP GET request","httpInputStream connectAndRead":{"buffer size":10,"Server":"http://127.0.0.1","Port":37663,"Endpoint":""},"request ID":0}
+{"time":"2023-05-29T13:47:59.550290484+02:00","level":"INFO","msg":"Done, source closed.","httpOutputStream":{"GET request id":0}}
+{"time":"2023-05-29T13:47:59.551540251+02:00","level":"INFO","msg":"Done, source closed","httpInputStream connectAndRead":{"buffer size":10,"Server":"http://127.0.0.1","Port":37663,"Endpoint":""}}

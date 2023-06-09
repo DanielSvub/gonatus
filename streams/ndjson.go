@@ -82,7 +82,7 @@ func NewNdjsonInputStream(path string) NdjsonInputStreamer {
 
 }
 
-func (ego *ndjsonInputStream) get() (value gonatus.Conf, valid bool, err error) {
+func (ego *ndjsonInputStream) Get() (value gonatus.Conf, valid bool, err error) {
 
 	if ego.file == nil {
 		var file *os.File
@@ -178,7 +178,7 @@ func (ego *ndjsonOutputStream) Run() error {
 
 	for true {
 
-		value, valid, err := ego.source.get()
+		value, valid, err := ego.source.Get()
 		if !valid || err != nil {
 			break
 		}

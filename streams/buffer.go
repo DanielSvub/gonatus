@@ -112,7 +112,7 @@ func (ego *bufferInputStream[T]) error(err error) {
 	ego.err = err
 }
 
-func (ego *bufferInputStream[T]) get() (value T, valid bool, err error) {
+func (ego *bufferInputStream[T]) Get() (value T, valid bool, err error) {
 
 	if ego.buffer == nil {
 		err = errors.New("Buffer is not initialized.")
@@ -193,7 +193,7 @@ func (ego *readableOutputStream[T]) Read(p []T) (int, error) {
 	n := len(p)
 
 	for i := 0; i < n; i++ {
-		value, valid, err := ego.source.get()
+		value, valid, err := ego.source.Get()
 		if err != nil || !valid {
 			ego.close()
 			return i, err
@@ -218,7 +218,7 @@ func (ego *readableOutputStream[T]) Collect() ([]T, error) {
 	output := make([]T, 0)
 
 	for true {
-		value, valid, err := ego.source.get()
+		value, valid, err := ego.source.Get()
 		if err != nil || !valid {
 			ego.close()
 			return output, err

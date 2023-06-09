@@ -40,7 +40,7 @@ func (ego *splitStream[T]) negative() InputStreamer[T] {
 func (ego *splitStream[T]) doFilter() {
 
 	for true {
-		value, valid, err := ego.source.get()
+		value, valid, err := ego.source.Get()
 		if err != nil {
 			ego.positiveStream.error(err)
 			ego.negativeStream.error(err)

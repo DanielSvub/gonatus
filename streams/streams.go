@@ -67,7 +67,7 @@ type InputStreamer[T any] interface {
 			- valid - true if the value is present, false otherwise,
 			- err - error, if any occurred.
 	*/
-	get() (value T, valid bool, err error)
+	Get() (value T, valid bool, err error)
 
 	/*
 		Attaches the given stream to this one.
@@ -167,7 +167,7 @@ type inputStream[T any] struct {
 	piped bool
 }
 
-func (ego *inputStream[T]) get() (value T, valid bool, err error) {
+func (ego *inputStream[T]) Get() (value T, valid bool, err error) {
 	panic("Not implemented.")
 }
 

@@ -60,11 +60,11 @@ func NewTransformStream[T any, U any](transform func(e T) U) TransformStreamer[T
 	return ego
 }
 
-func (ego *transformStream[T, U]) get() (value U, valid bool, err error) {
+func (ego *transformStream[T, U]) Get() (value U, valid bool, err error) {
 	if ego.source == nil {
 		return *new(U), false, errors.New("The stream is not attached.")
 	}
-	val, valid, err := ego.source.get()
+	val, valid, err := ego.source.Get()
 	if ego.source.Closed() {
 		ego.close()
 	}

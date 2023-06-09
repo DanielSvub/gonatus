@@ -41,7 +41,7 @@ func (ego *duplicationStream[T]) second() InputStreamer[T] {
 func (ego *duplicationStream[T]) duplicate() {
 
 	for true {
-		value, valid, err := ego.source.get()
+		value, valid, err := ego.source.Get()
 		if err != nil {
 			ego.stream1.error(err)
 			ego.stream2.error(err)
