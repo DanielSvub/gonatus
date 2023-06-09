@@ -108,8 +108,8 @@ type Gobjecter interface {
 	Ptr() any
 	setPtr(ptr Gobjecter)
 	setConf(conf Conf)
-	SetLog(slog.Logger)
-	Log() slog.Logger
+	SetLog(*slog.Logger)
+	Log() *slog.Logger
 }
 
 type Gobject struct {
@@ -156,21 +156,19 @@ func (ego *Gobject) setConf(conf Conf) {
 	ego.conf = conf
 }
 
-func (ego *Gobject) Log() slog.Logger {
+// Log returns associated slog.Logger
+// If the logger is not initialized (nil), a default slog.Logger which throws every log record away is returned instead
+func (ego *Gobject) Log() *slog.Logger {
 	if ego.log == nil {
-		return *throwAwayLogger
+		return throwAwayLogger
 	} else {
-		return *ego.log
+		return ego.log
 	}
 }
 
+// SetLog sets an associated slog.Logger of the Gobject
 func (ego *Gobject) SetLog(log *slog.Logger) {
-	if log == nil {
-		ego.log = throwAwayLogger
-	} else {
-
-		ego.log = log
-	}
+	ego.log = log
 }
 
 // throwawayHandler is a slog.Handler which does not process any Record (i.e. it throws everything away)
@@ -193,6 +191,6 @@ func (h throwawayHandler) WithGroup(name string) slog.Handler {
 	return h
 }
 
-// throwAwayLogger is (a pointer to) a single instance of "throwAwayLogger"
-// as it is unexported and has no consturctor nor modifying methods, it is pracically a singleton
+// throwAwayLogger is (a pointer to) a single instance of "throwAwayLogger", i.e. a loggger which does not log anything.
+// As it is unexported and has no consturctor nor modifying methods, it is practically a singleton.
 var throwAwayLogger = slog.New(throwawayHandler{})
