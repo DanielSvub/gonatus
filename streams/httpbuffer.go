@@ -71,7 +71,7 @@ func (ego *streamToHttpConverter[T]) Handle(w http.ResponseWriter, r *http.Reque
 	}
 	bw := bufio.NewWriter(w)
 	for i := 0; i < itemCount; i++ {
-		value, valid, err := ego.source.get() //we are blocking here if there is not enough data (implementation details of get)
+		value, valid, err := ego.source.Get() //we are blocking here if there is not enough data (implementation details of get)
 		data := transferData[T]{Value: value, Valid: valid, Error: err}
 		resp, err := json.Marshal(data)
 		bw.Write(resp)
@@ -124,7 +124,7 @@ func NewHttpToStreamConverter[T any](server string, port uint16, path string) Ht
 	return ego
 }
 
-func (ego *httpToStreamConverter[T]) get() (T, bool, error) {
+func (ego *httpToStreamConverter[T]) Get() (T, bool, error) {
 	resp, err := http.Get(fmt.Sprintf("%s:%d/%s?itemCount=1", ego.server, ego.port, ego.path)) //stream get returns single item -> we ask for single item
 	if err != nil {
 		log.Fatal("Could not reach the server: ", err)
@@ -189,13 +189,13 @@ func NewBufferedHttpToStreamConverter[T any](server string, port uint16, path st
 	return ego
 }
 
-func (ego *bufferedHttpToStreamConverter[T]) get() (T, bool, error) {
+func (ego *bufferedHttpToStreamConverter[T]) Get() (T, bool, error) {
 	select {
 	case transfer := <-ego.buffer:
 		return transfer.Value, transfer.Valid, transfer.Error
 	default:
 		ego.fillBuffer()
-		return ego.get()
+		return ego.Get()
 	}
 
 }
@@ -283,7 +283,7 @@ func NewHttpInputStream[T any](server string, port uint16, path string, bufferSi
 	return ego
 }
 
-func (ego *httpInputStream[T]) get() (T, bool, error) {
+func (ego *httpInputStream[T]) Get() (T, bool, error) {
 	ego.mu.Lock()
 	if !ego.connected {
 		go ego.connectAndRead()
@@ -356,7 +356,7 @@ func NewHttpOutputStream[T any]() HttpOutputStream[T] {
 func (ego *httpOutputStream[T]) Handle(w http.ResponseWriter, r *http.Request) {
 	enc := json.NewEncoder(w)
 	for true {
-		value, valid, err := ego.source.get() //we are blocking here if there is no data (implementation details of get)
+		value, valid, err := ego.source.Get() //we are blocking here if there is no data (implementation details of get)
 		data := transferData[T]{Value: value, Valid: valid, Error: err}
 		if err = enc.Encode(data); err != nil {
 			log.Println("Encoding problem", err)
