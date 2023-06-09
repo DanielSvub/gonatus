@@ -176,21 +176,21 @@ func (ego *inputStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
 		panic("The stream is already piped.")
 	}
 	ego.piped = true
-	return pipe[T](ego, s)
+	return Pipe[T](ego, s)
 }
 
 func (ego *inputStream[T]) Split(s SplitStreamer[T]) (trueStream InputStreamer[T], falseStream InputStreamer[T]) {
 	if ego.piped {
 		panic("The stream is already piped.")
 	}
-	return split[T](ego, s)
+	return Split[T](ego, s)
 }
 
 func (ego *inputStream[T]) Duplicate(s DuplicationStreamer[T]) (stream1 InputStreamer[T], stream2 InputStreamer[T]) {
 	if ego.piped {
 		panic("The stream is already piped.")
 	}
-	return duplicate[T](ego, s)
+	return Duplicate[T](ego, s)
 }
 
 /*
@@ -217,7 +217,7 @@ func (ego *outputStream[T]) setSource(s InputStreamer[T]) {
 /*
 Implements the InputStreamer's Pipe method.
 */
-func pipe[T any](ego InputStreamer[T], s OutputStreamer[T]) InputStreamer[T] {
+func Pipe[T any](ego InputStreamer[T], s OutputStreamer[T]) InputStreamer[T] {
 	s.setSource(ego.ptr().(InputStreamer[T]))
 	ts, hasOutput := s.(InputStreamer[T])
 	if hasOutput {
@@ -229,7 +229,7 @@ func pipe[T any](ego InputStreamer[T], s OutputStreamer[T]) InputStreamer[T] {
 /*
 Implements the InputStreamer's Duplicate method.
 */
-func split[T any](ego InputStreamer[T], s SplitStreamer[T]) (InputStreamer[T], InputStreamer[T]) {
+func Split[T any](ego InputStreamer[T], s SplitStreamer[T]) (InputStreamer[T], InputStreamer[T]) {
 	s.setSource(ego.ptr().(InputStreamer[T]))
 	return s.positive(), s.negative()
 }
@@ -237,7 +237,7 @@ func split[T any](ego InputStreamer[T], s SplitStreamer[T]) (InputStreamer[T], I
 /*
 Implements the InputStreamer's Duplicate method.
 */
-func duplicate[T any](ego InputStreamer[T], s DuplicationStreamer[T]) (InputStreamer[T], InputStreamer[T]) {
+func Duplicate[T any](ego InputStreamer[T], s DuplicationStreamer[T]) (InputStreamer[T], InputStreamer[T]) {
 	s.setSource(ego.ptr().(InputStreamer[T]))
 	return s.first(), s.second()
 }

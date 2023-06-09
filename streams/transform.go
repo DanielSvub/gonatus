@@ -86,7 +86,7 @@ func (ego *transformStream[T, U]) Pipe(s OutputStreamer[U]) InputStreamer[U] {
 		panic("The stream is already piped.")
 	}
 	ego.piped = true
-	return pipe[U](ego, s)
+	return Pipe[U](ego, s)
 }
 
 func (ego *transformStream[T, U]) Split(s SplitStreamer[U]) (positiveStream InputStreamer[U], negativeStream InputStreamer[U]) {
@@ -94,7 +94,7 @@ func (ego *transformStream[T, U]) Split(s SplitStreamer[U]) (positiveStream Inpu
 		panic("The stream is already piped.")
 	}
 	ego.piped = true
-	return split[U](ego, s)
+	return Split[U](ego, s)
 }
 
 func (ego *transformStream[T, U]) Duplicate(s DuplicationStreamer[U]) (stream1 InputStreamer[U], stream2 InputStreamer[U]) {
@@ -102,5 +102,5 @@ func (ego *transformStream[T, U]) Duplicate(s DuplicationStreamer[U]) (stream1 I
 		panic("The stream is already piped.")
 	}
 	ego.piped = true
-	return duplicate[U](ego, s)
+	return Duplicate[U](ego, s)
 }

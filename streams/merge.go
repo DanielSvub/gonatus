@@ -80,19 +80,19 @@ func (ego *rrMergeStream[T]) Pipe(s OutputStreamer[T]) InputStreamer[T] {
 		panic("The stream is already piped.")
 	}
 	ego.piped = true
-	return pipe[T](ego, s)
+	return Pipe[T](ego, s)
 }
 
 func (ego *rrMergeStream[T]) Split(s SplitStreamer[T]) (positiveStream InputStreamer[T], negativeStream InputStreamer[T]) {
 	if ego.piped {
 		panic("The stream is already piped.")
 	}
-	return split[T](ego, s)
+	return Split[T](ego, s)
 }
 
 func (ego *rrMergeStream[T]) Duplicate(s DuplicationStreamer[T]) (stream1 InputStreamer[T], stream2 InputStreamer[T]) {
 	if ego.piped {
 		panic("The stream is already piped.")
 	}
-	return duplicate[T](ego, s)
+	return Duplicate[T](ego, s)
 }
