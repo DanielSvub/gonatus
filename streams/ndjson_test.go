@@ -15,10 +15,10 @@ func TestNdjson(t *testing.T) {
 	t.Run("ndjsonInput", func(t *testing.T) {
 
 		nds := NewNdjsonInputStream("fixtures/example.ndjson")
-		ts := NewTransformStream(func(x gonatus.Conf) gonatus.Conf {
+		ts := NewTransformStream(func(x gonatus.DynamicConf) gonatus.DynamicConf {
 			return x
 		})
-		os := NewReadableOutputStream[gonatus.Conf]()
+		os := NewReadableOutputStream[gonatus.DynamicConf]()
 
 		nds.Pipe(ts).Pipe(os)
 
@@ -27,7 +27,7 @@ func TestNdjson(t *testing.T) {
 			t.Error("Collecting the results was unsuccessful.")
 		}
 
-		val := result[2]["data"].(gonatus.Conf)["name"]
+		val := result[2]["data"].(gonatus.DynamicConf)["name"]
 		if val != "Arnold" {
 			t.Error("Name is not matching.")
 		}
@@ -57,14 +57,14 @@ func TestNdjson(t *testing.T) {
 		origFScanner := bufio.NewScanner(origF)
 		copyFScanner := bufio.NewScanner(copyF)
 
-		origFConfs := make([]gonatus.Conf, 0)
+		origFConfs := make([]gonatus.DynamicConf, 0)
 		for origFScanner.Scan() {
 			newConf := gonatus.NewConf("")
 			newConf.Unmarshal([]byte(origFScanner.Text()))
 			origFConfs = append(origFConfs, newConf)
 		}
 
-		copyFConfs := make([]gonatus.Conf, 0)
+		copyFConfs := make([]gonatus.DynamicConf, 0)
 		for copyFScanner.Scan() {
 			newConf := gonatus.NewConf("")
 			newConf.Unmarshal([]byte(copyFScanner.Text()))
@@ -94,9 +94,9 @@ func TestNdjson(t *testing.T) {
 	t.Run("ndjsonOutputTransform", func(t *testing.T) {
 
 		ndi := NewNdjsonInputStream("fixtures/example.ndjson")
-		ts := NewTransformStream(func(x gonatus.Conf) gonatus.Conf {
-			id := x["data"].(gonatus.Conf)["id"].(float64)
-			x["data"].(gonatus.Conf)["id"] = id + 1
+		ts := NewTransformStream(func(x gonatus.DynamicConf) gonatus.DynamicConf {
+			id := x["data"].(gonatus.DynamicConf)["id"].(float64)
+			x["data"].(gonatus.DynamicConf)["id"] = id + 1
 			return x
 		})
 		ndo := NewNdjsonOutputStream("fixtures/exampleModified.ndjson", FileWrite)
@@ -119,14 +119,14 @@ func TestNdjson(t *testing.T) {
 		origFScanner := bufio.NewScanner(origF)
 		modFScanner := bufio.NewScanner(modF)
 
-		origFConfs := make([]gonatus.Conf, 0)
+		origFConfs := make([]gonatus.DynamicConf, 0)
 		for origFScanner.Scan() {
 			newConf := gonatus.NewConf("")
 			newConf.Unmarshal([]byte(origFScanner.Text()))
 			origFConfs = append(origFConfs, newConf)
 		}
 
-		modFConfs := make([]gonatus.Conf, 0)
+		modFConfs := make([]gonatus.DynamicConf, 0)
 		for modFScanner.Scan() {
 			newConf := gonatus.NewConf("")
 			newConf.Unmarshal([]byte(modFScanner.Text()))
@@ -139,8 +139,8 @@ func TestNdjson(t *testing.T) {
 
 		i := rand.Intn(len(origFConfs))
 
-		val1 := origFConfs[i]["data"].(gonatus.Conf)["id"].(float64)
-		val2 := modFConfs[i]["data"].(gonatus.Conf)["id"].(float64)
+		val1 := origFConfs[i]["data"].(gonatus.DynamicConf)["id"].(float64)
+		val2 := modFConfs[i]["data"].(gonatus.DynamicConf)["id"].(float64)
 
 		if (val1 + 1) != val2 {
 			t.Error("The value doesn't match.")
@@ -186,14 +186,14 @@ func TestNdjson(t *testing.T) {
 		origFScanner := bufio.NewScanner(origF)
 		copyFScanner := bufio.NewScanner(copyF)
 
-		origFConfs := make([]gonatus.Conf, 0)
+		origFConfs := make([]gonatus.DynamicConf, 0)
 		for origFScanner.Scan() {
 			newConf := gonatus.NewConf("")
 			newConf.Unmarshal([]byte(origFScanner.Text()))
 			origFConfs = append(origFConfs, newConf)
 		}
 
-		copyFConfs := make([]gonatus.Conf, 0)
+		copyFConfs := make([]gonatus.DynamicConf, 0)
 		for copyFScanner.Scan() {
 			newConf := gonatus.NewConf("")
 			newConf.Unmarshal([]byte(copyFScanner.Text()))
@@ -223,7 +223,7 @@ func TestNdjson(t *testing.T) {
 	t.Run("ndjsonEmpty", func(t *testing.T) {
 
 		nds := NewNdjsonInputStream("fixtures/empty.ndjson")
-		os := NewReadableOutputStream[gonatus.Conf]()
+		os := NewReadableOutputStream[gonatus.DynamicConf]()
 
 		nds.Pipe(os)
 
@@ -237,7 +237,7 @@ func TestNdjson(t *testing.T) {
 	t.Run("errNdjsonNonExistFile", func(t *testing.T) {
 
 		nds := NewNdjsonInputStream("fixtures/nonExist.ndjson")
-		os := NewReadableOutputStream[gonatus.Conf]()
+		os := NewReadableOutputStream[gonatus.DynamicConf]()
 
 		nds.Pipe(os)
 

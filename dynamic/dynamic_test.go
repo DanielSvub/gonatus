@@ -1,9 +1,9 @@
-package gonatus_test
+package dynamic_test
 
 import (
 	"testing"
 
-	. "github.com/SpongeData-cz/gonatus"
+	. "github.com/SpongeData-cz/gonatus/dynamic"
 )
 
 func TestGonatusBase(t *testing.T) {

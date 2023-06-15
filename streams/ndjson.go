@@ -20,7 +20,7 @@ Extends:
   - InputStreamer
 */
 type NdjsonInputStreamer interface {
-	InputStreamer[gonatus.Conf]
+	InputStreamer[gonatus.DynamicConf]
 }
 
 /*
@@ -30,7 +30,7 @@ Extends:
   - OutputStreamer
 */
 type NdjsonOutputStreamer interface {
-	OutputStreamer[gonatus.Conf]
+	OutputStreamer[gonatus.DynamicConf]
 
 	/*
 		Writes individual items as json to the ndjson file.
@@ -53,7 +53,7 @@ Implements:
   - NdjsonInputStreamer.
 */
 type ndjsonInputStream struct {
-	inputStream[gonatus.Conf]
+	inputStream[gonatus.DynamicConf]
 	path    string
 	file    *os.File
 	scanner *bufio.Scanner
@@ -82,7 +82,7 @@ func NewNdjsonInputStream(path string) NdjsonInputStreamer {
 
 }
 
-func (ego *ndjsonInputStream) get() (value gonatus.Conf, valid bool, err error) {
+func (ego *ndjsonInputStream) get() (value gonatus.DynamicConf, valid bool, err error) {
 
 	if ego.file == nil {
 		var file *os.File
@@ -117,7 +117,7 @@ Implements:
   - NdjsonOutputStreamer.
 */
 type ndjsonOutputStream struct {
-	outputStream[gonatus.Conf]
+	outputStream[gonatus.DynamicConf]
 	path string
 	mode int
 	file *os.File
