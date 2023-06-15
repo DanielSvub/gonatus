@@ -106,7 +106,6 @@ func (ego *file) interStorageCopy(dst File) error {
 				continue
 			} else {
 				file := res[0].(*file)
-				println(file.path.String())
 				if file.path.Equals(ego.path) {
 					continue
 				}

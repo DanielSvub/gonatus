@@ -9,10 +9,23 @@ import (
 	. "github.com/SpongeData-cz/gonatus/fs/drivers"
 )
 
+func containsPath(slice []File, path Path) bool {
+	for _, elem := range slice {
+		if elem.Path().Equals(path) {
+			return true
+		}
+	}
+	return false
+}
+
 func TestPath(t *testing.T) {
 
 	p1 := Path{"a", "b"}
 	p2 := Path{"c", "d"}
+
+	if !p1.Equals(p1) || p1.Equals(p2) {
+		t.Fatal("Path equality test does not work.")
+	}
 
 	p := p1.Join(p2)
 	if !p.Equals(Path{"a", "b", "c", "d"}) {
@@ -91,24 +104,46 @@ func TestStorage(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if res, err := unlimited.Collect(); len(res) != 6 || err != nil {
-			t.Error("Unlimited tree failed.")
+		if res, err := unlimited.Collect(); err != nil {
+			t.Error(err)
+		} else if len(res) != 6 {
+			t.Error("Wrong number of files in the unlimited tree.")
+		} else if !(containsPath(res, Path{}) &&
+			containsPath(res, Path{"a"}) &&
+			containsPath(res, Path{"b"}) &&
+			containsPath(res, Path{"a", "c"}) &&
+			containsPath(res, Path{"a", "c", "d"}) &&
+			containsPath(res, Path{"a", "c", "d", "file"})) {
+			t.Error("Missing file(s) in the unlimited tree.")
 		}
 
 		ls, err := storage.Tree(DepthLs)
 		if err != nil {
 			t.Error(err)
 		}
-		if res, err := ls.Collect(); len(res) != 3 || err != nil {
-			t.Error("LS failed.")
+		if res, err := ls.Collect(); err != nil {
+			t.Error(err)
+		} else if len(res) != 3 {
+			t.Error("Wrong number of files in LS.")
+		} else if !(containsPath(res, Path{}) &&
+			containsPath(res, Path{"a"}) &&
+			containsPath(res, Path{"b"})) {
+			t.Error("Missing file in LS.")
 		}
 
 		limit, err := storage.Tree(2)
 		if err != nil {
 			t.Error(err)
 		}
-		if res, err := limit.Collect(); len(res) != 4 || err != nil {
-			t.Error("Limited tree failed.")
+		if res, err := limit.Collect(); err != nil {
+			t.Error(err)
+		} else if len(res) != 4 {
+			t.Error("Wrong number of files in the limited tree.")
+		} else if !(containsPath(res, Path{}) &&
+			containsPath(res, Path{"a"}) &&
+			containsPath(res, Path{"b"}) &&
+			containsPath(res, Path{"a", "c"})) {
+			t.Error("Missing file(s) in the limited tree.")
 		}
 
 		cleanup()
@@ -130,8 +165,17 @@ func TestStorage(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if res, err := unlimited.Collect(); len(res) != 6 || err != nil {
-			t.Error("Merge failed.")
+		if res, err := unlimited.Collect(); err != nil {
+			t.Error(err)
+		} else if len(res) != 6 {
+			t.Error("Wrong number of files in the destination storage.")
+		} else if !(containsPath(res, Path{}) &&
+			containsPath(res, Path{"a"}) &&
+			containsPath(res, Path{"b"}) &&
+			containsPath(res, Path{"a", "c"}) &&
+			containsPath(res, Path{"a", "c", "d"}) &&
+			containsPath(res, Path{"a", "c", "d", "file"})) {
+			t.Error("Missing file(s) in the destination storage.")
 		}
 
 		GStorageManager.UnregisterStorage(copy)
@@ -174,16 +218,17 @@ func TestFile(t *testing.T) {
 			StorageId: sid1,
 		}).MkDir()
 
-		// /a/c/file1
-		file1 := NewFile(FileConf{
-			Path:      Path{"a", "c", "file1"},
+		// /a/c/file
+		file := NewFile(FileConf{
+			Path:      Path{"a", "c", "file"},
 			StorageId: sid1,
 		})
 
-		if err := file1.Open(ModeWrite); err != nil {
+		if err := file.Open(ModeWrite); err != nil {
 			t.Error(err)
 		}
-		if err := file1.Close(); err != nil {
+
+		if err := file.Close(); err != nil {
 			t.Error(err)
 		}
 
@@ -205,7 +250,7 @@ func TestFile(t *testing.T) {
 
 		setup()
 
-		file := NewFile(FileConf{Path: Path{"a", "c", "file1"}, StorageId: sid1})
+		file := NewFile(FileConf{Path: Path{"a", "c", "file"}, StorageId: sid1})
 		copy := NewFile(FileConf{Path: Path{"b", "copy"}, StorageId: sid1})
 		if err := file.Copy(copy); err != nil {
 			t.Error(err)
@@ -220,16 +265,31 @@ func TestFile(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if res, err := s1Tree.Collect(); len(res) != 6 || err != nil {
-			t.Error("File missing in original storage.")
+		if res, err := s1Tree.Collect(); err != nil {
+			t.Error(err)
+		} else if len(res) != 6 {
+			t.Error("Wrong number of files in the original storage.")
+		} else if !(containsPath(res, Path{}) &&
+			containsPath(res, Path{"a"}) &&
+			containsPath(res, Path{"b"}) &&
+			containsPath(res, Path{"a", "c"}) &&
+			containsPath(res, Path{"a", "c", "file"}) &&
+			containsPath(res, Path{"b", "copy"})) {
+			t.Error("Missing file(s) in the original storage.")
 		}
 
 		s2Tree, err := storage2.Tree(DepthUnlimited)
 		if err != nil {
 			t.Error(err)
 		}
-		if res, err := s2Tree.Collect(); len(res) != 3 || err != nil {
-			t.Error("Copy failed.")
+		if res, err := s2Tree.Collect(); err != nil {
+			t.Error(err)
+		} else if len(res) != 3 {
+			t.Error("Wrong number of files the destination storage.")
+		} else if !(containsPath(res, Path{}) &&
+			containsPath(res, Path{"d"}) &&
+			containsPath(res, Path{"d", "copy"})) {
+			t.Error("Missing file(s) in the destination storage.")
 		}
 
 		cleanup()
@@ -251,16 +311,32 @@ func TestFile(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if res, err := s1Tree.Collect(); len(res) != 5 || err != nil {
-			t.Error("File missing in original storage.")
+		if res, err := s1Tree.Collect(); err != nil {
+			t.Error(err)
+		} else if len(res) != 5 {
+			t.Error("Wrong number of files in the original storage.")
+		} else if !(containsPath(res, Path{}) &&
+			containsPath(res, Path{"a"}) &&
+			containsPath(res, Path{"b"}) &&
+			containsPath(res, Path{"a", "c"}) &&
+			containsPath(res, Path{"a", "c", "file"})) {
+			t.Error("Missing file(s) in the original storage.")
 		}
 
 		s2Tree, err := storage2.Tree(DepthUnlimited)
 		if err != nil {
 			t.Error(err)
 		}
-		if res, err := s2Tree.Collect(); len(res) != 5 || err != nil {
-			t.Error("Copy failed.")
+		if res, err := s2Tree.Collect(); err != nil {
+			t.Error(err)
+		} else if len(res) != 5 {
+			t.Error("Wrong number of files in the destination storage.")
+		} else if !(containsPath(res, Path{}) &&
+			containsPath(res, Path{"b"}) &&
+			containsPath(res, Path{"b", "copy"}) &&
+			containsPath(res, Path{"b", "copy", "c"}) &&
+			containsPath(res, Path{"b", "copy", "c", "file"})) {
+			t.Error("Missing file(s) in the destination storage.")
 		}
 
 		cleanup()
@@ -271,7 +347,7 @@ func TestFile(t *testing.T) {
 
 		setup()
 
-		file := NewFile(FileConf{Path: Path{"a", "c", "file1"}, StorageId: sid1})
+		file := NewFile(FileConf{Path: Path{"a", "c", "file"}, StorageId: sid1})
 		moved := NewFile(FileConf{Path: Path{"b", "moved"}, StorageId: sid1})
 		if err := file.Move(moved); err != nil {
 			t.Error(err)
@@ -286,8 +362,15 @@ func TestFile(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if res, err := s1Tree.Collect(); len(res) != 4 || err != nil {
-			t.Error("The file remained in original storage.")
+		if res, err := s1Tree.Collect(); err != nil {
+			t.Error(err)
+		} else if len(res) != 4 {
+			t.Error("Wrong number of files in the original storage.")
+		} else if !(containsPath(res, Path{}) &&
+			containsPath(res, Path{"a"}) &&
+			containsPath(res, Path{"b"}) &&
+			containsPath(res, Path{"a", "c"})) {
+			t.Error("Missing file(s) in the original storage.")
 		}
 
 		s2Tree, err := storage2.Tree(DepthUnlimited)
@@ -296,6 +379,10 @@ func TestFile(t *testing.T) {
 		}
 		if res, err := s2Tree.Collect(); len(res) != 3 || err != nil {
 			t.Error("Move failed.")
+		} else if !(containsPath(res, Path{}) &&
+			containsPath(res, Path{"d"}) &&
+			containsPath(res, Path{"d", "moved"})) {
+			t.Error("Missing file(s) in the destination storage.")
 		}
 
 		cleanup()
@@ -312,16 +399,27 @@ func TestFile(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if res, err := unlimited.Collect(); len(res) != 3 || err != nil {
-			t.Error("Unlimited tree failed.")
+		if res, err := unlimited.Collect(); err != nil {
+			t.Error()
+		} else if len(res) != 3 {
+			t.Error("Wrong number of files in the unlimited tree.")
+		} else if !(containsPath(res, Path{"a"}) &&
+			containsPath(res, Path{"a", "c"}) &&
+			containsPath(res, Path{"a", "c", "file"})) {
+			t.Error("Missing file(s) in the unlimited tree.")
 		}
 
 		ls, err := file.Tree(DepthLs)
 		if err != nil {
 			t.Error(err)
 		}
-		if res, err := ls.Collect(); len(res) != 2 || err != nil {
-			t.Error("LS failed.")
+		if res, err := ls.Collect(); err != nil {
+			t.Error(err)
+		} else if len(res) != 2 {
+			t.Error("Wrong number of files in LS.")
+		} else if !(containsPath(res, Path{"a"}) &&
+			containsPath(res, Path{"a", "c"})) {
+			t.Error("Missing file(s) in the unlimited tree.")
 		}
 
 		cleanup()
@@ -333,7 +431,7 @@ func TestFile(t *testing.T) {
 		setup()
 
 		file := NewFile(FileConf{
-			Path:      Path{"a", "c", "file1"},
+			Path:      Path{"a", "c", "file"},
 			StorageId: sid1,
 		})
 
@@ -358,7 +456,7 @@ func TestFile(t *testing.T) {
 		output := make([]byte, 4)
 
 		file := NewFile(FileConf{
-			Path:      Path{"a", "c", "file1"},
+			Path:      Path{"a", "c", "file"},
 			StorageId: sid1,
 		})
 
@@ -397,7 +495,7 @@ func TestFile(t *testing.T) {
 		setup()
 
 		conf := FileConf{
-			Path:      Path{"a", "c", "file1"},
+			Path:      Path{"a", "c", "file"},
 			StorageId: sid1,
 			Flags:     FileContent | FileTopology,
 		}
