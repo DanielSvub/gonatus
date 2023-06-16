@@ -3,7 +3,7 @@ package driver
 import (
 	"io/ioutil"
 	"os"
-	"path"
+	pathlib "path"
 	"strings"
 	"time"
 
@@ -15,20 +15,32 @@ import (
 )
 
 type NativeStorageConf struct {
+	Prefix string
 }
 
 type nativeStorageDriver struct {
 	gonatus.Gobject
 	id      fs.StorageId
+	prefix  string
 	opened  map[*os.File]fs.FileConf
 	openedR map[string]*os.File
 }
 
 func NewNativeStorage(conf NativeStorageConf) fs.Storage {
 	driver := new(nativeStorageDriver)
+	driver.prefix = conf.Prefix
 	driver.opened = make(map[*os.File]fs.FileConf)
 	driver.openedR = make(map[string]*os.File)
 	return fs.NewStorage(driver)
+}
+
+func (ego *nativeStorageDriver) nativePath(path fs.Path) string {
+	return pathlib.Join(ego.prefix, strings.Join(path, "/"))
+}
+
+func (ego *nativeStorageDriver) storagePath(path string) fs.Path {
+	pfxLen := len(strings.Split(ego.prefix, "/"))
+	return strings.Split(path, "/")[pfxLen:]
 }
 
 func (ego *nativeStorageDriver) PrintFAT() {
@@ -48,7 +60,7 @@ func (ego *nativeStorageDriver) Open(path fs.Path, mode fs.FileMode, givenFlags 
 	}
 
 	// Opening the existing file
-	npath := strings.Join(path, "/")
+	npath := ego.nativePath(path)
 	fd, err := os.OpenFile(npath, flags, 0664)
 	if err != nil {
 		return nil, err
@@ -56,7 +68,7 @@ func (ego *nativeStorageDriver) Open(path fs.Path, mode fs.FileMode, givenFlags 
 
 	ego.opened[fd] = fs.FileConf{
 		Path:      path,
-		StorageId: 0,
+		StorageId: ego.id,
 	}
 
 	ego.openedR[npath] = fd
@@ -68,9 +80,7 @@ func (ego *nativeStorageDriver) Open(path fs.Path, mode fs.FileMode, givenFlags 
 }
 
 func (ego *nativeStorageDriver) Close(path fs.Path) error {
-	npath := strings.Join(path, "/")
-	fd := ego.openedR[npath]
-
+	fd := ego.openedR[ego.nativePath(path)]
 	return fd.Close()
 }
 
@@ -96,18 +106,16 @@ type nativeRecord struct {
 	size  uint64
 }
 
-func (ego nativeRecord) toFileConf() fs.FileConf {
+func (ego *nativeStorageDriver) toFileConf(record nativeRecord) fs.FileConf {
 	flags := fs.FileContent
-	if ego.isDir {
+	if record.isDir {
 		flags = fs.FileTopology
 	}
-
-	out := fs.FileConf{
-		Path:  strings.Split(path.Dir(ego.path), "/"),
-		Flags: flags,
+	return fs.FileConf{
+		StorageId: ego.id,
+		Path:      ego.storagePath(record.path),
+		Flags:     flags,
 	}
-
-	return out
 }
 
 func nativeStat(path string) (bool, nativeRecord, error) {
@@ -126,34 +134,32 @@ func nativeStat(path string) (bool, nativeRecord, error) {
 	return true, me, nil
 }
 
-func filterImpl(pfx string, depth int) ([]nativeRecord, error) {
-	if depth < 0 {
-		return make([]nativeRecord, 0), nil
-	}
+func filterImpl(pfx string, depth fs.Depth) (accum []nativeRecord, err error) {
 
 	info, err := os.Stat(pfx)
 	if os.IsNotExist(err) {
-		return nil, err
+		return
 	}
 
 	me := nativeRecord{path: pfx, isDir: info.IsDir()}
-	accum := append(make([]nativeRecord, 0), me)
+	accum = append(make([]nativeRecord, 0), me)
 
-	if me.isDir {
-		return accum, nil
+	if !me.isDir || depth <= 0 {
+		return
 	}
 
 	items, _ := ioutil.ReadDir(pfx)
 
 	for _, item := range items {
-		children, err := filterImpl(item.Name(), depth-1)
+		children, err := filterImpl(pathlib.Join(pfx, item.Name()), depth-1)
 		if err != nil {
 			return nil, err
 		}
 
 		accum = append(accum, children...)
 	}
-	return accum, nil
+
+	return
 }
 
 func (ego *nativeStorageDriver) exportToStream(files []nativeRecord) (streams.ReadableOutputStreamer[fs.File], error) {
@@ -165,8 +171,9 @@ func (ego *nativeStorageDriver) exportToStream(files []nativeRecord) (streams.Re
 			}
 
 			stream.Write(fs.NewFile(fs.FileConf{
-				Path:  strings.Split(path.Dir(f.path), "/"),
-				Flags: flags,
+				StorageId: ego.id,
+				Path:      ego.storagePath(f.path),
+				Flags:     flags,
 			}))
 		}
 		stream.Close()
@@ -182,7 +189,7 @@ func (ego *nativeStorageDriver) exportToStream(files []nativeRecord) (streams.Re
 }
 
 func (ego *nativeStorageDriver) Tree(path fs.Path, depth fs.Depth) (streams.ReadableOutputStreamer[fs.File], error) {
-	lst, err := filterImpl(strings.Join(path, "/"), int(depth))
+	lst, err := filterImpl(ego.nativePath(path), depth)
 
 	if err != nil {
 		return nil, err
@@ -191,12 +198,8 @@ func (ego *nativeStorageDriver) Tree(path fs.Path, depth fs.Depth) (streams.Read
 	return ego.exportToStream(lst)
 }
 
-func filePathToNative(path fs.Path) string {
-	return strings.Join(path, "/")
-}
-
 func (ego *nativeStorageDriver) Flags(path fs.Path) (fs.FileFlags, error) {
-	valid, record, _ := nativeStat(filePathToNative(path))
+	valid, record, _ := nativeStat(ego.nativePath(path))
 	if !valid {
 		return fs.FileUndetermined, nil
 	}
@@ -209,7 +212,7 @@ func (ego *nativeStorageDriver) Flags(path fs.Path) (fs.FileFlags, error) {
 }
 
 func (ego *nativeStorageDriver) Size(path fs.Path) (uint64, error) {
-	valid, record, err := nativeStat(filePathToNative(path))
+	valid, record, err := nativeStat(ego.nativePath(path))
 
 	if !valid {
 		return 0, errors.NewNotFoundError(ego, errors.LevelError, "No such file or directory")
@@ -223,7 +226,7 @@ func (ego *nativeStorageDriver) Size(path fs.Path) (uint64, error) {
 }
 
 func (ego *nativeStorageDriver) Commit() error {
-	return nil
+	return errors.NewNotImplError(ego)
 }
 
 func (ego *nativeStorageDriver) Clear() (err error) {
@@ -239,5 +242,5 @@ func (ego *nativeStorageDriver) SetId(id fs.StorageId) {
 }
 
 func (ego *nativeStorageDriver) Serialize() gonatus.Conf {
-	return nil
+	return NativeStorageConf{Prefix: ego.prefix}
 }
