@@ -57,15 +57,24 @@ func NewSrcWrapper(src gonatus.Gobjecter, err error) error {
 }
 
 func New(errType ErrorType, level ErrorLevel, msg string) error {
+
+	fullMsg := string(errType)
+	if len(msg) > 0 {
+		fullMsg += ": " + msg
+	}
+
 	ego := gonatusError{
 		errType: errType,
-		msg:     string(errType) + ": " + msg,
+		msg:     fullMsg,
 		level:   level,
 	}
+
 	if level <= tresholdLevel {
 		ego.createTraceback()
 	}
+
 	return ego
+
 }
 
 func Join(errs ...error) error {
