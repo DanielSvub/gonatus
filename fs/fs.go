@@ -65,6 +65,7 @@ func (ego Path) String() string {
 type StorageId uint64
 
 type StorageManager struct {
+	gonatus.Gobject
 	counter            StorageId
 	registeredStorages map[StorageId]Storage
 }
