@@ -307,5 +307,9 @@ func (ego *file) Close() error {
 		return errors.NewNilError(ego, errors.LevelError, "Storage not set.")
 	}
 	ego.stat.ModifTime = time.Now()
-	return ego.Storage().driver().Close(ego.path)
+	if err := ego.Storage().driver().Close(ego.path); err != nil {
+		return err
+	}
+	ego.fd = nil
+	return nil
 }
