@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	pathlib "path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -28,7 +29,7 @@ type nativeStorageDriver struct {
 
 func NewNativeStorage(conf NativeStorageConf) fs.Storage {
 	driver := new(nativeStorageDriver)
-	driver.prefix = conf.Prefix
+	driver.prefix, _ = filepath.Abs(conf.Prefix)
 	driver.opened = make(map[*os.File]fs.FileConf)
 	driver.openedR = make(map[string]*os.File)
 	return fs.NewStorage(driver)

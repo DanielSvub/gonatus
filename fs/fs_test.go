@@ -502,13 +502,15 @@ func TestFile(t *testing.T) {
 		file := NewFile(conf)
 		serialized := file.Serialize().(FileConf)
 
-		if !serialized.Path.Equals(serialized.Path) {
+		if !file.Path().Equals(serialized.Path) {
 			t.Error("Path does not match.")
 		}
-		if serialized.StorageId != serialized.StorageId {
+		if file.Storage().Id() != serialized.StorageId {
 			t.Error("Storage ID does not match.")
 		}
-		if serialized.Flags != serialized.Flags {
+		if stat, err := file.Stat(); err != nil {
+			t.Error(err)
+		} else if stat.Flags != serialized.Flags {
 			t.Error("Flags do not match.")
 		}
 

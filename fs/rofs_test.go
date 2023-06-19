@@ -15,7 +15,7 @@ func TestROStorage(t *testing.T) {
 
 	setup := func() {
 
-		storage = NewNativeStorage(NativeStorageConf{Prefix: "/home/dan/GIT/gonatus/fs/fixtures"})
+		storage = NewNativeStorage(NativeStorageConf{Prefix: "./fixtures"})
 		GStorageManager.RegisterStorage(storage)
 		sid, _ = GStorageManager.GetId(storage)
 
