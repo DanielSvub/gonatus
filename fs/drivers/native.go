@@ -233,6 +233,10 @@ func (ego *nativeStorageDriver) Clear() (err error) {
 	return errors.NewNotImplError(ego)
 }
 
+func (ego *nativeStorageDriver) Features() fs.StorageFeature {
+	return fs.FeatureRead
+}
+
 func (ego *nativeStorageDriver) Id() fs.StorageId {
 	return ego.id
 }

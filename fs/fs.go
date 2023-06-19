@@ -20,6 +20,13 @@ const (
 	ModeRW
 )
 
+type StorageFeature uint8
+
+const (
+	FeatureRead StorageFeature = 1 << iota
+	FeatureWrite
+)
+
 type Path []string
 
 func (ego Path) Join(apendee Path) Path {
@@ -117,37 +124,172 @@ type FileDescriptor interface {
 
 type File interface {
 	gonatus.Gobjecter
+	io.Closer
 	FileDescriptor
 
+	/*
+		Acquires a storage where the file is stored.
+
+		Returns:
+		  - the storage.
+	*/
 	Storage() Storage
 
+	/*
+		Acquires the fullpath to the file.
+
+		Returns:
+		  - path as a slice of strings.
+	*/
 	Path() Path
+
+	/*
+		Acquires the name of the file (last element of the path).
+
+		Returns:
+		  - the name.
+	*/
 	Name() string
 
+	/*
+		Copies content and topology of the file to another one.
+		If the files are located on the same storage, invokes inter-storage copy method.
+
+		Parameters:
+		  - dst - destination file.
+
+		Returns:
+		  - error if any occurred.
+	*/
 	Copy(dst File) error
+
+	/*
+		Moves content and topology of the file to another one.
+		If the files are located on the same storage, invokes inter-storage move method, otherwise copies the file and then deletes it.
+
+		Parameters:
+		  - dst - destination file.
+
+		Returns:
+		  - error if any occurred.
+	*/
 	Move(dst File) error
+
+	/*
+		Deletes the file.
+
+		Returns:
+		  - error if any occurred.
+	*/
 	Delete() error
 
-	Open(mode FileMode) error
-	io.Closer
+	/*
+		Opens the file if the given mode.
 
+		Parameters:
+		  - mode - opening mode.
+	*/
+	Open(mode FileMode) error
+
+	/*
+		Adds the topology flag to the file.
+		If the file does not exist, it is created.
+
+		Returns:
+		  - error if any occurred.
+	*/
 	MkDir() error
+
+	/*
+		Acquires a tree of files to the given depth starting from the storage root. It is returned as a stream.
+		If the depth is 0, the stream contains only the file itself.
+
+		Parameters:
+		  - depth - how deep to go in the file tree.
+
+		Returns:
+		  - stream of the files,
+		  - error if any occurred.
+	*/
 	Tree(depth Depth) (streams.ReadableOutputStreamer[File], error)
 
+	/*
+		Acquires a current status of the file.
+
+		Returns:
+		  - stat structure,
+		  - error if any occurred.
+	*/
 	Stat() (FileStat, error)
+
+	/*
+		Manually sets the time when the file was originally created.
+
+		Parameters:
+		  - time - time to set.
+	*/
 	SetOrigTime(time time.Time)
 }
 
 type Storage interface {
 	gonatus.Gobjecter
 
+	/*
+		Acquires the storage driver.
+
+		Returns:
+		  - storage driver.
+	*/
 	driver() StorageDriver
 
+	/*
+		Copies all files in the given storage into this storage.
+
+		Parameters:
+		  - source - storage to merge.
+
+		Returns:
+		  - error if any occurred.
+	*/
 	Merge(source Storage) error
+
+	/*
+		Acquires a tree of files to the given depth starting from this file. It is returned as a stream.
+		If the depth is 0, the stream contains only the file itself.
+
+		Parameters:
+		  - depth - how deep to go in the file tree.
+
+		Returns:
+		  - stream of the files,
+		  - error if any occurred.
+	*/
 	Tree(depth Depth) (streams.ReadableOutputStreamer[File], error)
 
+	/*
+		Commits the changes.
+
+		Returns:
+		  - error if any occurred.
+	*/
 	Commit() error
+
+	/*
+		Deletes all files in the storage.
+
+		Returns:
+		  - error if any occurred.
+	*/
 	Clear() error
+
+	/*
+		Acquires the ID of the storage.
+		If the storage is not registered, returns 0.
+
+		Returns:
+		  - ID of the storage.
+	*/
+	Id() StorageId
 }
 
 type StorageDriver interface {
@@ -170,6 +312,7 @@ type StorageDriver interface {
 	Commit() error
 	Clear() error
 
+	Features() StorageFeature
 	Id() StorageId
 	SetId(id StorageId)
 }

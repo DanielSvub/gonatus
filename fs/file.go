@@ -186,6 +186,10 @@ func (ego *file) Move(dst File) error {
 			return err
 		}
 
+	} else if ego.Storage().driver().Features()&FeatureWrite == 0 {
+
+		return errors.NewNotImplError(ego)
+
 	} else if err := ego.interStorageCopy(dst); err != nil {
 
 		return err

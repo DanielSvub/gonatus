@@ -104,6 +104,10 @@ func (ego *storage) Clear() error {
 	return ego.drv.Clear()
 }
 
+func (ego *storage) Id() StorageId {
+	return ego.drv.Id()
+}
+
 func (ego *storage) Serialize() gonatus.Conf {
 	return ego.drv.Serialize()
 }

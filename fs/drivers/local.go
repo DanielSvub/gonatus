@@ -208,7 +208,7 @@ Returns:
 func (ego *localStorageDriver) delete(path adt.List[string]) error {
 	if exists, flags, id, location := ego.search(path); exists {
 		ego.deleteDirectory(id)
-		if flags&fs.FileContent > fs.FileUndetermined {
+		if flags&fs.FileContent > 0 {
 			for j, file := range ego.contents.GoSlice() {
 				if file.id == id {
 					ego.contents.Delete(j)
@@ -333,7 +333,7 @@ func (ego *localStorageDriver) search(path adt.List[string]) (exists bool, flags
 			exists = true
 			id = file.id
 			flags = file.flags
-			if flags&fs.FileContent > fs.FileUndetermined {
+			if flags&fs.FileContent > 0 {
 				content := ego.contents.Search(func(content *contentEntry) bool { return content.id == file.id })
 				location = (*content).location
 				for _, content := range ego.contents.GoSlice() {
@@ -479,7 +479,7 @@ func (ego *localStorageDriver) copyFile(source adt.List[string], parent int, des
 		return err
 	}
 
-	return create(flags&fs.FileContent > fs.FileUndetermined, dest, parent, newId, location)
+	return create(flags&fs.FileContent > 0, dest, parent, newId, location)
 
 }
 
@@ -543,7 +543,7 @@ Returns:
   - error if any occurred.
 */
 func (ego *localStorageDriver) closeFile(path fs.Path) error {
-	if _, flags, id, _ := ego.search(adt.NewListFrom(path)); flags&fs.FileContent > fs.FileUndetermined {
+	if _, flags, id, _ := ego.search(adt.NewListFrom(path)); flags&fs.FileContent > 0 {
 		if !ego.openFiles.KeyExists(id) {
 			return errors.NewStateError(ego, errors.LevelError, `The file "`+path.String()+`" is not open.`)
 		}
@@ -775,6 +775,10 @@ func (ego *localStorageDriver) PrintFAT() {
 		println(entry.id, entry.location)
 	})
 
+}
+
+func (ego *localStorageDriver) Features() fs.StorageFeature {
+	return fs.FeatureRead | fs.FeatureWrite
 }
 
 func (ego *localStorageDriver) Id() fs.StorageId {
