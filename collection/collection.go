@@ -146,6 +146,11 @@ type PrefixStringIndexConf struct {
 	MinPrefix uint
 }
 
+type FullmatchStringIndexConf struct {
+	IndexerConf
+	Name string
+}
+
 type SchemaConf struct {
 	Name         string
 	FieldsNaming []string
