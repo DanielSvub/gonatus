@@ -7,6 +7,9 @@ import (
 	"github.com/SpongeData-cz/gonatus/streams"
 )
 
+/*
+Depth of the tree command.
+*/
 type Depth uint64
 
 const (
@@ -15,11 +18,30 @@ const (
 	DepthLs
 )
 
+/*
+Gonatus storage structure.
+
+Extends:
+  - gonatus.Gobject.
+
+Implements:
+  - Storage.
+*/
 type storage struct {
 	gonatus.Gobject
 	drv StorageDriver
 }
 
+/*
+Storage constructor.
+Meant to be used only from inside of storage drivers.
+
+Parameters:
+  - driver - driver for the storage.
+
+Returns:
+  - pointer to the created storage.
+*/
 func NewStorage(driver StorageDriver) Storage {
 	return &storage{drv: driver}
 }

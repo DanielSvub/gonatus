@@ -777,7 +777,7 @@ func (ego *localStorageDriver) PrintFAT() {
 
 }
 
-func (ego *localStorageDriver) Features() fs.StorageFeature {
+func (ego *localStorageDriver) Features() fs.StorageFeatures {
 	return fs.FeatureRead | fs.FeatureWrite
 }
 

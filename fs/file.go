@@ -9,6 +9,9 @@ import (
 	"github.com/SpongeData-cz/gonatus/streams"
 )
 
+/*
+Flag byte for the file.
+*/
 type FileFlags uint8
 
 const (
@@ -17,6 +20,9 @@ const (
 	FileTopology
 )
 
+/*
+Configuration structure for the file.
+*/
 type FileConf struct {
 	Path      Path
 	StorageId StorageId
@@ -24,6 +30,9 @@ type FileConf struct {
 	OrigTime  time.Time
 }
 
+/*
+Stat structure for the file.
+*/
 type FileStat struct {
 	Flags     FileFlags
 	Size      uint64
@@ -31,6 +40,13 @@ type FileStat struct {
 	ModifTime time.Time
 }
 
+/*
+Extends:
+  - gonatus.Gobject.
+
+Implements:
+  - File.
+*/
 type file struct {
 	gonatus.Gobject
 	fd      FileDescriptor
@@ -39,6 +55,15 @@ type file struct {
 	storage Storage
 }
 
+/*
+File constructor.
+
+Parameters:
+  - conf - configuration structure.
+
+Returns:
+  - pointer to the created file.
+*/
 func NewFile(conf FileConf) File {
 
 	ego := new(file)
@@ -67,6 +92,16 @@ func NewFile(conf FileConf) File {
 	return ego
 }
 
+/*
+Performs an inter-storage copy of the file.
+If the source and destination files are in the same storage, same-storage copy should be used.
+
+Parameters:
+  - dst - destination file.
+
+Returns:
+  - error if any occurred.
+*/
 func (ego *file) interStorageCopy(dst File) error {
 
 	var flags FileFlags
@@ -121,21 +156,6 @@ func (ego *file) interStorageCopy(dst File) error {
 	}
 
 	return nil
-
-}
-
-func (ego *file) Serialize() gonatus.Conf {
-
-	out := *new(FileConf)
-
-	out.Path = ego.path
-	out.OrigTime = ego.stat.OrigTime
-	if ego.storage != nil {
-		out.StorageId = ego.Storage().driver().Id()
-		out.Flags, _ = ego.Storage().driver().Flags(ego.path)
-	}
-
-	return out
 
 }
 
@@ -316,4 +336,19 @@ func (ego *file) Close() error {
 	}
 	ego.fd = nil
 	return nil
+}
+
+func (ego *file) Serialize() gonatus.Conf {
+
+	out := *new(FileConf)
+
+	out.Path = ego.path
+	out.OrigTime = ego.stat.OrigTime
+	if ego.storage != nil {
+		out.StorageId = ego.Storage().driver().Id()
+		out.Flags, _ = ego.Storage().driver().Flags(ego.path)
+	}
+
+	return out
+
 }
