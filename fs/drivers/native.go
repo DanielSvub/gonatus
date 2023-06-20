@@ -121,7 +121,7 @@ func (ego *nativeStorageDriver) toFileConf(record nativeRecord) fs.FileConf {
 
 func nativeStat(path string) (bool, nativeRecord, error) {
 	info, err := os.Stat(path)
-	if os.IsNotExist(err) {
+	if err != nil {
 		return false, nativeRecord{}, err
 	}
 
@@ -200,9 +200,9 @@ func (ego *nativeStorageDriver) Tree(path fs.Path, depth fs.Depth) (streams.Read
 }
 
 func (ego *nativeStorageDriver) Flags(path fs.Path) (fs.FileFlags, error) {
-	valid, record, _ := nativeStat(ego.nativePath(path))
+	valid, record, err := nativeStat(ego.nativePath(path))
 	if !valid {
-		return fs.FileUndetermined, nil
+		return fs.FileUndetermined, err
 	}
 
 	if record.isDir {
