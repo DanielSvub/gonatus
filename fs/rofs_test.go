@@ -206,11 +206,3 @@ func TestROStorage(t *testing.T) {
 	})
 
 }
-
-/* func TestErr(t *testing.T) {
-	file := NewFile(FileConf{Path: Path{"a"}})
-	err := file.Close()
-	println(errors.Traceback(err))
-	t.Error(err)
-}
-*/
