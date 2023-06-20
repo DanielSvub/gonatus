@@ -140,6 +140,11 @@ type Schema struct {
 type IndexerConf interface {
 }
 
+type IdIndexConf struct {
+	IndexerConf
+	Name string
+}
+
 type PrefixStringIndexConf struct {
 	IndexerConf
 	Name      string
@@ -164,6 +169,40 @@ type RecordConf struct {
 
 func NewRecord(RecordConf) *Record {
 	return nil
+}
+
+type QueryConf interface {
+}
+
+type QueryAtomConf struct {
+	QueryConf
+	Field     FielderConf
+	MatchType IndexerConf
+	Name      string
+	Value     any
+}
+
+type QueryContextConf struct {
+	QueryConf
+	Context []QueryConf
+}
+
+type QueryAndConf struct {
+	QueryContextConf
+}
+
+type QueryOrConf struct {
+	QueryContextConf
+}
+
+type QueryNegConf struct {
+	QueryAtomConf
+}
+
+type QueryImplicatonConf struct {
+	QueryConf
+	Left  QueryAtomConf
+	Right QueryAtomConf
 }
 
 func main() {
