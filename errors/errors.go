@@ -114,6 +114,16 @@ func New(errType ErrorType, level ErrorLevel, msg string) error {
 
 }
 
+/*
+Calls the standard Join function.
+Creates an error that wraps the given errors.
+
+Parameters:
+  - errs - any number of errors to join.
+
+Returns:
+  - new error.
+*/
 func Join(errs ...error) error {
 	return errors.Join(errs...)
 }
