@@ -3,6 +3,7 @@ package collection
 import (
 	"github.com/SpongeData-cz/gonatus"
 	"github.com/SpongeData-cz/gonatus/errors"
+	"github.com/SpongeData-cz/gonatus/streams"
 )
 
 const MaxUint = ^uint(0)
@@ -91,6 +92,41 @@ func (ego *RamCollection) AddRecord(rc *Record) (CId, error) {
 	}
 
 	return 0, nil
+}
+
+type QueryAtomConf struct {
+	Field     FielderConf
+	MatchType IndexerConf
+}
+
+type QueryContextConf struct {
+	Context []QueryAtomConf
+}
+
+type QueryAndConf struct {
+	QueryContextConf
+}
+
+type QueryOrConf struct {
+	QueryContextConf
+}
+
+type QueryNegConf struct {
+	QueryAtomConf
+}
+
+type QueryImplicatonConf struct {
+	Left  QueryAtomConf
+	Right QueryAtomConf
+}
+
+type QueryConf struct {
+	QueryContextConf
+}
+
+func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[*Record], error) {
+
+	return nil, nil
 }
 
 func prefixStringIndexImpl(c PrefixStringIndexConf) error {
