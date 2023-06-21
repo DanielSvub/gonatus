@@ -160,7 +160,7 @@ type SchemaConf struct {
 	Name         string
 	FieldsNaming []string
 	Fields       []FielderConf
-	Indexes      []IndexerConf
+	Indexes      []IndexerConf // map[string][]IndexerConf
 }
 
 type RecordConf struct {
@@ -206,7 +206,6 @@ type QueryImplicatonConf struct {
 }
 
 func main() {
-
 	rmC := RamCollectionConf{
 		SchemaConf: SchemaConf{
 			Name:         "FooBarTable",
@@ -236,6 +235,25 @@ func main() {
 	})
 
 	rmc.AddRecord(rec)
+
+	query := QueryAndConf{
+		QueryContextConf{
+			Context: []QueryConf{
+				QueryAtomConf{
+					Field:     "who",
+					Value:     "a@b.cz",
+					MatchType: FullmatchStringIndexConf{},
+				},
+				QueryAtomConf{
+					Field:     "whom",
+					Value:     "c@d.com",
+					MatchType: FullmatchStringIndexConf{},
+				},
+			},
+		},
+	}
+
+	rmc.filterQueryEval(query)
 
 	print(rmc)
 }
