@@ -199,6 +199,7 @@ func NewRamCollection(rc RamCollectionConf) *RamCollection {
 	ego.indexes = make(map[string]ramCollectionIndexer, 0)
 	// TODO: implement id index as default one ego.indexes["id"] = idIndexerNew() // must be present in every collection
 
+	ego.RegisterIndexes()
 	return ego
 }
 
@@ -211,7 +212,7 @@ func (ego *RamCollection) InterpretField(fc FielderConf) (any, error) {
 	}
 }
 
-func (ego *RamCollection) InterpretRecord(rc *Record) ([]any, error) {
+func (ego *RamCollection) InterpretRecord(rc RecordConf) ([]any, error) {
 	ret := make([]any, 0)
 
 	for c := range rc.Cols {
@@ -226,7 +227,35 @@ func (ego *RamCollection) InterpretRecord(rc *Record) ([]any, error) {
 	return ret, nil
 }
 
-func (ego *RamCollection) AddRecord(rc *Record) (CId, error) {
+func (ego *RamCollection) DeinterpretField(val any, nth int) (FielderConf, error) {
+	fc := ego.param.SchemaConf.Fields[nth]
+
+	switch fc.(type) {
+	case FieldStringConf:
+		return FieldStringConf{Value: val.(string)}, nil
+	default:
+		return nil, errors.NewNotImplError(ego)
+	}
+}
+
+func (ego *RamCollection) DeinterpretRecord(r []any) (RecordConf, error) {
+	ret := RecordConf{
+		Cols: make([]FielderConf, 0),
+	}
+
+	for i, _ := range ego.param.SchemaConf.Fields {
+		field, err := ego.DeinterpretField(r[i], i)
+		if err != nil {
+			return RecordConf{}, err
+		}
+
+		ret.Cols = append(ret.Cols, field)
+	}
+
+	return ret, nil
+}
+
+func (ego *RamCollection) AddRecord(rc RecordConf) (CId, error) {
 	ego.autoincrement++
 
 	if ego.autoincrement == CId(MaxUint) {
@@ -312,18 +341,15 @@ func (ego *RamCollection) getIndex(q QueryAtomConf) ramCollectionIndexer {
 		// try cast to the required index
 
 		switch q.MatchType.(type) {
-		case PrefixStringIndexConf:
-			return nil
 		case FullmatchStringIndexConf:
 			if i, ok := idx.(*fullmatchStringIndexer); ok {
 				return i
 			}
-		default:
-			return idx.(*primaryIndexer)
 		}
 	}
 
-	return nil
+	println(len(ego.indexes))
+	return ego.indexes["id"].(*primaryIndexer)
 }
 
 func (ego *RamCollection) primaryValue(q QueryAtomConf) []any {
@@ -446,9 +472,32 @@ func (ego *RamCollection) filterQueryEval(q QueryConf) (CIdSet, error) {
 	}
 }
 
-func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[*Record], error) {
+func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[RecordConf], error) {
+	ret, err := ego.filterQueryEval(q)
 
-	return nil, nil
+	if err != nil {
+		return nil, err
+	}
+
+	sbuf := streams.NewBufferInputStream[RecordConf](100)
+
+	fetchRows := func() {
+		for i, _ := range ret {
+			rec, err := ego.DeinterpretRecord(ego.rows[i])
+			if err != nil {
+				// FIXME: sbuf.SetError() pass error! return nil, err
+				panic(err)
+			}
+			sbuf.Write(rec)
+		}
+	}
+
+	outs := streams.NewReadableOutputStream[RecordConf]()
+	sbuf.Pipe(outs)
+
+	go fetchRows()
+
+	return outs, nil
 }
 
 func (ego *RamCollection) RegisterIndexes() error {

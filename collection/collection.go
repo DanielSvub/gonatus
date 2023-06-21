@@ -66,13 +66,9 @@ type Fielder struct {
 	Setter
 }
 
-type Record struct {
-	Cols []Fielder
-}
-
 type RecordSet struct {
 	Naming  []string
-	Records []Record
+	Records []RecordConf
 }
 
 type FielderConf interface {
@@ -164,11 +160,7 @@ type SchemaConf struct {
 }
 
 type RecordConf struct {
-	Row []FielderConf
-}
-
-func NewRecord(RecordConf) *Record {
-	return nil
+	Cols []FielderConf
 }
 
 type QueryConf interface {
@@ -223,8 +215,8 @@ func main() {
 
 	rmc := NewRamCollection(rmC)
 
-	rec := NewRecord(RecordConf{
-		Row: []FielderConf{
+	rec := RecordConf{
+		Cols: []FielderConf{
 			FieldStringConf{
 				Value: "a@b.cz",
 			},
@@ -232,7 +224,7 @@ func main() {
 				Value: "c@d.com",
 			},
 		},
-	})
+	}
 
 	rmc.AddRecord(rec)
 
