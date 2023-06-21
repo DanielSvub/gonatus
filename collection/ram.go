@@ -339,17 +339,17 @@ func (ego *RamCollection) primaryValue(q QueryAtomConf) []any {
 	return anys
 }
 
-func (ego *RamCollection) fieldFilterImpl(q QueryAtomConf) (CIdSet, error) {
-	indexer := ego.getIndex(q)
+func (ego *QueryAtomConf) eval(rc *RamCollection) (CIdSet, error) {
+	indexer := rc.getIndex(*ego)
 	if pi, ok := indexer.(*primaryIndexer); ok {
-		rows, err := pi.Get(ego.primaryValue(q))
+		rows, err := pi.Get(rc.primaryValue(*ego))
 		if err != nil {
 			return nil, err
 		}
 
 		return CIdSetFromSlice(rows), nil
 	} else {
-		rows, err := pi.Get(q.Value)
+		rows, err := pi.Get(ego.Value)
 		if err != nil {
 			return nil, err
 		}
@@ -358,31 +358,92 @@ func (ego *RamCollection) fieldFilterImpl(q QueryAtomConf) (CIdSet, error) {
 	}
 }
 
-func (ego *RamCollection) filterQueryEval(q QueryConf) (CIdSet, error) {
-	ret := make(CIdSet, 0)
+func (ego *QueryAndConf) eval(rc *RamCollection) (CIdSet, error) {
+	accum := make(CIdSet, 0)
+	ctxlen := len(ego.QueryContextConf.Context)
 
-	switch v := q.(type) {
-	case QueryAndConf:
-		accum := make(CIdSet, 0)
-		ctxlen := len(v.QueryContextConf.Context)
-
-		if ctxlen == 0 {
-			return accum, nil
-		}
-
-		if ctxlen == 1 {
-			accum, err := ego.filterQueryEval(QueryConf(v.QueryContextConf.Context[0]))
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		for i := 0; i < ctxlen; i++ {
-
-		}
-
+	if ctxlen == 0 {
+		return accum, nil
 	}
 
+	for i := 0; i < ctxlen; i++ {
+		acc, err := rc.filterQueryEval(QueryConf(ego.QueryContextConf.Context[0]))
+		accum = accum.Intersect(acc)
+
+		if err != nil {
+			return nil, err
+		}
+		if len(accum) == 0 {
+			return make(CIdSet), nil
+		}
+	}
+
+	return accum, nil
+}
+
+func (ego *QueryOrConf) eval(rc *RamCollection) (CIdSet, error) {
+	accum := make(CIdSet, 0)
+	ctxlen := len(ego.QueryContextConf.Context)
+
+	if ctxlen == 0 {
+		return accum, nil
+	}
+
+	for i := 0; i < ctxlen; i++ {
+		acc, err := rc.filterQueryEval(QueryConf(ego.QueryContextConf.Context[0]))
+		accum.Merge(acc)
+
+		if err != nil {
+			return nil, err
+		}
+		if len(accum) == len(rc.rows) {
+			break
+		}
+	}
+
+	return accum, nil
+}
+
+func (ego *QueryImplicatonConf) eval(rc *RamCollection) (CIdSet, error) {
+	le, err := rc.filterQueryEval(ego.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	re, rerr := rc.filterQueryEval(ego.Right)
+	if rerr != nil {
+		return nil, rerr
+	}
+
+	if len(le) == 0 {
+		return re, nil
+	}
+
+	// filter out those elements which are on the left hand side and not on right hand side 1 => 0 = 0
+	le.Merge(re)
+
+	for i, _ := range le {
+		if _, found := re[i]; !found {
+			delete(le, i) // possible problem with le modification within for loop
+		}
+	}
+
+	return le, nil
+}
+
+func (ego *RamCollection) filterQueryEval(q QueryConf) (CIdSet, error) {
+	switch v := q.(type) {
+	case QueryAndConf:
+		return v.eval(ego)
+	case QueryOrConf:
+		return v.eval(ego)
+	case QueryImplicatonConf:
+		return v.eval(ego)
+	case QueryAtomConf:
+		return v.eval(ego)
+	default:
+		return nil, errors.NewMisappError(ego, "Unknown collection filter query.")
+	}
 }
 
 func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[*Record], error) {
