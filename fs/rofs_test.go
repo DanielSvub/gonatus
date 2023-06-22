@@ -83,7 +83,7 @@ func TestROStorage(t *testing.T) {
 
 		setup()
 
-		copy := NewLocalStorage(LocalStorageConf{Prefix: "/tmp/storage2"})
+		copy := NewLocalCountedStorage(LocalCountedStorageConf{Prefix: "/tmp/storage2"})
 		GStorageManager.RegisterStorage(copy)
 
 		if err := copy.Merge(storage); err != nil {
@@ -118,7 +118,7 @@ func TestROStorage(t *testing.T) {
 
 		setup()
 
-		storage2 := NewLocalStorage(LocalStorageConf{Prefix: "/tmp/storage2"})
+		storage2 := NewLocalCountedStorage(LocalCountedStorageConf{Prefix: "/tmp/storage2"})
 		GStorageManager.RegisterStorage(storage2)
 		sid2, _ := GStorageManager.GetId(storage2)
 
@@ -179,7 +179,7 @@ func TestROStorage(t *testing.T) {
 
 		setup()
 
-		storage2 := NewLocalStorage(LocalStorageConf{Prefix: "/tmp/storage2"})
+		storage2 := NewLocalCountedStorage(LocalCountedStorageConf{Prefix: "/tmp/storage2"})
 		GStorageManager.RegisterStorage(storage2)
 		sid2, _ := GStorageManager.GetId(storage2)
 

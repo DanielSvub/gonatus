@@ -267,7 +267,7 @@ func (ego gonatusError) Error() (msg string) {
 
 /*
 Creates a traceback for the error and saves it as string.
-The zero one is this method itself, the first is an error constructor.
+The zero caller is this method itself, the first is an error constructor.
 */
 func (ego *gonatusError) createTraceback() {
 	for i := 2; true; i++ {

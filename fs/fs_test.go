@@ -53,7 +53,7 @@ func TestStorage(t *testing.T) {
 
 	setup := func() {
 
-		storage = NewLocalStorage(LocalStorageConf{Prefix: "/tmp/storage"})
+		storage = NewLocalCountedStorage(LocalCountedStorageConf{Prefix: "/tmp/storage"})
 		GStorageManager.RegisterStorage(storage)
 		sid, _ = GStorageManager.GetId(storage)
 
@@ -154,7 +154,7 @@ func TestStorage(t *testing.T) {
 
 		setup()
 
-		copy := NewLocalStorage(LocalStorageConf{Prefix: "/tmp/storage2"})
+		copy := NewLocalCountedStorage(LocalCountedStorageConf{Prefix: "/tmp/storage2"})
 		GStorageManager.RegisterStorage(copy)
 
 		if err := copy.Merge(storage); err != nil {
@@ -198,11 +198,11 @@ func TestFile(t *testing.T) {
 
 	setup := func() {
 
-		storage1 = NewLocalStorage(LocalStorageConf{Prefix: "/tmp/storage"})
+		storage1 = NewLocalCountedStorage(LocalCountedStorageConf{Prefix: "/tmp/storage"})
 		GStorageManager.RegisterStorage(storage1)
 		sid1, _ = GStorageManager.GetId(storage1)
 
-		storage2 = NewLocalStorage(LocalStorageConf{Prefix: "/tmp/storage2"})
+		storage2 = NewLocalCountedStorage(LocalCountedStorageConf{Prefix: "/tmp/storage2"})
 		GStorageManager.RegisterStorage(storage2)
 		sid2, _ = GStorageManager.GetId(storage2)
 
