@@ -111,24 +111,30 @@ func TestRam(t *testing.T) {
 	println("ROWS:", len(rmc.Rows()))
 	rmc.Inspect()
 
-	query := QueryAndConf{
-		QueryContextConf{
-			Context: []QueryConf{
-				QueryAtomConf{
-					Field:     "who",
-					Value:     "a@b.cz",
-					MatchType: FullmatchStringIndexConf{},
-				},
-				// QueryAtomConf{
-				// 	Field:     "whom",
-				// 	Value:     "c@d.com",
-				// 	MatchType: FullmatchStringIndexConf{},
-				// },
-			},
-		},
+	queryAtom := QueryAtomConf{
+		Field:     "who",
+		Value:     "a@b.cz",
+		MatchType: FullmatchStringIndexConf{},
 	}
 
-	smc, err := rmc.Filter(query)
+	// query := QueryAndConf{
+	// 	QueryContextConf{
+	// 		Context: []QueryConf{
+	// 			QueryAtomConf{
+	// 				Field:     "who",
+	// 				Value:     "a@b.cz",
+	// 				MatchType: FullmatchStringIndexConf{},
+	// 			},
+	// 			QueryAtomConf{
+	// 				Field:     "whom",
+	// 				Value:     "c@d.com",
+	// 				MatchType: FullmatchStringIndexConf{},
+	// 			},
+	// 		},
+	// 	},
+	// }
+
+	smc, err := rmc.Filter(queryAtom)
 	if err != nil {
 		panic("Filter failed")
 	}

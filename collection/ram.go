@@ -208,7 +208,7 @@ func NewRamCollection(rc RamCollectionConf) *RamCollection {
 func (ego *RamCollection) InterpretField(fc FielderConf) (any, error) {
 	switch v := fc.(type) {
 	case FieldStringConf:
-		return v, nil
+		return v.Value, nil
 	default:
 		return nil, errors.NewNotImplError(ego)
 	}
