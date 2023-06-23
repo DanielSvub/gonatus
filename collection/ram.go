@@ -1,6 +1,8 @@
 package collection
 
 import (
+	"fmt"
+
 	"github.com/SpongeData-cz/gonatus"
 	"github.com/SpongeData-cz/gonatus/errors"
 	"github.com/SpongeData-cz/gonatus/streams"
@@ -215,9 +217,11 @@ func (ego *RamCollection) InterpretField(fc FielderConf) (any, error) {
 func (ego *RamCollection) InterpretRecord(rc RecordConf) ([]any, error) {
 	ret := make([]any, 0)
 
-	for c := range rc.Cols {
+	for _, c := range rc.Cols {
 		rf, err := ego.InterpretField(c)
 		if err != nil {
+			fmt.Printf("Err: %+v\n", rc)
+			println("ERROR INTERPERTING RECORD::: ", rc.Cols, err.Error())
 			return nil, err
 		}
 
@@ -240,16 +244,19 @@ func (ego *RamCollection) DeinterpretField(val any, nth int) (FielderConf, error
 
 func (ego *RamCollection) DeinterpretRecord(r []any) (RecordConf, error) {
 	ret := RecordConf{
-		Cols: make([]FielderConf, 0),
+		Cols: make([]FielderConf, len(ego.param.SchemaConf.Fields)),
 	}
 
+	print("SHEMA FIELDS: ", len(ego.param.SchemaConf.Fields))
+
 	for i, _ := range ego.param.SchemaConf.Fields {
+
 		field, err := ego.DeinterpretField(r[i], i)
 		if err != nil {
 			return RecordConf{}, err
 		}
 
-		ret.Cols = append(ret.Cols, field)
+		ret.Cols[i] = field
 	}
 
 	return ret, nil
@@ -269,9 +276,13 @@ func (ego *RamCollection) AddRecord(rc RecordConf) (CId, error) {
 	// Add to main index
 	record, err := ego.InterpretRecord(rc)
 
+	println("Adding record...", record)
+
 	if err != nil {
 		return 0, err
 	}
+
+	println("Adding record...", record)
 
 	ego.rows[ego.autoincrement] = record
 
@@ -472,6 +483,27 @@ func (ego *RamCollection) filterQueryEval(q QueryConf) (CIdSet, error) {
 	}
 }
 
+func (ego *RamCollection) Rows() map[CId][]any {
+	return ego.rows
+}
+
+func (ego *RamCollection) Inspect() {
+	print("ID, ")
+	for _, r := range ego.param.SchemaConf.FieldsNaming {
+		print(r, ", ")
+	}
+
+	print("\n")
+
+	for i, r := range ego.rows {
+		print(i)
+		for _, c := range r {
+			fmt.Printf(", %+v", c)
+		}
+		print("\n")
+	}
+}
+
 func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[RecordConf], error) {
 	ret, err := ego.filterQueryEval(q)
 
@@ -490,6 +522,7 @@ func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[Re
 			}
 			sbuf.Write(rec)
 		}
+		sbuf.Close()
 	}
 
 	outs := streams.NewReadableOutputStream[RecordConf]()
