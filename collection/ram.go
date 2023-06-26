@@ -441,11 +441,12 @@ func (ego *QueryOrConf) eval(rc *RamCollection) (CIdSet, error) {
 
 	for i := 0; i < ctxlen; i++ {
 		acc, err := rc.filterQueryEval(QueryConf(ego.QueryContextConf.Context[0]))
-		accum.Merge(acc)
-
 		if err != nil {
 			return nil, err
 		}
+
+		accum.Merge(acc)
+
 		if len(accum) == len(rc.rows) {
 			break
 		}

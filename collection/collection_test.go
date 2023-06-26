@@ -102,13 +102,13 @@ func testFilling(rmc *RamCollection) error {
 
 func testFirstLine(rc []RecordConf) error {
 	if len(rc[0].Cols) != 2 {
-		errors.New(fmt.Sprintf("Wrong number of result columns %d", len(rc[0].Cols)))
+		return errors.New(fmt.Sprintf("Wrong number of result columns %d", len(rc[0].Cols)))
 	}
 
 	col1, ok1 := rc[0].Cols[0].(FieldStringConf)
 
 	if !ok1 {
-		errors.New(fmt.Sprintf("Cannot cast to the original FieldStringConf."))
+		return errors.New(fmt.Sprintf("Cannot cast to the original FieldStringConf."))
 	}
 
 	if col1.Value != "a@b.cz" {
@@ -118,11 +118,39 @@ func testFirstLine(rc []RecordConf) error {
 	col2, ok2 := rc[0].Cols[1].(FieldStringConf)
 
 	if !ok2 {
-		errors.New(fmt.Sprintf("Cannot cast to the original FieldStringConf."))
+		return errors.New(fmt.Sprintf("Cannot cast to the original FieldStringConf."))
 	}
 
 	if col2.Value != "c@d.com" {
-		errors.New(fmt.Sprintf("Wrong number of result columns %d", len(rc[0].Cols)))
+		return errors.New(fmt.Sprintf("Wrong number of result columns %d", len(rc[0].Cols)))
+	}
+
+	return nil
+}
+
+func testSecondLine(rc []RecordConf) error {
+	if len(rc[1].Cols) != 2 {
+		return errors.New(fmt.Sprintf("Wrong number of result columns %d", len(rc[1].Cols)))
+	}
+
+	col1, ok1 := rc[1].Cols[0].(FieldStringConf)
+
+	if !ok1 {
+		return errors.New(fmt.Sprintf("Cannot cast to the original FieldStringConf."))
+	}
+
+	if col1.Value != "x@y.tv" {
+		return errors.New(fmt.Sprintf("Wrong number of result columns %d", len(rc[1].Cols)))
+	}
+
+	col2, ok2 := rc[1].Cols[1].(FieldStringConf)
+
+	if !ok2 {
+		return errors.New(fmt.Sprintf("Cannot cast to the original FieldStringConf."))
+	}
+
+	if col2.Value != "b@a.co.uk" {
+		return errors.New(fmt.Sprintf("Wrong number of result columns %d", len(rc[1].Cols)))
 	}
 
 	return nil
@@ -164,7 +192,7 @@ func TestAtom(t *testing.T) {
 	}
 }
 
-func TestLogical(t *testing.T) {
+func testLogical(t *testing.T, op string) []RecordConf {
 	rmc := prepareTable()
 
 	//rmc.Inspect()
@@ -174,21 +202,44 @@ func TestLogical(t *testing.T) {
 		t.Error(err)
 	}
 
-	query := QueryAndConf{
-		QueryContextConf{
-			Context: []QueryConf{
-				QueryAtomConf{
-					Name:      "who",
-					Value:     "a@b.cz",
-					MatchType: FullmatchStringIndexConf{},
-				},
-				QueryAtomConf{
-					Name:      "whom",
-					Value:     "c@d.com",
-					MatchType: FullmatchStringIndexConf{},
+	var query QueryConf
+
+	if op == "or" {
+		query = QueryOrConf{
+			QueryContextConf{
+				Context: []QueryConf{
+					QueryAtomConf{
+						Name:      "who",
+						Value:     "a@b.cz",
+						MatchType: FullmatchStringIndexConf{},
+					},
+					QueryAtomConf{
+						Name:      "whom",
+						Value:     "b@a.co.uk",
+						MatchType: FullmatchStringIndexConf{},
+					},
 				},
 			},
-		},
+		}
+	} else if op == "and" {
+		query = QueryAndConf{
+			QueryContextConf{
+				Context: []QueryConf{
+					QueryAtomConf{
+						Name:      "who",
+						Value:     "a@b.cz",
+						MatchType: FullmatchStringIndexConf{},
+					},
+					QueryAtomConf{
+						Name:      "whom",
+						Value:     "c@d.com",
+						MatchType: FullmatchStringIndexConf{},
+					},
+				},
+			},
+		}
+	} else {
+		t.Errorf("Unknown op: %s", op)
 	}
 
 	smc, err := rmc.Filter(query)
@@ -202,7 +253,29 @@ func TestLogical(t *testing.T) {
 		t.Errorf("Expected 1 got %d\n", len(output))
 	}
 
+	return output
+}
+
+func TestAnd(t *testing.T) {
+	output := testLogical(t, "or")
 	if err := testFirstLine(output); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestOr(t *testing.T) {
+	output := testLogical(t, "or")
+
+	if len(output) != 2 {
+		t.Errorf("Expected 2 lines but %d given", len(output))
+		return
+	}
+
+	if err := testFirstLine(output); err != nil {
+		t.Error(err)
+	}
+
+	if err := testSecondLine(output); err != nil {
 		t.Error(err)
 	}
 }
