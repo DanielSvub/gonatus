@@ -440,7 +440,7 @@ func (ego *QueryOrConf) eval(rc *RamCollection) (CIdSet, error) {
 	}
 
 	for i := 0; i < ctxlen; i++ {
-		acc, err := rc.filterQueryEval(QueryConf(ego.QueryContextConf.Context[0]))
+		acc, err := rc.filterQueryEval(QueryConf(ego.QueryContextConf.Context[i]))
 		if err != nil {
 			return nil, err
 		}
