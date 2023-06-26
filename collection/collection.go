@@ -87,25 +87,25 @@ type FieldString struct {
 	param FieldStringConf
 }
 
-func NewFieldString(c FieldStringConf) *FieldString {
-	ego := new(FieldString)
-	ego.param = c
+// func NewFieldString(c FieldStringConf) *FieldString {
+// 	ego := new(FieldString)
+// 	ego.param = c
 
-	if ego.Set(c.Value) != nil {
-		return nil
-	}
+// 	if ego.Set(c.Value) != nil {
+// 		return nil
+// 	}
 
-	return ego
-}
+// 	return ego
+// }
 
-func (ego *FieldString) Get() string {
-	return ego.value
-}
+// func (ego *FieldString) Get() string {
+// 	return ego.value
+// }
 
-func (ego *FieldString) Set(s string) error {
-	ego.value = s
-	return nil
-}
+// func (ego *FieldString) Set(s string) error {
+// 	ego.value = s
+// 	return nil
+// }
 
 type Commiter interface {
 	Commit() error
@@ -196,55 +196,55 @@ type QueryImplicatonConf struct {
 	Right QueryAtomConf
 }
 
-func main() {
-	rmC := RamCollectionConf{
-		SchemaConf: SchemaConf{
-			Name:         "FooBarTable",
-			FieldsNaming: []string{"who", "whom"},
-			Fields: []FielderConf{
-				FieldStringConf{},
-				FieldStringConf{},
-			},
-			Indexes: []IndexerConf{
-				PrefixStringIndexConf{Name: "who", MinPrefix: 3},
-			},
-		},
-		MaxMemory: 1024 * 1024 * 1024,
-	}
+// func main() {
+// 	rmC := RamCollectionConf{
+// 		SchemaConf: SchemaConf{
+// 			Name:         "FooBarTable",
+// 			FieldsNaming: []string{"who", "whom"},
+// 			Fields: []FielderConf{
+// 				FieldStringConf{},
+// 				FieldStringConf{},
+// 			},
+// 			Indexes: []IndexerConf{
+// 				PrefixStringIndexConf{Name: "who", MinPrefix: 3},
+// 			},
+// 		},
+// 		MaxMemory: 1024 * 1024 * 1024,
+// 	}
 
-	rmc := NewRamCollection(rmC)
+// 	rmc := NewRamCollection(rmC)
 
-	rec := RecordConf{
-		Cols: []FielderConf{
-			FieldStringConf{
-				Value: "a@b.cz",
-			},
-			FieldStringConf{
-				Value: "c@d.com",
-			},
-		},
-	}
+// 	rec := RecordConf{
+// 		Cols: []FielderConf{
+// 			FieldStringConf{
+// 				Value: "a@b.cz",
+// 			},
+// 			FieldStringConf{
+// 				Value: "c@d.com",
+// 			},
+// 		},
+// 	}
 
-	rmc.AddRecord(rec)
+// 	rmc.AddRecord(rec)
 
-	query := QueryAndConf{
-		QueryContextConf{
-			Context: []QueryConf{
-				QueryAtomConf{
-					Name:      "who",
-					Value:     "a@b.cz",
-					MatchType: FullmatchStringIndexConf{},
-				},
-				QueryAtomConf{
-					Name:      "whom",
-					Value:     "c@d.com",
-					MatchType: FullmatchStringIndexConf{},
-				},
-			},
-		},
-	}
+// 	query := QueryAndConf{
+// 		QueryContextConf{
+// 			Context: []QueryConf{
+// 				QueryAtomConf{
+// 					Name:      "who",
+// 					Value:     "a@b.cz",
+// 					MatchType: FullmatchStringIndexConf{},
+// 				},
+// 				QueryAtomConf{
+// 					Name:      "whom",
+// 					Value:     "c@d.com",
+// 					MatchType: FullmatchStringIndexConf{},
+// 				},
+// 			},
+// 		},
+// 	}
 
-	rmc.filterQueryEval(query)
+// 	rmc.filterQueryEval(query)
 
-	print(rmc)
-}
+// 	print(rmc)
+// }

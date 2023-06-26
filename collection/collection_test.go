@@ -97,10 +97,15 @@ func testFilling(rmc *RamCollection) error {
 		return errors.New("Adding record failed.")
 	}
 
+	if len(rmc.Rows()) != 2 {
+		return errors.New("Expecting 2 rows now.")
+	}
+
 	return nil
 }
 
 func testFirstLine(rc []RecordConf) error {
+
 	rclen := len(rc[0].Cols)
 
 	if rclen != 2 {
@@ -199,8 +204,6 @@ func TestAtom(t *testing.T) {
 func testLogical(t *testing.T, op string) []RecordConf {
 	rmc := prepareTable()
 
-	//rmc.Inspect()
-
 	err := testFilling(rmc)
 	if err != nil {
 		t.Error(err)
@@ -252,12 +255,13 @@ func testLogical(t *testing.T, op string) []RecordConf {
 	}
 
 	output, err := smc.Collect()
+	rmc.Inspect()
 
 	return output
 }
 
 func TestAnd(t *testing.T) {
-	output := testLogical(t, "or")
+	output := testLogical(t, "and")
 	if err := testFirstLine(output); err != nil {
 		t.Error(err)
 	}
