@@ -395,7 +395,7 @@ func (ego *QueryAtomConf) eval(rc *RamCollection) (CIdSet, error) {
 	} else {
 		println("HAVE ADDITIONAL INDEX")
 
-		rows, err := pi.Get(ego.Value)
+		rows, err := indexer.Get(ego.Value)
 		if err != nil {
 			return nil, err
 		}

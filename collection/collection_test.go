@@ -38,7 +38,7 @@ func TestSerialization(t *testing.T) {
 	}
 }
 
-func prepareTable() *RamCollection {
+func prepareTable(indexP bool) *RamCollection {
 	rmC := RamCollectionConf{
 		SchemaConf: SchemaConf{
 			Name:         "FooBarTable",
@@ -47,11 +47,16 @@ func prepareTable() *RamCollection {
 				FieldStringConf{},
 				FieldStringConf{},
 			},
-			Indexes: []IndexerConf{
-				PrefixStringIndexConf{Name: "who", MinPrefix: 3},
-			},
+			Indexes: []IndexerConf{},
 		},
 		MaxMemory: 1024 * 1024 * 1024,
+	}
+
+	if indexP {
+		rmC.Indexes = []IndexerConf{
+			FullmatchStringIndexConf{Name: "who"},
+			FullmatchStringIndexConf{Name: "whom"},
+		}
 	}
 
 	return NewRamCollection(rmC)
@@ -170,7 +175,7 @@ func TestNilQuery(t *testing.T) {
 }
 
 func TestAtom(t *testing.T) {
-	rmc := prepareTable()
+	rmc := prepareTable(false)
 
 	//rmc.Inspect()
 
@@ -202,7 +207,7 @@ func TestAtom(t *testing.T) {
 }
 
 func testLogical(t *testing.T, op string) []RecordConf {
-	rmc := prepareTable()
+	rmc := prepareTable(false)
 
 	err := testFilling(rmc)
 	if err != nil {
@@ -280,6 +285,38 @@ func TestOr(t *testing.T) {
 	}
 
 	if err := testSecondLine(output); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestIndex(t *testing.T) {
+	rmc := prepareTable(true)
+
+	err := testFilling(rmc)
+	if err != nil {
+		t.Error(err)
+	}
+
+	rmc.Inspect()
+
+	queryAtom := QueryAtomConf{
+		Name:      "who",
+		Value:     "a@b.cz",
+		MatchType: FullmatchStringIndexConf{},
+	}
+
+	smc, err := rmc.Filter(queryAtom)
+	if err != nil {
+		t.Error(err)
+	}
+
+	output, err := smc.Collect()
+
+	if len(output) != 1 {
+		t.Errorf("Expected 1 got %d\n", len(output))
+	}
+
+	if err := testFirstLine(output); err != nil {
 		t.Error(err)
 	}
 }
