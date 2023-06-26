@@ -36,6 +36,8 @@ func (ego *primaryIndexer) Get(arg any) ([]CId, error) {
 	v := arg.([]any)
 	ret := make([]CId, 0)
 
+	fmt.Printf("BUILT ROW %+v", v)
+
 	for id, row := range ego.index {
 		found := true
 
@@ -379,13 +381,20 @@ func (ego *RamCollection) primaryValue(q QueryAtomConf) []any {
 func (ego *QueryAtomConf) eval(rc *RamCollection) (CIdSet, error) {
 	indexer := rc.getIndex(*ego)
 	if pi, ok := indexer.(*primaryIndexer); ok {
+		fmt.Printf("SEARCHING IN PRIMARY INDEX %+v\n", ego)
+
 		rows, err := pi.Get(rc.primaryValue(*ego))
+
 		if err != nil {
 			return nil, err
 		}
 
+		fmt.Printf("\n\nERRRORORRRR::: pvals. %+v\n\n", rc.primaryValue(*ego))
+
 		return CIdSetFromSlice(rows), nil
 	} else {
+		println("HAVE ADDITIONAL INDEX")
+
 		rows, err := pi.Get(ego.Value)
 		if err != nil {
 			return nil, err
@@ -405,7 +414,11 @@ func (ego *QueryAndConf) eval(rc *RamCollection) (CIdSet, error) {
 
 	for i := 0; i < ctxlen; i++ {
 		acc, err := rc.filterQueryEval(QueryConf(ego.QueryContextConf.Context[0]))
-		accum = accum.Intersect(acc)
+		if i > 0 {
+			accum = accum.Intersect(acc)
+		} else {
+			accum = acc
+		}
 
 		if err != nil {
 			return nil, err
@@ -506,6 +519,8 @@ func (ego *RamCollection) Inspect() {
 
 func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[RecordConf], error) {
 	ret, err := ego.filterQueryEval(q)
+
+	fmt.Printf("%+v \n", ret)
 
 	if err != nil {
 		return nil, err

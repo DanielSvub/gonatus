@@ -1,6 +1,7 @@
 package collection_test
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -37,6 +38,25 @@ func TestSerialization(t *testing.T) {
 	}
 }
 
+func prepareTable() *RamCollection {
+	rmC := RamCollectionConf{
+		SchemaConf: SchemaConf{
+			Name:         "FooBarTable",
+			FieldsNaming: []string{"who", "whom"},
+			Fields: []FielderConf{
+				FieldStringConf{},
+				FieldStringConf{},
+			},
+			Indexes: []IndexerConf{
+				PrefixStringIndexConf{Name: "who", MinPrefix: 3},
+			},
+		},
+		MaxMemory: 1024 * 1024 * 1024,
+	}
+
+	return NewRamCollection(rmC)
+}
+
 func fillRecords(rows [][]string) []RecordConf {
 	out := make([]RecordConf, len(rows))
 
@@ -55,38 +75,9 @@ func fillRecords(rows [][]string) []RecordConf {
 	}
 
 	return out
-
 }
 
-func TestRam(t *testing.T) {
-	rmC := RamCollectionConf{
-		SchemaConf: SchemaConf{
-			Name:         "FooBarTable",
-			FieldsNaming: []string{"who", "whom"},
-			Fields: []FielderConf{
-				FieldStringConf{},
-				FieldStringConf{},
-			},
-			Indexes: []IndexerConf{
-				PrefixStringIndexConf{Name: "who", MinPrefix: 3},
-			},
-		},
-		MaxMemory: 1024 * 1024 * 1024,
-	}
-
-	rmc := NewRamCollection(rmC)
-
-	// rec := RecordConf{
-	// 	Cols: []FielderConf{
-	// 		FieldStringConf{
-	// 			Value: "a@b.cz",
-	// 		},
-	// 		FieldStringConf{
-	// 			Value: "c@d.com",
-	// 		},
-	// 	},
-	// }
-
+func testFilling(rmc *RamCollection) error {
 	rcrds := fillRecords([][]string{
 		{"a@b.cz", "c@d.com"},
 		{"x@y.tv", "b@a.co.uk"},
@@ -95,7 +86,7 @@ func TestRam(t *testing.T) {
 	id, err := rmc.AddRecord(rcrds[0])
 
 	if err != nil {
-		t.Error("Adding record failed.")
+		return errors.New("Adding record failed.")
 	}
 
 	println("Assigned id: ", id)
@@ -103,45 +94,115 @@ func TestRam(t *testing.T) {
 	id, err = rmc.AddRecord(rcrds[1])
 
 	if err != nil {
-		t.Error("Adding record failed.")
+		return errors.New("Adding record failed.")
 	}
 
-	println("Assigned id: ", id)
+	return nil
+}
 
-	println("ROWS:", len(rmc.Rows()))
-	rmc.Inspect()
+func testFirstLine(rc []RecordConf) error {
+	if len(rc[0].Cols) != 2 {
+		errors.New(fmt.Sprintf("Wrong number of result columns %d", len(rc[0].Cols)))
+	}
+
+	col1, ok1 := rc[0].Cols[0].(FieldStringConf)
+
+	if !ok1 {
+		errors.New(fmt.Sprintf("Cannot cast to the original FieldStringConf."))
+	}
+
+	if col1.Value != "a@b.cz" {
+		return errors.New(fmt.Sprintf("Wrong number of result columns %d", len(rc[0].Cols)))
+	}
+
+	col2, ok2 := rc[0].Cols[1].(FieldStringConf)
+
+	if !ok2 {
+		errors.New(fmt.Sprintf("Cannot cast to the original FieldStringConf."))
+	}
+
+	if col2.Value != "c@d.com" {
+		errors.New(fmt.Sprintf("Wrong number of result columns %d", len(rc[0].Cols)))
+	}
+
+	return nil
+}
+
+func TestNilQuery(t *testing.T) {
+
+}
+
+func TestAtom(t *testing.T) {
+	rmc := prepareTable()
+
+	//rmc.Inspect()
+
+	err := testFilling(rmc)
+	if err != nil {
+		t.Error(err)
+	}
 
 	queryAtom := QueryAtomConf{
-		Field:     "who",
+		Name:      "who",
 		Value:     "a@b.cz",
 		MatchType: FullmatchStringIndexConf{},
 	}
 
-	// query := QueryAndConf{
-	// 	QueryContextConf{
-	// 		Context: []QueryConf{
-	// 			QueryAtomConf{
-	// 				Field:     "who",
-	// 				Value:     "a@b.cz",
-	// 				MatchType: FullmatchStringIndexConf{},
-	// 			},
-	// 			QueryAtomConf{
-	// 				Field:     "whom",
-	// 				Value:     "c@d.com",
-	// 				MatchType: FullmatchStringIndexConf{},
-	// 			},
-	// 		},
-	// 	},
-	// }
-
 	smc, err := rmc.Filter(queryAtom)
 	if err != nil {
-		panic("Filter failed")
+		t.Error(err)
 	}
 
-	print(" RMC_ADDDR: ", rmc)
+	output, err := smc.Collect()
+
+	if len(output) != 1 {
+		t.Errorf("Expected 1 got %d\n", len(output))
+	}
+
+	if err := testFirstLine(output); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestLogical(t *testing.T) {
+	rmc := prepareTable()
+
+	//rmc.Inspect()
+
+	err := testFilling(rmc)
+	if err != nil {
+		t.Error(err)
+	}
+
+	query := QueryAndConf{
+		QueryContextConf{
+			Context: []QueryConf{
+				QueryAtomConf{
+					Name:      "who",
+					Value:     "a@b.cz",
+					MatchType: FullmatchStringIndexConf{},
+				},
+				QueryAtomConf{
+					Name:      "whom",
+					Value:     "c@d.com",
+					MatchType: FullmatchStringIndexConf{},
+				},
+			},
+		},
+	}
+
+	smc, err := rmc.Filter(query)
+	if err != nil {
+		t.Error(err)
+	}
 
 	output, err := smc.Collect()
-	print(" LEN:", len(output), " ERR: ", err)
 
+	if len(output) != 1 {
+		t.Errorf("Expected 1 got %d\n", len(output))
+	}
+
+	if err := testFirstLine(output); err != nil {
+		t.Error(err)
+	}
 }

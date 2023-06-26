@@ -168,7 +168,6 @@ type QueryConf interface {
 
 type QueryAtomConf struct {
 	QueryConf
-	Field     FielderConf
 	MatchType IndexerConf
 	Name      string
 	Value     any
@@ -232,12 +231,12 @@ func main() {
 		QueryContextConf{
 			Context: []QueryConf{
 				QueryAtomConf{
-					Field:     "who",
+					Name:      "who",
 					Value:     "a@b.cz",
 					MatchType: FullmatchStringIndexConf{},
 				},
 				QueryAtomConf{
-					Field:     "whom",
+					Name:      "whom",
 					Value:     "c@d.com",
 					MatchType: FullmatchStringIndexConf{},
 				},
