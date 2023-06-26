@@ -521,7 +521,7 @@ func (ego *RamCollection) Inspect() {
 func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[RecordConf], error) {
 	ret, err := ego.filterQueryEval(q)
 
-	fmt.Printf("%+v \n", ret)
+	fmt.Printf("MAPS:::: %+v \n", ret)
 
 	if err != nil {
 		return nil, err
@@ -536,6 +536,8 @@ func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[Re
 				// FIXME: sbuf.SetError() pass error! return nil, err
 				panic(err)
 			}
+
+			fmt.Printf("\nWriting:::: %+v \n", rec)
 			sbuf.Write(rec)
 		}
 		sbuf.Close()

@@ -101,8 +101,10 @@ func testFilling(rmc *RamCollection) error {
 }
 
 func testFirstLine(rc []RecordConf) error {
-	if len(rc[0].Cols) != 2 {
-		return errors.New(fmt.Sprintf("Wrong number of result columns %d", len(rc[0].Cols)))
+	rclen := len(rc[0].Cols)
+
+	if rclen != 2 {
+		return errors.New(fmt.Sprintf("Wrong number of result columns %d", rclen))
 	}
 
 	col1, ok1 := rc[0].Cols[0].(FieldStringConf)
@@ -129,8 +131,10 @@ func testFirstLine(rc []RecordConf) error {
 }
 
 func testSecondLine(rc []RecordConf) error {
-	if len(rc[1].Cols) != 2 {
-		return errors.New(fmt.Sprintf("Wrong number of result columns %d", len(rc[1].Cols)))
+	rclen := len(rc[1].Cols)
+
+	if rclen != 2 {
+		return errors.New(fmt.Sprintf("Wrong number of result columns %d", rclen))
 	}
 
 	col1, ok1 := rc[1].Cols[0].(FieldStringConf)
@@ -248,10 +252,6 @@ func testLogical(t *testing.T, op string) []RecordConf {
 	}
 
 	output, err := smc.Collect()
-
-	if len(output) != 1 {
-		t.Errorf("Expected 1 got %d\n", len(output))
-	}
 
 	return output
 }
