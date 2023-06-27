@@ -94,9 +94,15 @@ func testFilling(rmc *RamCollection) error {
 		return errors.New("Adding record failed.")
 	}
 
-	println("Assigned id: ", id)
+	if id != 1 {
+		return errors.New("Expecting id = 1.")
+	}
 
 	id, err = rmc.AddRecord(rcrds[1])
+
+	if id != 2 {
+		return errors.New("Expecting id = 2.")
+	}
 
 	if err != nil {
 		return errors.New("Adding record failed.")
@@ -107,6 +113,38 @@ func testFilling(rmc *RamCollection) error {
 	}
 
 	return nil
+}
+
+func TestRemoval(t *testing.T) {
+	rmc := prepareTable(true)
+
+	err := testFilling(rmc)
+	if err != nil {
+		t.Error(err)
+	}
+
+	rcrds := fillRecords([][]string{
+		{"a@b.cz", "c@d.com"},
+	})
+
+	record := rcrds[0]
+	record.Id = 1337
+
+	id, err := rmc.AddRecord(record)
+	if id != 1337 {
+		t.Errorf("Expected Id 1337 but %d given", id)
+	}
+
+	errd := rmc.DeleteRecord(RecordConf{Id: 1})
+	if errd != nil {
+		t.Errorf(errd.Error())
+	}
+
+	if len(rmc.Rows()) != 2 {
+		t.Errorf("Exptecting 2 rows after remove third.")
+	}
+
+	// TestOr(t)
 }
 
 func testFirstLine(rc []RecordConf) error {

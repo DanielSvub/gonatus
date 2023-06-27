@@ -160,6 +160,7 @@ type SchemaConf struct {
 }
 
 type RecordConf struct {
+	Id   CId
 	Cols []FielderConf
 }
 

@@ -62,30 +62,30 @@ func (ego *primaryIndexer) Get(arg any) ([]CId, error) {
 	return ret, nil
 }
 
-func (ego *primaryIndexer) Add(s any, id CId) error {
-	val, found := ego.index[id]
+// func (ego *primaryIndexer) Add(s any, id CId) error {
+// 	val, found := ego.index[id]
 
-	if found {
-		return errors.NewMisappError(ego, "Row with id already registered")
-	}
+// 	if found {
+// 		return errors.NewMisappError(ego, "Row with id already registered")
+// 	}
 
-	ego.index[id] = val
-	return nil
-}
+// 	ego.index[id] = val
+// 	return nil
+// }
 
-func (ego *primaryIndexer) Del(s any, id CId) error {
-	rows, err := ego.Get(s.([]any))
+// func (ego *primaryIndexer) Del(s any, id CId) error {
+// 	rows, err := ego.Get(s.([]any))
 
-	if err != nil {
-		return err
-	}
+// 	if err != nil {
+// 		return err
+// 	}
 
-	for _, r := range rows {
-		delete(ego.index, r)
-	}
+// 	for _, r := range rows {
+// 		delete(ego.index, r)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // FULLMATCH INDEX
 
@@ -265,9 +265,25 @@ func (ego *RamCollection) DeinterpretRecord(r []any) (RecordConf, error) {
 }
 
 func (ego *RamCollection) AddRecord(rc RecordConf) (CId, error) {
-	ego.autoincrement++
+	cid := rc.Id
+	if !cid.ValidP() {
+		// need to generate a new one
+		ego.autoincrement++
+		cid = ego.autoincrement
+	} else {
+		// have from the user
+		if cid >= ego.autoincrement {
+			// move id generator behind user defined cid
+			ego.autoincrement = cid + 1
+		} else {
+			//possibly reusing existing id
+			if _, found := ego.rows[cid]; found {
+				return 0, errors.NewValueError(ego, errors.LevelFatal, "Can not reuse id!")
+			}
+		}
+	}
 
-	if ego.autoincrement == CId(MaxUint) {
+	if cid == CId(MaxUint) {
 		return 0, errors.NewValueError(ego, errors.LevelFatal, "Id pool depleted!")
 	}
 
@@ -286,16 +302,42 @@ func (ego *RamCollection) AddRecord(rc RecordConf) (CId, error) {
 
 	println("Adding record...", record)
 
-	ego.rows[ego.autoincrement] = record
+	ego.rows[cid] = record
 
 	// Add to lookup indexes
 	for i, name := range ego.param.FieldsNaming {
 		if idx, found := ego.indexes[name]; found {
-			idx.Add(record[i], ego.autoincrement)
+			idx.Add(record[i], cid)
 		}
 	}
 
-	return 0, nil
+	return cid, nil
+}
+
+func (c CId) ValidP() bool {
+	return c > 0
+}
+
+func (ego *RamCollection) DeleteRecord(rc RecordConf) error {
+	cid := rc.Id
+
+	if !cid.ValidP() {
+		return errors.NewMisappError(ego, "Invalid Id field in record.")
+	}
+
+	record := ego.rows[cid]
+
+	// Add to lookup indexes
+	for i, name := range ego.param.FieldsNaming {
+		if idx, found := ego.indexes[name]; found {
+			fmt.Printf("Removing id: %d %s %+v", cid, name, idx)
+			idx.Del(record[i], cid)
+		}
+	}
+
+	delete(ego.rows, cid)
+
+	return nil
 }
 
 type CIdSet map[CId]bool
@@ -310,17 +352,17 @@ func CIdSetFromSlice(s []CId) CIdSet {
 	return ret
 }
 
-func CIdSetToSlice(u CIdSet) []CId {
-	keys := make([]CId, len(u))
-	i := 0
+// func CIdSetToSlice(u CIdSet) []CId {
+// 	keys := make([]CId, len(u))
+// 	i := 0
 
-	for k := range u {
-		keys[i] = k
-		i++
-	}
+// 	for k := range u {
+// 		keys[i] = k
+// 		i++
+// 	}
 
-	return keys
-}
+// 	return keys
+// }
 
 func (ego CIdSet) Merge(s CIdSet) {
 	for k, v := range s {
@@ -532,6 +574,8 @@ func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[Re
 	fetchRows := func() {
 		for i, _ := range ret {
 			rec, err := ego.DeinterpretRecord(ego.rows[i])
+			rec.Id = i
+
 			if err != nil {
 				// FIXME: sbuf.SetError() pass error! return nil, err
 				panic(err)
