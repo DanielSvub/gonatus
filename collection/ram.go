@@ -534,6 +534,14 @@ func (ego *RamCollection) filterQueryEval(q QueryConf) (CIdSet, error) {
 		return v.eval(ego)
 	case QueryAtomConf:
 		return v.eval(ego)
+	case QueryConf:
+		ids := make(CIdSet, len(ego.rows))
+
+		for key := range ego.rows {
+			ids[key] = true
+		}
+
+		return ids, nil
 	default:
 		return nil, errors.NewMisappError(ego, "Unknown collection filter query.")
 	}

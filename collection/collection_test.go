@@ -157,7 +157,6 @@ func TestRemoval(t *testing.T) {
 }
 
 func testFirstLine(rc []RecordConf) error {
-
 	rclen := len(rc[0].Cols)
 
 	if rclen != 2 {
@@ -218,7 +217,33 @@ func testSecondLine(rc []RecordConf) error {
 }
 
 func TestNilQuery(t *testing.T) {
+	rmc := prepareTable(false)
 
+	err := testFilling(rmc)
+	if err != nil {
+		t.Error(err)
+	}
+
+	queryAtom := new(QueryConf)
+
+	smc, err := rmc.Filter(queryAtom)
+	if err != nil {
+		t.Error(err)
+	}
+
+	output, err := smc.Collect()
+
+	if len(output) != 2 {
+		t.Errorf("Expected 2 got %d\n", len(output))
+	}
+
+	if err := testFirstLine(output); err != nil {
+		t.Error(err)
+	}
+
+	if err := testSecondLine(output); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestAtom(t *testing.T) {
