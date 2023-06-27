@@ -497,7 +497,16 @@ func (ego *QueryOrConf) eval(rc *RamCollection) (CIdSet, error) {
 	return accum, nil
 }
 
-func (ego *QueryImplicatonConf) eval(rc *RamCollection) (CIdSet, error) {
+func (ego *RamCollection) every() CIdSet {
+	result := make(CIdSet, len(ego.rows))
+
+	for k, _ := range ego.rows {
+		result[k] = true
+	}
+	return result
+}
+
+func (ego *QueryImplicationConf) eval(rc *RamCollection) (CIdSet, error) {
 	le, err := rc.filterQueryEval(ego.Left)
 	if err != nil {
 		return nil, err
@@ -512,16 +521,23 @@ func (ego *QueryImplicatonConf) eval(rc *RamCollection) (CIdSet, error) {
 		return re, nil
 	}
 
+	fmt.Printf("LEFT: %+v\n", le)
+	fmt.Printf("RIGHT: %+v\n", re)
+
 	// filter out those elements which are on the left hand side and not on right hand side 1 => 0 = 0
 	le.Merge(re)
 
-	for i, _ := range le {
-		if _, found := re[i]; !found {
-			delete(le, i) // possible problem with le modification within for loop
+	fmt.Printf("MERGE: %+v\n", le)
+
+	rws := rc.every()
+
+	for i, _ := range re {
+		if _, found := le[i]; !found {
+			delete(rws, i)
 		}
 	}
 
-	return le, nil
+	return rws, nil
 }
 
 func (ego *RamCollection) filterQueryEval(q QueryConf) (CIdSet, error) {
@@ -530,7 +546,7 @@ func (ego *RamCollection) filterQueryEval(q QueryConf) (CIdSet, error) {
 		return v.eval(ego)
 	case QueryOrConf:
 		return v.eval(ego)
-	case QueryImplicatonConf:
+	case QueryImplicationConf:
 		return v.eval(ego)
 	case QueryAtomConf:
 		return v.eval(ego)

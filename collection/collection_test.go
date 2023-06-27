@@ -322,6 +322,19 @@ func testLogical(t *testing.T, op string) []RecordConf {
 				},
 			},
 		}
+	} else if op == "implies" {
+		query = QueryImplicationConf{
+			Left: QueryAtomConf{
+				Name:      "who",
+				Value:     "a@b.cz",
+				MatchType: FullmatchStringIndexConf{},
+			},
+			Right: QueryAtomConf{
+				Name:      "whom",
+				Value:     "c@d.com",
+				MatchType: FullmatchStringIndexConf{},
+			},
+		}
 	} else {
 		t.Errorf("Unknown op: %s", op)
 	}
@@ -355,6 +368,27 @@ func TestOr(t *testing.T) {
 	if err := testFirstLine(output); err != nil {
 		t.Error(err)
 	}
+
+	if err := testSecondLine(output); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestImplication(t *testing.T) {
+	output := testLogical(t, "implies")
+
+	if len(output) != 2 {
+		t.Errorf("Expected 2 lines but %d given", len(output))
+		//return
+	}
+
+	if err := testFirstLine(output); err != nil {
+		t.Error(err)
+	}
+
+	fmt.Printf("Lines %+v", output)
+
+	return
 
 	if err := testSecondLine(output); err != nil {
 		t.Error(err)

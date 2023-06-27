@@ -191,7 +191,7 @@ type QueryNegConf struct {
 	QueryAtomConf
 }
 
-type QueryImplicatonConf struct {
+type QueryImplicationConf struct {
 	QueryConf
 	Left  QueryAtomConf
 	Right QueryAtomConf
