@@ -135,6 +135,15 @@ func TestRemoval(t *testing.T) {
 		t.Errorf("Expected Id 1337 but %d given", id)
 	}
 
+	id2, err2 := rmc.AddRecord(record)
+	if err2 == nil {
+		t.Errorf("Repeating Id should lead to error but got nil.")
+	}
+
+	if id2.ValidP() {
+		t.Errorf("Repeating Id should lead to invalid Id got %d.", id2)
+	}
+
 	errd := rmc.DeleteRecord(RecordConf{Id: 1})
 	if errd != nil {
 		t.Errorf(errd.Error())
