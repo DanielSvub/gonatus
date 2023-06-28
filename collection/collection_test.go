@@ -82,6 +82,30 @@ func fillRecords(rows [][]string) []RecordConf {
 	return out
 }
 
+func TestErrors(t *testing.T) {
+	rmc := prepareTable(true)
+
+	err := testFilling(rmc)
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	rcrds := fillRecords([][]string{
+		{"n@a.n", "n@n.y"},
+	})
+
+	rcrds[0].Id = CId(MaxUint)
+	id, err := rmc.AddRecord(rcrds[0])
+
+	if id.ValidP() {
+		t.Errorf("Should return invalid CId but %d given", id)
+	}
+
+	// Test limit id
+
+}
+
 func testFilling(rmc *RamCollection) error {
 	rcrds := fillRecords([][]string{
 		{"a@b.cz", "c@d.com"},
@@ -153,7 +177,12 @@ func TestRemoval(t *testing.T) {
 		t.Errorf("Exptecting 2 rows after remove third.")
 	}
 
-	// TestOr(t)
+	rcr := RecordConf{Id: 2222}
+	errd = rmc.DeleteRecord(rcr)
+
+	if errd == nil {
+		t.Errorf("Removal of not existing record should lead to error.")
+	}
 }
 
 func testFirstLine(rc []RecordConf) error {
@@ -248,8 +277,6 @@ func TestNilQuery(t *testing.T) {
 
 func TestAtom(t *testing.T) {
 	rmc := prepareTable(false)
-
-	//rmc.Inspect()
 
 	err := testFilling(rmc)
 	if err != nil {

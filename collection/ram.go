@@ -8,7 +8,7 @@ import (
 	"github.com/SpongeData-cz/gonatus/streams"
 )
 
-const MaxUint = ^uint(0)
+const MaxUint = ^uint64(0)
 const MinUint = 0
 const MaxInt = int(MaxUint >> 1)
 const MinInt = -MaxInt - 1
@@ -325,7 +325,13 @@ func (ego *RamCollection) DeleteRecord(rc RecordConf) error {
 		return errors.NewMisappError(ego, "Invalid Id field in record.")
 	}
 
-	record := ego.rows[cid]
+	record, found := ego.rows[cid]
+
+	fmt.Printf("CID::: %d", cid)
+
+	if !found {
+		return errors.NewNotFoundError(ego, errors.LevelWarning, fmt.Sprintf("Record with id %d not found.", cid))
+	}
 
 	// Add to lookup indexes
 	for i, name := range ego.param.FieldsNaming {
