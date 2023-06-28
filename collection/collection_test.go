@@ -386,10 +386,6 @@ func TestImplication(t *testing.T) {
 		t.Error(err)
 	}
 
-	fmt.Printf("Lines %+v", output)
-
-	return
-
 	if err := testSecondLine(output); err != nil {
 		t.Error(err)
 	}
