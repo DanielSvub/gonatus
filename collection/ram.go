@@ -148,11 +148,12 @@ func remove(rows []CId, ididx uint64) []CId {
 }
 
 func (ego *fullmatchStringIndexer) Del(s any, id CId) error {
-	val, err := ego.Get(s)
+	val, _ := ego.Get(s)
 
-	if err != nil {
-		return err
-	}
+	// Can not happen within RamCollection
+	// if err != nil {
+	// 	return err
+	// }
 
 	if val == nil {
 		return errors.NewNotFoundError(ego, errors.LevelWarning, "Index trouble - value not found")
@@ -198,12 +199,17 @@ type RamCollection struct {
 
 func NewRamCollection(rc RamCollectionConf) *RamCollection {
 	ego := new(RamCollection)
+
+	// TODO: check if implementing given fields
+
 	ego.param = rc
 	ego.rows = make(map[CId][]any, 0)
 	ego.indexes = make(map[string]ramCollectionIndexer, 0)
 	// TODO: implement id index as default one ego.indexes["id"] = idIndexerNew() // must be present in every collection
 
-	ego.RegisterIndexes()
+	if err := ego.RegisterIndexes(); err != nil {
+		panic(err)
+	}
 	return ego
 }
 
@@ -222,8 +228,6 @@ func (ego *RamCollection) InterpretRecord(rc RecordConf) ([]any, error) {
 	for _, c := range rc.Cols {
 		rf, err := ego.InterpretField(c)
 		if err != nil {
-			fmt.Printf("Err: %+v\n", rc)
-			println("ERROR INTERPERTING RECORD::: ", rc.Cols, err.Error())
 			return nil, err
 		}
 
@@ -457,7 +461,7 @@ func (ego *QueryAndConf) eval(rc *RamCollection) (CIdSet, error) {
 	ctxlen := len(ego.QueryContextConf.Context)
 
 	if ctxlen == 0 {
-		return accum, nil
+		return accum, nil // TODO: But possible CIdSet(ego.rows) - discuss in LISP (and) => t ?
 	}
 
 	for i := 0; i < ctxlen; i++ {
@@ -484,7 +488,7 @@ func (ego *QueryOrConf) eval(rc *RamCollection) (CIdSet, error) {
 	ctxlen := len(ego.QueryContextConf.Context)
 
 	if ctxlen == 0 {
-		return accum, nil
+		return accum, nil // TODO: here empty set natural probably - discuss in LISP (or) => nil.
 	}
 
 	for i := 0; i < ctxlen; i++ {
@@ -506,7 +510,7 @@ func (ego *QueryOrConf) eval(rc *RamCollection) (CIdSet, error) {
 func (ego *RamCollection) every() CIdSet {
 	result := make(CIdSet, len(ego.rows))
 
-	for k, _ := range ego.rows {
+	for k := range ego.rows {
 		result[k] = true
 	}
 	return result
@@ -527,17 +531,12 @@ func (ego *QueryImplicationConf) eval(rc *RamCollection) (CIdSet, error) {
 		return re, nil
 	}
 
-	fmt.Printf("LEFT: %+v\n", le)
-	fmt.Printf("RIGHT: %+v\n", re)
-
 	// filter out those elements which are on the left hand side and not on right hand side 1 => 0 = 0
 	le.Merge(re)
 
-	fmt.Printf("MERGE: %+v\n", le)
-
 	rws := rc.every()
 
-	for i, _ := range re {
+	for i := range re {
 		if _, found := le[i]; !found {
 			delete(rws, i)
 		}

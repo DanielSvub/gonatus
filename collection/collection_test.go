@@ -36,6 +36,37 @@ func TestSerialization(t *testing.T) {
 	if !(rmCT.FieldsNaming[0] == "who" && rmCT.FieldsNaming[1] == "whom") {
 		t.Error("Field not named correctly.")
 	}
+
+	// TODO: should panic in future
+
+	// type FieldNotExistingConf struct {
+	// 	FielderConf
+	// 	Value string
+	// }
+
+	// rmCE := RamCollectionConf{
+	// 	SchemaConf: SchemaConf{
+	// 		Name:         "FooBarTable2",
+	// 		FieldsNaming: []string{"err"},
+	// 		Fields: []FielderConf{
+	// 			FieldNotExistingConf{},
+	// 		},
+	// 		Indexes: []IndexerConf{},
+	// 	},
+	// 	MaxMemory: 1024 * 1024 * 1024,
+	// }
+
+	// assertPanic := func() {
+	// 	defer func() {
+	// 		if r := recover(); r == nil {
+	// 			t.Errorf("The code did not panic")
+	// 		}
+	// 	}()
+	// 	NewRamCollection(rmCE)
+	// }
+
+	// assertPanic()
+
 }
 
 func prepareTable(indexP bool) *RamCollection {
@@ -448,4 +479,25 @@ func TestIndex(t *testing.T) {
 	if err := testFirstLine(output); err != nil {
 		t.Error(err)
 	}
+
+	queryAtom = QueryAtomConf{
+		Name:      "who",
+		Value:     "notexisting",
+		MatchType: FullmatchStringIndexConf{},
+	}
+
+	smc, err = rmc.Filter(queryAtom)
+	if err != nil {
+		t.Error(err)
+	}
+
+	output, err = smc.Collect()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(output) != 0 {
+		t.Errorf("Expected [] output but got %+v instead.", output)
+	}
+
 }
