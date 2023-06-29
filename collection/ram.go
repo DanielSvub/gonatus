@@ -92,7 +92,7 @@ type fullmatchStringIndexer struct {
 	index map[string][]CId
 }
 
-func fullmatchStringIndexerNew(c FullmatchStringIndexConf) *fullmatchStringIndexer {
+func fullmatchStringIndexerNew(c FullmatchIndexConf[string]) *fullmatchStringIndexer {
 	ego := new(fullmatchStringIndexer)
 	ego.index = make(map[string][]CId)
 
@@ -174,13 +174,7 @@ func (ego *fullmatchStringIndexer) Del(s any, id CId) error {
 	return nil
 }
 
-// /// RAM COLLECTION IMPL
-//
-// ========================================================
-// ******* * * * * * * ************************************
-//
-//
-// ---------------------------------------------- - - - - -
+// RAM COLLECTION IMPL
 
 type RamCollectionConf struct {
 	SchemaConf
@@ -189,6 +183,7 @@ type RamCollectionConf struct {
 
 type RamCollection struct {
 	gonatus.Gobject
+	Collection
 	param         RamCollectionConf
 	autoincrement CId
 	rows          map[CId][]any
@@ -213,7 +208,7 @@ func NewRamCollection(rc RamCollectionConf) *RamCollection {
 
 func (ego *RamCollection) InterpretField(fc FielderConf) (any, error) {
 	switch v := fc.(type) {
-	case FieldStringConf:
+	case FieldConf[string]:
 		return v.Value, nil
 	default:
 		return nil, errors.NewNotImplError(ego)
@@ -239,8 +234,8 @@ func (ego *RamCollection) DeinterpretField(val any, nth int) (FielderConf, error
 	fc := ego.param.SchemaConf.Fields[nth]
 
 	switch fc.(type) {
-	case FieldStringConf:
-		return FieldStringConf{Value: val.(string)}, nil
+	case FieldConf[string]:
+		return FieldConf[string]{Value: val.(string)}, nil
 	default:
 		return nil, errors.NewNotImplError(ego)
 	}
@@ -251,7 +246,7 @@ func (ego *RamCollection) DeinterpretRecord(r []any) (RecordConf, error) {
 		Cols: make([]FielderConf, len(ego.param.SchemaConf.Fields)),
 	}
 
-	for i, _ := range ego.param.SchemaConf.Fields {
+	for i := range ego.param.SchemaConf.Fields {
 
 		field, err := ego.DeinterpretField(r[i], i)
 		if err != nil {
@@ -380,7 +375,8 @@ func (ego CIdSet) Intersect(s CIdSet) CIdSet {
 
 	out := make(CIdSet, len(lesser))
 
-	for i, _ := range lesser {
+	for i := range lesser {
+
 		if greater[i] {
 			out[i] = true
 		}
@@ -395,7 +391,7 @@ func (ego *RamCollection) getIndex(q QueryAtomConf) ramCollectionIndexer {
 		// try cast to the required index
 
 		switch q.MatchType.(type) {
-		case FullmatchStringIndexConf:
+		case FullmatchIndexConf[string]:
 			if i, ok := idx.(*fullmatchStringIndexer); ok {
 				return i
 			}
@@ -581,7 +577,7 @@ func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[Re
 	sbuf := streams.NewBufferInputStream[RecordConf](100)
 
 	fetchRows := func() {
-		for i, _ := range ret {
+		for i := range ret {
 			rec, err := ego.DeinterpretRecord(ego.rows[i])
 			rec.Id = i
 
@@ -608,10 +604,10 @@ func (ego *RamCollection) RegisterIndexes() error {
 
 	for _, idx := range ego.param.Indexes {
 		switch v := idx.(type) {
-		case PrefixStringIndexConf:
+		case PrefixIndexConf[string]:
 			// ego.indexes[v.Name] = prefixStringIndexImpl(v)
 			// Not Implemented
-		case FullmatchStringIndexConf:
+		case FullmatchIndexConf[string]:
 			ego.indexes[v.Name] = fullmatchStringIndexerNew(v)
 		default:
 			return errors.NewNotImplError(ego)
@@ -623,4 +619,9 @@ func (ego *RamCollection) RegisterIndexes() error {
 
 func (ego *RamCollection) Serialize() gonatus.Conf {
 	return ego.param
+}
+
+func (ego *RamCollection) Commit() error {
+	// Doing nothing - in future possibly commit content/oplog to a ndjson file?
+	return nil
 }

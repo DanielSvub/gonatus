@@ -3,6 +3,7 @@ package collection_test
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 
 	. "github.com/SpongeData-cz/gonatus/collection"
@@ -14,11 +15,11 @@ func TestSerialization(t *testing.T) {
 			Name:         "FooBarTable",
 			FieldsNaming: []string{"who", "whom"},
 			Fields: []FielderConf{
-				FieldStringConf{},
-				FieldStringConf{},
+				FieldConf[string]{},
+				FieldConf[string]{},
 			},
 			Indexes: []IndexerConf{
-				PrefixStringIndexConf{Name: "who", MinPrefix: 3},
+				PrefixIndexConf[string]{Name: "who", MinPrefix: 3},
 			},
 		},
 		MaxMemory: 1024 * 1024 * 1024,
@@ -73,8 +74,8 @@ func prepareTable(indexP bool) *RamCollection {
 			Name:         "FooBarTable",
 			FieldsNaming: []string{"who", "whom"},
 			Fields: []FielderConf{
-				FieldStringConf{},
-				FieldStringConf{},
+				FieldConf[string]{},
+				FieldConf[string]{},
 			},
 			Indexes: []IndexerConf{},
 		},
@@ -83,8 +84,8 @@ func prepareTable(indexP bool) *RamCollection {
 
 	if indexP {
 		rmC.Indexes = []IndexerConf{
-			FullmatchStringIndexConf{Name: "who"},
-			FullmatchStringIndexConf{Name: "whom"},
+			FullmatchIndexConf[string]{Name: "who"},
+			FullmatchIndexConf[string]{Name: "whom"},
 		}
 	}
 
@@ -100,7 +101,7 @@ func fillRecords(rows [][]string) []RecordConf {
 		}
 
 		for j, c := range r {
-			rec.Cols[j] = FieldStringConf{
+			rec.Cols[j] = FieldConf[string]{
 				Value: c,
 			}
 		}
@@ -221,7 +222,7 @@ func testFirstLine(rc []RecordConf) error {
 		return errors.New(fmt.Sprintf("Wrong number of result columns %d", rclen))
 	}
 
-	col1, ok1 := rc[0].Cols[0].(FieldStringConf)
+	col1, ok1 := rc[0].Cols[0].(FieldConf[string])
 
 	if !ok1 {
 		return errors.New(fmt.Sprintf("Cannot cast to the original FieldStringConf."))
@@ -231,7 +232,7 @@ func testFirstLine(rc []RecordConf) error {
 		return errors.New(fmt.Sprintf("Wrong number of result columns %d", len(rc[0].Cols)))
 	}
 
-	col2, ok2 := rc[0].Cols[1].(FieldStringConf)
+	col2, ok2 := rc[0].Cols[1].(FieldConf[string])
 
 	if !ok2 {
 		return errors.New(fmt.Sprintf("Cannot cast to the original FieldStringConf."))
@@ -251,7 +252,7 @@ func testSecondLine(rc []RecordConf) error {
 		return errors.New(fmt.Sprintf("Wrong number of result columns %d", rclen))
 	}
 
-	col1, ok1 := rc[1].Cols[0].(FieldStringConf)
+	col1, ok1 := rc[1].Cols[0].(FieldConf[string])
 
 	if !ok1 {
 		return errors.New(fmt.Sprintf("Cannot cast to the original FieldStringConf."))
@@ -261,7 +262,7 @@ func testSecondLine(rc []RecordConf) error {
 		return errors.New(fmt.Sprintf("Wrong number of result columns %d", len(rc[1].Cols)))
 	}
 
-	col2, ok2 := rc[1].Cols[1].(FieldStringConf)
+	col2, ok2 := rc[1].Cols[1].(FieldConf[string])
 
 	if !ok2 {
 		return errors.New(fmt.Sprintf("Cannot cast to the original FieldStringConf."))
@@ -296,10 +297,13 @@ func TestNilQuery(t *testing.T) {
 	}
 
 	if err := testFirstLine(output); err != nil {
+
 		t.Error(err)
+
 	}
 
 	if err := testSecondLine(output); err != nil {
+
 		t.Error(err)
 	}
 }
@@ -315,7 +319,7 @@ func TestAtom(t *testing.T) {
 	queryAtom := QueryAtomConf{
 		Name:      "who",
 		Value:     "a@b.cz",
-		MatchType: FullmatchStringIndexConf{},
+		MatchType: FullmatchIndexConf[string]{},
 	}
 
 	smc, err := rmc.Filter(queryAtom)
@@ -351,12 +355,12 @@ func testLogical(t *testing.T, op string) []RecordConf {
 					QueryAtomConf{
 						Name:      "who",
 						Value:     "a@b.cz",
-						MatchType: FullmatchStringIndexConf{},
+						MatchType: FullmatchIndexConf[string]{},
 					},
 					QueryAtomConf{
 						Name:      "whom",
 						Value:     "b@a.co.uk",
-						MatchType: FullmatchStringIndexConf{},
+						MatchType: FullmatchIndexConf[string]{},
 					},
 				},
 			},
@@ -368,12 +372,12 @@ func testLogical(t *testing.T, op string) []RecordConf {
 					QueryAtomConf{
 						Name:      "who",
 						Value:     "a@b.cz",
-						MatchType: FullmatchStringIndexConf{},
+						MatchType: FullmatchIndexConf[string]{},
 					},
 					QueryAtomConf{
 						Name:      "whom",
 						Value:     "c@d.com",
-						MatchType: FullmatchStringIndexConf{},
+						MatchType: FullmatchIndexConf[string]{},
 					},
 				},
 			},
@@ -383,12 +387,12 @@ func testLogical(t *testing.T, op string) []RecordConf {
 			Left: QueryAtomConf{
 				Name:      "who",
 				Value:     "a@b.cz",
-				MatchType: FullmatchStringIndexConf{},
+				MatchType: FullmatchIndexConf[string]{},
 			},
 			Right: QueryAtomConf{
 				Name:      "whom",
 				Value:     "c@d.com",
-				MatchType: FullmatchStringIndexConf{},
+				MatchType: FullmatchIndexConf[string]{},
 			},
 		}
 	} else {
@@ -422,10 +426,12 @@ func TestOr(t *testing.T) {
 	}
 
 	if err := testFirstLine(output); err != nil {
+
 		t.Error(err)
 	}
 
 	if err := testSecondLine(output); err != nil {
+
 		t.Error(err)
 	}
 }
@@ -439,6 +445,7 @@ func TestImplication(t *testing.T) {
 	}
 
 	if err := testFirstLine(output); err != nil {
+
 		t.Error(err)
 
 	}
@@ -449,6 +456,9 @@ func TestImplication(t *testing.T) {
 }
 
 func TestIndex(t *testing.T) {
+	println(reflect.TypeOf(&FieldConf[string]{}).Kind())
+	println(reflect.TypeOf(reflect.TypeOf(FieldConf[string]{})))
+	println("TESTED")
 	rmc := prepareTable(true)
 
 	err := testFilling(rmc)
@@ -461,7 +471,7 @@ func TestIndex(t *testing.T) {
 	queryAtom := QueryAtomConf{
 		Name:      "who",
 		Value:     "a@b.cz",
-		MatchType: FullmatchStringIndexConf{},
+		MatchType: FullmatchIndexConf[string]{},
 	}
 
 	smc, err := rmc.Filter(queryAtom)
@@ -482,7 +492,7 @@ func TestIndex(t *testing.T) {
 	queryAtom = QueryAtomConf{
 		Name:      "who",
 		Value:     "notexisting",
-		MatchType: FullmatchStringIndexConf{},
+		MatchType: FullmatchIndexConf[string]{},
 	}
 
 	smc, err = rmc.Filter(queryAtom)
@@ -498,5 +508,4 @@ func TestIndex(t *testing.T) {
 	if len(output) != 0 {
 		t.Errorf("Expected [] output but got %+v instead.", output)
 	}
-
 }
