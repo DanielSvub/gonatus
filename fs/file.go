@@ -309,6 +309,13 @@ func (ego *file) ReadFrom(r io.Reader) (n int64, err error) {
 	return ego.fd.ReadFrom(r)
 }
 
+func (ego *file) ReadAt(p []byte, off int64) (n int, err error) {
+	if ego.fd == nil {
+		return 0, errors.NewStateError(ego, errors.LevelError, "File not open.")
+	}
+	return ego.fd.ReadAt(p, off)
+}
+
 func (ego *file) Write(p []byte) (n int, err error) {
 	if ego.fd == nil {
 		return 0, errors.NewStateError(ego, errors.LevelError, "File not open.")

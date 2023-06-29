@@ -29,6 +29,10 @@ func (ego *localFileDescriptor) ReadFrom(r io.Reader) (n int64, err error) {
 	return ego.fd.ReadFrom(r)
 }
 
+func (ego *localFileDescriptor) ReadAt(p []byte, off int64) (n int, err error) {
+	return ego.fd.ReadAt(p, off)
+}
+
 func (ego *localFileDescriptor) Write(p []byte) (n int, err error) {
 	return ego.fd.Write(p)
 }

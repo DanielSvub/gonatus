@@ -226,6 +226,7 @@ Extends:
 type FileDescriptor interface {
 	io.Reader
 	io.ReaderFrom
+	io.ReaderAt
 	io.Writer
 	io.Seeker
 }
