@@ -21,7 +21,6 @@ type ramCollectionIndexer interface {
 }
 
 type primaryIndexer struct {
-	ramCollectionIndexer
 	index map[CId][]any
 }
 
@@ -32,8 +31,8 @@ func primaryIndexerCreate(rows map[CId][]any) *primaryIndexer {
 	return ego
 }
 
-func (ego *primaryIndexer) Get(arg any) ([]CId, error) {
-	v := arg.([]any)
+func (ego *primaryIndexer) Get(arg []any) ([]CId, error) {
+	v := arg
 	ret := make([]CId, 0)
 
 	for id, row := range ego.index {
@@ -87,20 +86,21 @@ func (ego *primaryIndexer) Get(arg any) ([]CId, error) {
 
 // FULLMATCH INDEX
 
-type fullmatchStringIndexer struct {
+type fullmatchIndexer[T comparable] struct {
 	ramCollectionIndexer
-	index map[string][]CId
+	index map[T][]CId
 }
 
-func fullmatchStringIndexerNew(c FullmatchIndexConf[string]) *fullmatchStringIndexer {
-	ego := new(fullmatchStringIndexer)
-	ego.index = make(map[string][]CId)
+func fullmatchIndexerNew[T comparable](c FullmatchIndexConf[T]) *fullmatchIndexer[T] {
+	ego := new(fullmatchIndexer[T])
+	ego.index = make(map[T][]CId)
 
 	return ego
 }
 
-func (ego *fullmatchStringIndexer) Get(s any) ([]CId, error) {
-	x, found := ego.index[s.(string)]
+func (ego *fullmatchIndexer[T]) Get(v any) ([]CId, error) {
+	s := v.(T)
+	x, found := ego.index[s]
 	if !found {
 		return nil, nil
 	}
@@ -118,8 +118,9 @@ func sliceFind(rows []CId, idx CId) (uint64, bool) {
 	return uint64(MaxUint), false
 }
 
-func (ego *fullmatchStringIndexer) Add(s any, id CId) error {
-	val, err := ego.Get(s)
+func (ego *fullmatchIndexer[T]) Add(v any, id CId) error {
+	val, err := ego.Get(v)
+	s := v.(T)
 
 	if err != nil {
 		return err
@@ -127,7 +128,7 @@ func (ego *fullmatchStringIndexer) Add(s any, id CId) error {
 
 	if val == nil {
 		// index record not set yet
-		ego.index[s.(string)] = append(make([]CId, 0), id)
+		ego.index[s] = append(make([]CId, 0), id)
 		return nil
 	}
 
@@ -137,7 +138,7 @@ func (ego *fullmatchStringIndexer) Add(s any, id CId) error {
 	}
 
 	// extending existing index record by id
-	ego.index[s.(string)] = append(val, id)
+	ego.index[s] = append(val, id)
 	return nil
 }
 
@@ -145,8 +146,9 @@ func remove(rows []CId, ididx uint64) []CId {
 	return append(rows[:ididx], rows[ididx+1:]...)
 }
 
-func (ego *fullmatchStringIndexer) Del(s any, id CId) error {
-	val, _ := ego.Get(s)
+func (ego *fullmatchIndexer[T]) Del(v any, id CId) error {
+	s := v.(T)
+	val, _ := ego.Get(v)
 
 	// Can not happen within RamCollection
 	// if err != nil {
@@ -166,11 +168,11 @@ func (ego *fullmatchStringIndexer) Del(s any, id CId) error {
 	reduced := remove(val, idx)
 
 	if len(reduced) <= 0 {
-		delete(ego.index, s.(string))
+		delete(ego.index, s)
 		return nil
 	}
 
-	ego.index[s.(string)] = reduced
+	ego.index[s] = reduced
 	return nil
 }
 
@@ -188,6 +190,7 @@ type RamCollection struct {
 	autoincrement CId
 	rows          map[CId][]any
 	indexes       map[string]ramCollectionIndexer // FIXME: make array of indexes for fields not one index as max
+	primaryIndex  *primaryIndexer
 }
 
 func NewRamCollection(rc RamCollectionConf) *RamCollection {
@@ -298,6 +301,7 @@ func (ego *RamCollection) AddRecord(rc RecordConf) (CId, error) {
 	// Add to lookup indexes
 	for i, name := range ego.param.FieldsNaming {
 		if idx, found := ego.indexes[name]; found {
+			fmt.Printf("ERROROROR %s %+v", name, idx)
 			idx.Add(record[i], cid)
 		}
 	}
@@ -392,13 +396,13 @@ func (ego *RamCollection) getIndex(q QueryAtomConf) ramCollectionIndexer {
 
 		switch q.MatchType.(type) {
 		case FullmatchIndexConf[string]:
-			if i, ok := idx.(*fullmatchStringIndexer); ok {
+			if i, ok := idx.(*fullmatchIndexer[any]); ok {
 				return i
 			}
 		}
 	}
 
-	return ego.indexes["id"].(*primaryIndexer)
+	return nil
 }
 
 func (ego *RamCollection) primaryValue(q QueryAtomConf) []any {
@@ -416,7 +420,9 @@ func (ego *RamCollection) primaryValue(q QueryAtomConf) []any {
 
 func (ego *QueryAtomConf) eval(rc *RamCollection) (CIdSet, error) {
 	indexer := rc.getIndex(*ego)
-	if pi, ok := indexer.(*primaryIndexer); ok {
+
+	if indexer == nil {
+		pi := rc.primaryIndex
 		rows, err := pi.Get(rc.primaryValue(*ego))
 
 		if err != nil {
@@ -439,7 +445,7 @@ func (ego *QueryAndConf) eval(rc *RamCollection) (CIdSet, error) {
 	ctxlen := len(ego.QueryContextConf.Context)
 
 	if ctxlen == 0 {
-		return accum, nil // TODO: But possible CIdSet(ego.rows) - discuss in LISP (and) => t ?
+		return rc.allRowsSet(), nil // Returns whole space
 	}
 
 	for i := 0; i < ctxlen; i++ {
@@ -466,7 +472,7 @@ func (ego *QueryOrConf) eval(rc *RamCollection) (CIdSet, error) {
 	ctxlen := len(ego.QueryContextConf.Context)
 
 	if ctxlen == 0 {
-		return accum, nil // TODO: here empty set natural probably - discuss in LISP (or) => nil.
+		return rc.noRowsSet(), nil // // Returns empty set
 	}
 
 	for i := 0; i < ctxlen; i++ {
@@ -523,6 +529,20 @@ func (ego *QueryImplicationConf) eval(rc *RamCollection) (CIdSet, error) {
 	return rws, nil
 }
 
+func (ego *RamCollection) allRowsSet() CIdSet {
+	ids := make(CIdSet, len(ego.rows))
+
+	for key := range ego.rows {
+		ids[key] = true
+	}
+
+	return ids
+}
+
+func (ego *RamCollection) noRowsSet() CIdSet {
+	return make(CIdSet, len(ego.rows))
+}
+
 func (ego *RamCollection) filterQueryEval(q QueryConf) (CIdSet, error) {
 	switch v := q.(type) {
 	case QueryAndConf:
@@ -534,13 +554,7 @@ func (ego *RamCollection) filterQueryEval(q QueryConf) (CIdSet, error) {
 	case QueryAtomConf:
 		return v.eval(ego)
 	case QueryConf:
-		ids := make(CIdSet, len(ego.rows))
-
-		for key := range ego.rows {
-			ids[key] = true
-		}
-
-		return ids, nil
+		return ego.allRowsSet(), nil
 	default:
 		return nil, errors.NewMisappError(ego, "Unknown collection filter query.")
 	}
@@ -600,7 +614,7 @@ func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[Re
 }
 
 func (ego *RamCollection) RegisterIndexes() error {
-	ego.indexes["id"] = primaryIndexerCreate(ego.rows)
+	ego.primaryIndex = primaryIndexerCreate(ego.rows)
 
 	for _, idx := range ego.param.Indexes {
 		switch v := idx.(type) {
@@ -608,7 +622,9 @@ func (ego *RamCollection) RegisterIndexes() error {
 			// ego.indexes[v.Name] = prefixStringIndexImpl(v)
 			// Not Implemented
 		case FullmatchIndexConf[string]:
-			ego.indexes[v.Name] = fullmatchStringIndexerNew(v)
+			idx := fullmatchIndexerNew[string](v)
+			fmt.Printf("SETTING INDEXER::: (%s) %+v %+v\n", v.Name, idx, idx.ramCollectionIndexer)
+			ego.indexes[v.Name] = idx
 		default:
 			return errors.NewNotImplError(ego)
 		}

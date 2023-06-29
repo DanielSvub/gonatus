@@ -21,6 +21,9 @@ type FieldConf[T any] struct {
 type IndexerConf interface {
 }
 
+type SpatialIndexerConf interface {
+}
+
 type PrefixIndexConf[T any] struct {
 	IndexerConf
 	Name      string
@@ -52,7 +55,7 @@ type QueryAtomConf struct {
 	QueryConf
 	MatchType IndexerConf
 	Name      string
-	Value     any
+	Value     any // TODO: Use generic here?
 }
 
 type QueryContextConf struct {
@@ -76,6 +79,16 @@ type QueryImplicationConf struct {
 	QueryConf
 	Left  QueryAtomConf
 	Right QueryAtomConf
+}
+
+type QuerySpatialConf interface {
+	QueryConf
+}
+
+type QueryRange[T any] struct {
+	QuerySpatialConf
+	Lower  T
+	Higher T
 }
 
 type Collection interface {
