@@ -36,8 +36,6 @@ func (ego *primaryIndexer) Get(arg any) ([]CId, error) {
 	v := arg.([]any)
 	ret := make([]CId, 0)
 
-	fmt.Printf("BUILT ROW %+v", v)
-
 	for id, row := range ego.index {
 		found := true
 
@@ -253,8 +251,6 @@ func (ego *RamCollection) DeinterpretRecord(r []any) (RecordConf, error) {
 		Cols: make([]FielderConf, len(ego.param.SchemaConf.Fields)),
 	}
 
-	print("SHEMA FIELDS: ", len(ego.param.SchemaConf.Fields))
-
 	for i, _ := range ego.param.SchemaConf.Fields {
 
 		field, err := ego.DeinterpretField(r[i], i)
@@ -298,13 +294,9 @@ func (ego *RamCollection) AddRecord(rc RecordConf) (CId, error) {
 	// Add to main index
 	record, err := ego.InterpretRecord(rc)
 
-	println("Adding record...", record)
-
 	if err != nil {
 		return 0, err
 	}
-
-	println("Adding record...", record)
 
 	ego.rows[cid] = record
 
@@ -331,8 +323,6 @@ func (ego *RamCollection) DeleteRecord(rc RecordConf) error {
 
 	record, found := ego.rows[cid]
 
-	fmt.Printf("CID::: %d", cid)
-
 	if !found {
 		return errors.NewNotFoundError(ego, errors.LevelWarning, fmt.Sprintf("Record with id %d not found.", cid))
 	}
@@ -340,7 +330,6 @@ func (ego *RamCollection) DeleteRecord(rc RecordConf) error {
 	// Add to lookup indexes
 	for i, name := range ego.param.FieldsNaming {
 		if idx, found := ego.indexes[name]; found {
-			fmt.Printf("Removing id: %d %s %+v", cid, name, idx)
 			idx.Del(record[i], cid)
 		}
 	}
@@ -413,7 +402,6 @@ func (ego *RamCollection) getIndex(q QueryAtomConf) ramCollectionIndexer {
 		}
 	}
 
-	println(len(ego.indexes))
 	return ego.indexes["id"].(*primaryIndexer)
 }
 
@@ -433,20 +421,14 @@ func (ego *RamCollection) primaryValue(q QueryAtomConf) []any {
 func (ego *QueryAtomConf) eval(rc *RamCollection) (CIdSet, error) {
 	indexer := rc.getIndex(*ego)
 	if pi, ok := indexer.(*primaryIndexer); ok {
-		fmt.Printf("SEARCHING IN PRIMARY INDEX %+v\n", ego)
-
 		rows, err := pi.Get(rc.primaryValue(*ego))
 
 		if err != nil {
 			return nil, err
 		}
 
-		fmt.Printf("\n\nERRRORORRRR::: pvals. %+v\n\n", rc.primaryValue(*ego))
-
 		return CIdSetFromSlice(rows), nil
 	} else {
-		println("HAVE ADDITIONAL INDEX")
-
 		rows, err := indexer.Get(ego.Value)
 		if err != nil {
 			return nil, err
@@ -592,8 +574,6 @@ func (ego *RamCollection) Inspect() {
 func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[RecordConf], error) {
 	ret, err := ego.filterQueryEval(q)
 
-	fmt.Printf("MAPS:::: %+v \n", ret)
-
 	if err != nil {
 		return nil, err
 	}
@@ -610,7 +590,6 @@ func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[Re
 				panic(err)
 			}
 
-			fmt.Printf("\nWriting:::: %+v \n", rec)
 			sbuf.Write(rec)
 		}
 		sbuf.Close()

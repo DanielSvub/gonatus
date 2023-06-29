@@ -27,8 +27,6 @@ func TestSerialization(t *testing.T) {
 	rmc := NewRamCollection(rmC)
 	rmCT := rmc.Serialize().(RamCollectionConf)
 
-	fmt.Printf("%+v\n", rmCT)
-
 	if !(len(rmCT.Fields) == len(rmC.Fields) && len(rmCT.FieldsNaming) == len(rmC.FieldsNaming)) {
 		t.Error("Not equal headers.")
 	}
@@ -442,6 +440,7 @@ func TestImplication(t *testing.T) {
 
 	if err := testFirstLine(output); err != nil {
 		t.Error(err)
+
 	}
 
 	if err := testSecondLine(output); err != nil {
