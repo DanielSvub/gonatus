@@ -2,6 +2,7 @@ package collection
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/SpongeData-cz/gonatus"
 	"github.com/SpongeData-cz/gonatus/errors"
@@ -622,9 +623,17 @@ func (ego *RamCollection) RegisterIndexes() error {
 			// ego.indexes[v.Name] = prefixStringIndexImpl(v)
 			// Not Implemented
 		case FullmatchIndexConf[string]:
-			idx := fullmatchIndexerNew[string](v)
-			fmt.Printf("SETTING INDEXER::: (%s) %+v %+v\n", v.Name, idx, idx.ramCollectionIndexer)
-			ego.indexes[v.Name] = idx
+			ego.indexes[v.Name] = fullmatchIndexerNew[string](v)
+		case FullmatchIndexConf[int]:
+			ego.indexes[v.Name] = fullmatchIndexerNew[int](v)
+		case FullmatchIndexConf[float64]:
+			ego.indexes[v.Name] = fullmatchIndexerNew[float64](v)
+		case FullmatchIndexConf[int64]:
+			ego.indexes[v.Name] = fullmatchIndexerNew[int64](v)
+		case FullmatchIndexConf[uint64]:
+			ego.indexes[v.Name] = fullmatchIndexerNew[uint64](v)
+		case FullmatchIndexConf[time.Time]:
+			ego.indexes[v.Name] = fullmatchIndexerNew[time.Time](v)
 		default:
 			return errors.NewNotImplError(ego)
 		}
