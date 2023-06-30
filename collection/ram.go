@@ -190,7 +190,7 @@ type RamCollection struct {
 	param         RamCollectionConf
 	autoincrement CId
 	rows          map[CId][]any
-	indexes       map[string]ramCollectionIndexer // FIXME: make array of indexes for fields not one index as max
+	indexes       map[string][]ramCollectionIndexer // FIXME: make array of indexes for fields not one index as max
 	primaryIndex  *primaryIndexer
 }
 
@@ -201,7 +201,7 @@ func NewRamCollection(rc RamCollectionConf) *RamCollection {
 
 	ego.param = rc
 	ego.rows = make(map[CId][]any, 0)
-	ego.indexes = make(map[string]ramCollectionIndexer, 0)
+	ego.indexes = make(map[string][]ramCollectionIndexer, 0)
 	// TODO: implement id index as default one ego.indexes["id"] = idIndexerNew() // must be present in every collection
 
 	if err := ego.RegisterIndexes(); err != nil {
@@ -301,9 +301,10 @@ func (ego *RamCollection) AddRecord(rc RecordConf) (CId, error) {
 
 	// Add to lookup indexes
 	for i, name := range ego.param.FieldsNaming {
-		if idx, found := ego.indexes[name]; found {
-			fmt.Printf("ERROROROR %s %+v", name, idx)
-			idx.Add(record[i], cid)
+		if colidx, found := ego.indexes[name]; found {
+			for _, idx := range colidx {
+				idx.Add(record[i], cid)
+			}
 		}
 	}
 
@@ -329,8 +330,10 @@ func (ego *RamCollection) DeleteRecord(rc RecordConf) error {
 
 	// Add to lookup indexes
 	for i, name := range ego.param.FieldsNaming {
-		if idx, found := ego.indexes[name]; found {
-			idx.Del(record[i], cid)
+		if colidx, found := ego.indexes[name]; found {
+			for _, idx := range colidx {
+				idx.Del(record[i], cid)
+			}
 		}
 	}
 
@@ -390,15 +393,49 @@ func (ego CIdSet) Intersect(s CIdSet) CIdSet {
 	return out
 }
 
+func cmpIndexKind(qIdx IndexerConf, iidx ramCollectionIndexer) bool {
+	switch qIdx.(type) {
+	case FullmatchIndexConf[string]:
+		_, ok := iidx.(*fullmatchIndexer[string])
+		if ok {
+			return true
+		}
+	case FullmatchIndexConf[int]:
+		_, ok := iidx.(*fullmatchIndexer[int])
+		if ok {
+			return true
+		}
+	case FullmatchIndexConf[float64]:
+		_, ok := iidx.(*fullmatchIndexer[float64])
+		if ok {
+			return true
+		}
+	case FullmatchIndexConf[int64]:
+		_, ok := iidx.(*fullmatchIndexer[int64])
+		if ok {
+			return true
+		}
+	case FullmatchIndexConf[uint64]:
+		_, ok := iidx.(*fullmatchIndexer[uint64])
+		if ok {
+			return true
+		}
+	case FullmatchIndexConf[time.Time]:
+		_, ok := iidx.(*fullmatchIndexer[time.Time])
+		if ok {
+			return true
+		}
+	}
+	return false
+}
+
 func (ego *RamCollection) getIndex(q QueryAtomConf) ramCollectionIndexer {
-	if idx, found := ego.indexes[q.Name]; found {
+	if idxcol, found := ego.indexes[q.Name]; found {
 		// index for that name found
 		// try cast to the required index
-
-		switch q.MatchType.(type) {
-		case FullmatchIndexConf[string]:
-			if i, ok := idx.(*fullmatchIndexer[any]); ok {
-				return i
+		for _, idx := range idxcol {
+			if cmpIndexKind(q.MatchType, idx) {
+				return idx
 			}
 		}
 	}
@@ -617,25 +654,27 @@ func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[Re
 func (ego *RamCollection) RegisterIndexes() error {
 	ego.primaryIndex = primaryIndexerCreate(ego.rows)
 
-	for _, idx := range ego.param.Indexes {
-		switch v := idx.(type) {
-		case PrefixIndexConf[string]:
-			// ego.indexes[v.Name] = prefixStringIndexImpl(v)
-			// Not Implemented
-		case FullmatchIndexConf[string]:
-			ego.indexes[v.Name] = fullmatchIndexerNew[string](v)
-		case FullmatchIndexConf[int]:
-			ego.indexes[v.Name] = fullmatchIndexerNew[int](v)
-		case FullmatchIndexConf[float64]:
-			ego.indexes[v.Name] = fullmatchIndexerNew[float64](v)
-		case FullmatchIndexConf[int64]:
-			ego.indexes[v.Name] = fullmatchIndexerNew[int64](v)
-		case FullmatchIndexConf[uint64]:
-			ego.indexes[v.Name] = fullmatchIndexerNew[uint64](v)
-		case FullmatchIndexConf[time.Time]:
-			ego.indexes[v.Name] = fullmatchIndexerNew[time.Time](v)
-		default:
-			return errors.NewNotImplError(ego)
+	for _, idxcol := range ego.param.Indexes {
+		for _, idx := range idxcol {
+			switch v := idx.(type) {
+			case PrefixIndexConf[string]:
+				// ego.indexes[v.Name] = prefixStringIndexImpl(v)
+				// Not Implemented
+			case FullmatchIndexConf[string]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[string](v))
+			case FullmatchIndexConf[int]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[int](v))
+			case FullmatchIndexConf[float64]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[float64](v))
+			case FullmatchIndexConf[int64]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[int64](v))
+			case FullmatchIndexConf[uint64]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[uint64](v))
+			case FullmatchIndexConf[time.Time]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[time.Time](v))
+			default:
+				return errors.NewNotImplError(ego)
+			}
 		}
 	}
 

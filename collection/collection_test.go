@@ -18,8 +18,10 @@ func TestSerialization(t *testing.T) {
 				FieldConf[string]{},
 				FieldConf[string]{},
 			},
-			Indexes: []IndexerConf{
-				PrefixIndexConf[string]{Name: "who", MinPrefix: 3},
+			Indexes: [][]IndexerConf{
+				[]IndexerConf{
+					PrefixIndexConf[string]{Name: "who", MinPrefix: 3},
+				},
 			},
 		},
 		MaxMemory: 1024 * 1024 * 1024,
@@ -77,15 +79,17 @@ func prepareTable(indexP bool) *RamCollection {
 				FieldConf[string]{},
 				FieldConf[string]{},
 			},
-			Indexes: []IndexerConf{},
+			Indexes: [][]IndexerConf{},
 		},
 		MaxMemory: 1024 * 1024 * 1024,
 	}
 
 	if indexP {
-		rmC.Indexes = []IndexerConf{
-			FullmatchIndexConf[string]{Name: "who"},
-			FullmatchIndexConf[string]{Name: "whom"},
+		rmC.Indexes = [][]IndexerConf{
+			[]IndexerConf{
+				FullmatchIndexConf[string]{Name: "who"},
+				FullmatchIndexConf[string]{Name: "whom"},
+			},
 		}
 	}
 

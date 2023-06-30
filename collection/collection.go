@@ -39,8 +39,9 @@ type SchemaConf struct {
 	Name         string
 	FieldsNaming []string
 	Fields       []FielderConf
-	Indexes      []IndexerConf // [][]IndexerConf - multiple indexes per column! - e.g. PrefixIndex, FullmatchIndex, ... per string field
+	//Indexes      []IndexerConf // [][]IndexerConf - multiple indexes per column! - e.g. PrefixIndex, FullmatchIndex, ... per string field
 	// Or indexes like []map[IndexerConf]IndexerConf
+	Indexes [][]IndexerConf
 }
 
 type RecordConf struct {
