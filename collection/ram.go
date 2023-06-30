@@ -6,6 +6,7 @@ import (
 
 	"github.com/SpongeData-cz/gonatus"
 	"github.com/SpongeData-cz/gonatus/errors"
+	"github.com/SpongeData-cz/gonatus/fs"
 	"github.com/SpongeData-cz/gonatus/streams"
 )
 
@@ -119,6 +120,19 @@ func sliceFind(rows []CId, idx CId) (uint64, bool) {
 	return uint64(MaxUint), false
 }
 
+func sliceAddUnique(slice []CId, cid CId) []CId {
+	if slice == nil {
+		return append(make([]CId, 0), cid)
+	}
+
+	if _, found := sliceFind(slice, cid); found {
+		return slice
+	}
+
+	// extending existing index record by id
+	return append(slice, cid)
+}
+
 func (ego *fullmatchIndexer[T]) Add(v any, id CId) error {
 	val, err := ego.Get(v)
 	s := v.(T)
@@ -127,19 +141,8 @@ func (ego *fullmatchIndexer[T]) Add(v any, id CId) error {
 		return err
 	}
 
-	if val == nil {
-		// index record not set yet
-		ego.index[s] = append(make([]CId, 0), id)
-		return nil
-	}
-
-	if _, found := sliceFind(val, id); found {
-		// index already in index record
-		return nil
-	}
-
 	// extending existing index record by id
-	ego.index[s] = append(val, id)
+	ego.index[s] = sliceAddUnique(val, id)
 	return nil
 }
 
@@ -175,6 +178,70 @@ func (ego *fullmatchIndexer[T]) Del(v any, id CId) error {
 
 	ego.index[s] = reduced
 	return nil
+}
+
+// Prefix implementation
+
+type trieNode[E comparable] struct {
+	val      E
+	children map[E]trieNode[E]
+	cids     []CId
+}
+
+type prefixIndexer[E comparable] struct {
+	ramCollectionIndexer
+	index *trieNode[E] // entry
+}
+
+func prefixIndexerNew[E comparable]() prefixIndexer[E] {
+	ego := new(prefixIndexer[E])
+
+	ego.index = new(trieNode[E])
+	ego.index.children = make(map[E]trieNode[E])
+
+	return *ego
+}
+
+func (ego *prefixIndexer[E]) addImpl(n trieNode[E], accumpath []E, cid CId) error {
+	var first E
+
+	if l := len(accumpath); l >= 1 {
+		first = accumpath[0]
+		if l > 1 {
+			accumpath = accumpath[1:]
+		} else { // really?
+			accumpath = make([]E, 0)
+		}
+	} else {
+		return errors.NewValueError(ego, errors.LevelError, "Cannot use zero path.")
+	}
+
+	if n.val == first {
+		if len(accumpath) == 0 {
+			// add id here
+			n.cids = sliceAddUnique(n.cids, cid)
+			return nil
+		} else {
+			if ch, found := n.children[first]; found {
+				return ego.addImpl(ch, accumpath, cid)
+			} else {
+				nnode := *new(trieNode[E])
+				nnode.children = make(map[E]trieNode[E])
+				nnode.val = first
+				n.children[first] = nnode
+			}
+		}
+	} else {
+		return errors.NewMisappError(ego, "Unexpected error - fix your HW.")
+	}
+
+	return nil
+
+}
+
+func (ego *prefixIndexer[E]) Add(v any, id CId) error {
+	val := v.([]E)
+	return ego.addImpl(*ego.index, val, id)
 }
 
 // RAM COLLECTION IMPL
@@ -657,8 +724,8 @@ func (ego *RamCollection) RegisterIndexes() error {
 	for _, idxcol := range ego.param.Indexes {
 		for _, idx := range idxcol {
 			switch v := idx.(type) {
-			case PrefixIndexConf[string]:
-				// ego.indexes[v.Name] = prefixStringIndexImpl(v)
+			case PrefixIndexConf[fs.Path]:
+				// ego.indexes[v.Name] = prefixIndexerNew[fs.Path](v)
 				// Not Implemented
 			case FullmatchIndexConf[string]:
 				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[string](v))

@@ -19,7 +19,7 @@ func TestSerialization(t *testing.T) {
 				FieldConf[string]{},
 			},
 			Indexes: [][]IndexerConf{
-				[]IndexerConf{
+				{
 					PrefixIndexConf[string]{Name: "who", MinPrefix: 3},
 				},
 			},
@@ -86,7 +86,7 @@ func prepareTable(indexP bool) *RamCollection {
 
 	if indexP {
 		rmC.Indexes = [][]IndexerConf{
-			[]IndexerConf{
+			{
 				FullmatchIndexConf[string]{Name: "who"},
 				FullmatchIndexConf[string]{Name: "whom"},
 			},
