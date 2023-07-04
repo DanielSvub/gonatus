@@ -202,6 +202,22 @@ func prefixIndexerNew[E comparable]() prefixIndexer[E] {
 	return *ego
 }
 
+func (ego *prefixIndexer[E]) getImpl(n trieNode[E], accumpath []E) ([]CId, error) {
+	first := accumpath[0]
+
+	if ch, found := n.children[first]; found {
+		return ego.getImpl(ch, accumpath[1:])
+	}
+
+	return nil, nil
+}
+
+func (ego *prefixIndexer[E]) Get(v any) ([]CId, error) {
+	val := v.([]E)
+
+	return ego.getImpl(*ego.index, val)
+}
+
 func (ego *prefixIndexer[E]) addImpl(n trieNode[E], accumpath []E, cid CId) error {
 	var first E
 
@@ -243,6 +259,41 @@ func (ego *prefixIndexer[E]) Add(v any, id CId) error {
 	val := v.([]E)
 	return ego.addImpl(*ego.index, val, id)
 }
+
+// func (ego *prefixIndexer[E]) delImpl(n trieNode[E], accumpath []E) error {
+// 	first := accumpath[0]
+
+// 	if ch, found := n.children[first]; found {
+// 		return ego.delImpl(ch, accumpath[1:])
+// 	}
+
+// 	if n.val == first {
+// 		if len(accumpath) == 0 {
+// 			// remove id here
+// 			n.cids = (n.cids, cid)
+// 			return nil
+// 		} else {
+// 			if ch, found := n.children[first]; found {
+// 				return ego.addImpl(ch, accumpath, cid)
+// 			} else {
+// 				nnode := *new(trieNode[E])
+// 				nnode.children = make(map[E]trieNode[E])
+// 				nnode.val = first
+// 				n.children[first] = nnode
+// 			}
+// 		}
+// 	} else {
+// 		return errors.NewMisappError(ego, "Unexpected error - fix your HW.")
+// 	}
+
+// 	return nil
+
+// }
+
+// func (ego *prefixIndexer[E]) Del(v any, id CId) error {
+// 	// find from top to bottom, cleanup on going back
+// 	return nil
+// }
 
 // RAM COLLECTION IMPL
 
