@@ -183,7 +183,6 @@ func (ego *fullmatchIndexer[T]) Del(v any, id CId) error {
 // Prefix implementation
 
 type trieNode[E comparable] struct {
-	val      E
 	children map[E]trieNode[E]
 	cids     []CId
 }
@@ -193,13 +192,13 @@ type prefixIndexer[E comparable] struct {
 	index *trieNode[E] // entry
 }
 
-func prefixIndexerNew[E comparable]() prefixIndexer[E] {
+func prefixIndexerNew[E comparable](c PrefixIndexConf[[]E]) *prefixIndexer[E] {
 	ego := new(prefixIndexer[E])
 
 	ego.index = new(trieNode[E])
 	ego.index.children = make(map[E]trieNode[E])
 
-	return *ego
+	return ego
 }
 
 func (ego *prefixIndexer[E]) getImpl(n trieNode[E], accumpath []E) ([]CId, error) {
@@ -232,23 +231,19 @@ func (ego *prefixIndexer[E]) addImpl(n trieNode[E], accumpath []E, cid CId) erro
 		return errors.NewValueError(ego, errors.LevelError, "Cannot use zero path.")
 	}
 
-	if n.val == first {
-		if len(accumpath) == 0 {
-			// add id here
-			n.cids = sliceAddUnique(n.cids, cid)
-			return nil
-		} else {
-			if ch, found := n.children[first]; found {
-				return ego.addImpl(ch, accumpath, cid)
-			} else {
-				nnode := *new(trieNode[E])
-				nnode.children = make(map[E]trieNode[E])
-				nnode.val = first
-				n.children[first] = nnode
-			}
-		}
+	if len(accumpath) == 0 {
+		// add id here
+		n.cids = sliceAddUnique(n.cids, cid)
+		return nil
 	} else {
-		return errors.NewMisappError(ego, "Unexpected error - fix your HW.")
+		if ch, found := n.children[first]; found {
+			return ego.addImpl(ch, accumpath, cid)
+		} else {
+			nnode := *new(trieNode[E])
+			nnode.children = make(map[E]trieNode[E])
+
+			n.children[first] = nnode
+		}
 	}
 
 	return nil
@@ -260,40 +255,61 @@ func (ego *prefixIndexer[E]) Add(v any, id CId) error {
 	return ego.addImpl(*ego.index, val, id)
 }
 
-// func (ego *prefixIndexer[E]) delImpl(n trieNode[E], accumpath []E) error {
-// 	first := accumpath[0]
+func (ego *prefixIndexer[E]) delImpl(n trieNode[E], accumpath []E, id CId) (deleteP bool, err error) {
+	first := accumpath[0]
 
-// 	if ch, found := n.children[first]; found {
-// 		return ego.delImpl(ch, accumpath[1:])
-// 	}
+	if len(accumpath) == 1 {
+		// we are in the leaf
+		// remove id here
+		idx, found := sliceFind(n.cids, id)
 
-// 	if n.val == first {
-// 		if len(accumpath) == 0 {
-// 			// remove id here
-// 			n.cids = (n.cids, cid)
-// 			return nil
-// 		} else {
-// 			if ch, found := n.children[first]; found {
-// 				return ego.addImpl(ch, accumpath, cid)
-// 			} else {
-// 				nnode := *new(trieNode[E])
-// 				nnode.children = make(map[E]trieNode[E])
-// 				nnode.val = first
-// 				n.children[first] = nnode
-// 			}
-// 		}
-// 	} else {
-// 		return errors.NewMisappError(ego, "Unexpected error - fix your HW.")
-// 	}
+		if !found {
+			return false, errors.NewNotFoundError(ego, errors.LevelWarning, "Index trouble - row not found within index record")
+		}
 
-// 	return nil
+		reduced := remove(n.cids, idx)
+		n.cids = reduced
 
-// }
+		if len(reduced) <= 0 && len(n.children) <= 0 {
+			n.cids = nil
+			return true, nil
+		}
 
-// func (ego *prefixIndexer[E]) Del(v any, id CId) error {
-// 	// find from top to bottom, cleanup on going back
-// 	return nil
-// }
+		return false, nil
+	}
+
+	if ch, found := n.children[first]; found {
+		toRemove, err := ego.delImpl(ch, accumpath[1:], id)
+		if err != nil {
+			return false, err
+		}
+
+		if toRemove {
+			delete(n.children, first)
+		}
+
+		if len(n.cids) <= 0 && len(n.children) <= 0 {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func (ego *prefixIndexer[E]) Del(v any, id CId) error {
+	// find from top to bottom, cleanup on going back
+	delP, err := ego.delImpl(*ego.index, v.([]E), id)
+	if err != nil {
+		return err
+	}
+	if delP {
+		// index completely removed so reset index for sure?
+		ego.index = new(trieNode[E])
+		ego.index.children = make(map[E]trieNode[E])
+	}
+
+	return nil
+}
 
 // RAM COLLECTION IMPL
 
@@ -513,6 +529,16 @@ func (ego CIdSet) Intersect(s CIdSet) CIdSet {
 
 func cmpIndexKind(qIdx IndexerConf, iidx ramCollectionIndexer) bool {
 	switch qIdx.(type) {
+	case PrefixIndexConf[fs.Path]:
+		_, ok := iidx.(*prefixIndexer[string])
+		if ok {
+			return true
+		}
+	case PrefixIndexConf[string]:
+		_, ok := iidx.(*prefixIndexer[rune])
+		if ok {
+			return true
+		}
 	case FullmatchIndexConf[string]:
 		_, ok := iidx.(*fullmatchIndexer[string])
 		if ok {
@@ -775,9 +801,10 @@ func (ego *RamCollection) RegisterIndexes() error {
 	for _, idxcol := range ego.param.Indexes {
 		for _, idx := range idxcol {
 			switch v := idx.(type) {
-			case PrefixIndexConf[fs.Path]:
-				// ego.indexes[v.Name] = prefixIndexerNew[fs.Path](v)
-				// Not Implemented
+			case PrefixIndexConf[[]string]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[string](v))
+			case PrefixIndexConf[[]rune]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[rune](v))
 			case FullmatchIndexConf[string]:
 				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[string](v))
 			case FullmatchIndexConf[int]:

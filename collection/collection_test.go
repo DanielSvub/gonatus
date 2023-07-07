@@ -20,7 +20,7 @@ func TestSerialization(t *testing.T) {
 			},
 			Indexes: [][]IndexerConf{
 				{
-					PrefixIndexConf[string]{Name: "who", MinPrefix: 3},
+					PrefixIndexConf[[]rune]{Name: "who", MinPrefix: 3},
 				},
 			},
 		},
@@ -449,9 +449,7 @@ func TestImplication(t *testing.T) {
 	}
 
 	if err := testFirstLine(output); err != nil {
-
 		t.Error(err)
-
 	}
 
 	if err := testSecondLine(output); err != nil {
@@ -512,4 +510,8 @@ func TestIndex(t *testing.T) {
 	if len(output) != 0 {
 		t.Errorf("Expected [] output but got %+v instead.", output)
 	}
+}
+
+func TestPrefix(t *testing.T) {
+	// TODO: ...
 }
