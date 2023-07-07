@@ -20,7 +20,7 @@ func TestSerialization(t *testing.T) {
 			},
 			Indexes: [][]IndexerConf{
 				{
-					PrefixIndexConf[[]rune]{Name: "who", MinPrefix: 3},
+					PrefixIndexConf[[]string]{Name: "who", MinPrefix: 3},
 				},
 			},
 		},
@@ -70,7 +70,7 @@ func TestSerialization(t *testing.T) {
 
 }
 
-func prepareTable(indexP bool) *RamCollection {
+func prepareTable(indexP bool, prefixIndexP bool) *RamCollection {
 	rmC := RamCollectionConf{
 		SchemaConf: SchemaConf{
 			Name:         "FooBarTable",
@@ -93,10 +93,17 @@ func prepareTable(indexP bool) *RamCollection {
 		}
 	}
 
+	if prefixIndexP {
+		rmC.Indexes = append(rmC.Indexes, []IndexerConf{
+			PrefixIndexConf[[]rune]{Name: "who"},
+			PrefixIndexConf[[]rune]{Name: "whom"},
+		})
+	}
+
 	return NewRamCollection(rmC)
 }
 
-func fillRecords(rows [][]string) []RecordConf {
+func fillRecords[T any](rows [][]T) []RecordConf {
 	out := make([]RecordConf, len(rows))
 
 	for i, r := range rows {
@@ -105,7 +112,7 @@ func fillRecords(rows [][]string) []RecordConf {
 		}
 
 		for j, c := range r {
-			rec.Cols[j] = FieldConf[string]{
+			rec.Cols[j] = FieldConf[T]{
 				Value: c,
 			}
 		}
@@ -117,7 +124,7 @@ func fillRecords(rows [][]string) []RecordConf {
 }
 
 func TestErrors(t *testing.T) {
-	rmc := prepareTable(true)
+	rmc := prepareTable(true, false)
 
 	err := testFilling(rmc)
 
@@ -174,7 +181,7 @@ func testFilling(rmc *RamCollection) error {
 }
 
 func TestRemoval(t *testing.T) {
-	rmc := prepareTable(true)
+	rmc := prepareTable(true, false)
 
 	err := testFilling(rmc)
 	if err != nil {
@@ -280,7 +287,7 @@ func testSecondLine(rc []RecordConf) error {
 }
 
 func TestNilQuery(t *testing.T) {
-	rmc := prepareTable(false)
+	rmc := prepareTable(false, false)
 
 	err := testFilling(rmc)
 	if err != nil {
@@ -313,7 +320,7 @@ func TestNilQuery(t *testing.T) {
 }
 
 func TestAtom(t *testing.T) {
-	rmc := prepareTable(false)
+	rmc := prepareTable(false, false)
 
 	err := testFilling(rmc)
 	if err != nil {
@@ -343,7 +350,7 @@ func TestAtom(t *testing.T) {
 }
 
 func testLogical(t *testing.T, op string) []RecordConf {
-	rmc := prepareTable(false)
+	rmc := prepareTable(false, false)
 
 	err := testFilling(rmc)
 	if err != nil {
@@ -461,7 +468,7 @@ func TestIndex(t *testing.T) {
 	println(reflect.TypeOf(&FieldConf[string]{}).Kind())
 	println(reflect.TypeOf(reflect.TypeOf(FieldConf[string]{})))
 	println("TESTED")
-	rmc := prepareTable(true)
+	rmc := prepareTable(true, false)
 
 	err := testFilling(rmc)
 	if err != nil {
@@ -512,6 +519,70 @@ func TestIndex(t *testing.T) {
 	}
 }
 
-func TestPrefix(t *testing.T) {
+func TestStringPrefix(t *testing.T) {
 	// TODO: ...
+	// rmc := prepareTable(true, true)
+
+	// err := testFilling(rmc)
+	// if err != nil {
+	// 	t.Error(err)
+	// }
+
+	// rmc.Inspect()
+}
+
+func TestGeneralPrefix(t *testing.T) {
+	rmC := RamCollectionConf{
+		SchemaConf: SchemaConf{
+			Name:         "PathTable",
+			FieldsNaming: []string{"path"},
+			Fields: []FielderConf{
+				FieldConf[[]string]{},
+			},
+			Indexes: [][]IndexerConf{},
+		},
+	}
+
+	rmC.Indexes = append(rmC.Indexes, []IndexerConf{
+		PrefixIndexConf[[]string]{Name: "path"},
+	})
+
+	rmc := NewRamCollection(rmC)
+
+	if rmc == nil {
+		t.Errorf("Should return valid instance of RamCollection.")
+	}
+
+	rs := make([][][]string, 5)
+	rs[0] = [][]string{{"ab", "cdef", "ghi"}}
+	rs[1] = [][]string{{"ab", "jkl"}}
+	rs[2] = [][]string{{"mno", "pane", "pr"}}
+	rs[3] = [][]string{{"ab", "pane", "pr"}}
+	rs[4] = [][]string{{"root", "var", "storage"}}
+
+	rcrds := fillRecords(rs)
+
+	for _, r := range rcrds {
+		_, err := rmc.AddRecord(r)
+		if err != nil {
+			t.Errorf("Addition cause error %s", err)
+			return
+		}
+	}
+
+	rmc.Inspect()
+
+	queryAtom := QueryAtomConf{
+		Name:      "path",
+		Value:     []string{"ab"},
+		MatchType: PrefixIndexConf[[]string]{},
+	}
+
+	smc, err := rmc.Filter(queryAtom)
+	if err != nil {
+		t.Error(err)
+	}
+
+	output, err := smc.Collect()
+	t.Errorf("Returned %+v", output)
 }

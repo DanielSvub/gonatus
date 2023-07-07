@@ -6,7 +6,6 @@ import (
 
 	"github.com/SpongeData-cz/gonatus"
 	"github.com/SpongeData-cz/gonatus/errors"
-	"github.com/SpongeData-cz/gonatus/fs"
 	"github.com/SpongeData-cz/gonatus/streams"
 )
 
@@ -187,45 +186,74 @@ type trieNode[E comparable] struct {
 	cids     []CId
 }
 
-type prefixIndexer[E comparable] struct {
+type prefixIndexer[T comparable] struct {
 	ramCollectionIndexer
-	index *trieNode[E] // entry
+	index *trieNode[T] // entry
 }
 
-func prefixIndexerNew[E comparable](c PrefixIndexConf[[]E]) *prefixIndexer[E] {
-	ego := new(prefixIndexer[E])
+func prefixIndexerNew[T comparable](c PrefixIndexConf[[]T]) *prefixIndexer[T] {
+	ego := new(prefixIndexer[T])
 
-	ego.index = new(trieNode[E])
-	ego.index.children = make(map[E]trieNode[E])
+	ego.index = new(trieNode[T])
+	ego.index.children = make(map[T]trieNode[T])
 
 	return ego
 }
 
-func (ego *prefixIndexer[E]) getImpl(n trieNode[E], accumpath []E) ([]CId, error) {
+func (ego *prefixIndexer[T]) accumulateSubtree(n trieNode[T]) CIdSet {
+	out := make(CIdSet, 0)
+
+	for _, c := range n.cids {
+		out[c] = true
+	}
+
+	for _, c := range n.children {
+		out.Merge(ego.accumulateSubtree(c))
+	}
+
+	return out
+}
+
+func (ego *prefixIndexer[T]) getImpl(n *trieNode[T], accumpath []T) (*trieNode[T], error) {
+	if len(accumpath) <= 0 {
+		return n, nil
+	}
+
 	first := accumpath[0]
 
 	if ch, found := n.children[first]; found {
-		return ego.getImpl(ch, accumpath[1:])
+		return ego.getImpl(&ch, accumpath[1:])
 	}
 
 	return nil, nil
 }
 
-func (ego *prefixIndexer[E]) Get(v any) ([]CId, error) {
-	val := v.([]E)
+func (ego *prefixIndexer[T]) Get(v any) ([]CId, error) {
+	val := v.([]T)
 
-	return ego.getImpl(*ego.index, val)
+	node, err := ego.getImpl(ego.index, val)
+	if err != nil {
+		return nil, err
+	}
+
+	if node == nil {
+		// not found
+		return []CId{}, nil
+	}
+
+	idset := ego.accumulateSubtree(*node)
+	return idset.ToSlice(), nil
 }
 
-func (ego *prefixIndexer[E]) addImpl(n trieNode[E], accumpath []E, cid CId) error {
-	var first E
+func (ego *prefixIndexer[T]) addImpl(n trieNode[T], accumpath []T, cid CId) error {
+	var first T
 
 	if l := len(accumpath); l >= 1 {
 		first = accumpath[0]
 		if l > 1 {
 			accumpath = accumpath[1:]
 		} else { // really?
-			accumpath = make([]E, 0)
+			accumpath = make([]T, 0)
 		}
 	} else {
 		return errors.NewValueError(ego, errors.LevelError, "Cannot use zero path.")
@@ -239,8 +267,8 @@ func (ego *prefixIndexer[E]) addImpl(n trieNode[E], accumpath []E, cid CId) erro
 		if ch, found := n.children[first]; found {
 			return ego.addImpl(ch, accumpath, cid)
 		} else {
-			nnode := *new(trieNode[E])
-			nnode.children = make(map[E]trieNode[E])
+			nnode := *new(trieNode[T])
+			nnode.children = make(map[T]trieNode[T])
 
 			n.children[first] = nnode
 		}
@@ -250,12 +278,22 @@ func (ego *prefixIndexer[E]) addImpl(n trieNode[E], accumpath []E, cid CId) erro
 
 }
 
-func (ego *prefixIndexer[E]) Add(v any, id CId) error {
-	val := v.([]E)
+func (ego *prefixIndexer[T]) checkForString(v any) []rune {
+	vs, ok := v.(string)
+
+	if ok {
+		return []rune(vs)
+	}
+
+	return nil
+}
+
+func (ego *prefixIndexer[T]) Add(v any, id CId) error {
+	val := v.([]T)
 	return ego.addImpl(*ego.index, val, id)
 }
 
-func (ego *prefixIndexer[E]) delImpl(n trieNode[E], accumpath []E, id CId) (deleteP bool, err error) {
+func (ego *prefixIndexer[T]) delImpl(n trieNode[T], accumpath []T, id CId) (deleteP bool, err error) {
 	first := accumpath[0]
 
 	if len(accumpath) == 1 {
@@ -296,16 +334,16 @@ func (ego *prefixIndexer[E]) delImpl(n trieNode[E], accumpath []E, id CId) (dele
 	return false, nil
 }
 
-func (ego *prefixIndexer[E]) Del(v any, id CId) error {
+func (ego *prefixIndexer[T]) Del(v any, id CId) error {
 	// find from top to bottom, cleanup on going back
-	delP, err := ego.delImpl(*ego.index, v.([]E), id)
+	delP, err := ego.delImpl(*ego.index, v.([]T), id)
 	if err != nil {
 		return err
 	}
 	if delP {
 		// index completely removed so reset index for sure?
-		ego.index = new(trieNode[E])
-		ego.index.children = make(map[E]trieNode[E])
+		ego.index = new(trieNode[T])
+		ego.index.children = make(map[T]trieNode[T])
 	}
 
 	return nil
@@ -341,12 +379,25 @@ func NewRamCollection(rc RamCollectionConf) *RamCollection {
 	if err := ego.RegisterIndexes(); err != nil {
 		panic(err)
 	}
+
 	return ego
 }
 
 func (ego *RamCollection) InterpretField(fc FielderConf) (any, error) {
 	switch v := fc.(type) {
 	case FieldConf[string]:
+		return v.Value, nil
+	case FieldConf[[]string]:
+		return v.Value, nil
+	case FieldConf[int]:
+		return v.Value, nil
+	case FieldConf[float64]:
+		return v.Value, nil
+	case FieldConf[int64]:
+		return v.Value, nil
+	case FieldConf[uint64]:
+		return v.Value, nil
+	case FieldConf[time.Time]:
 		return v.Value, nil
 	default:
 		return nil, errors.NewNotImplError(ego)
@@ -488,6 +539,17 @@ func CIdSetFromSlice(s []CId) CIdSet {
 	return ret
 }
 
+func (ego CIdSet) ToSlice() []CId {
+	out := make([]CId, len(ego))
+	i := 0
+	for k, _ := range ego {
+		out[i] = k
+		i++
+	}
+
+	return out
+}
+
 // func CIdSetToSlice(u CIdSet) []CId {
 // 	keys := make([]CId, len(u))
 // 	i := 0
@@ -529,16 +591,16 @@ func (ego CIdSet) Intersect(s CIdSet) CIdSet {
 
 func cmpIndexKind(qIdx IndexerConf, iidx ramCollectionIndexer) bool {
 	switch qIdx.(type) {
-	case PrefixIndexConf[fs.Path]:
+	case PrefixIndexConf[[]string]:
 		_, ok := iidx.(*prefixIndexer[string])
 		if ok {
 			return true
 		}
-	case PrefixIndexConf[string]:
-		_, ok := iidx.(*prefixIndexer[rune])
-		if ok {
-			return true
-		}
+	// case PrefixIndexConf[string]:
+	// 	_, ok := iidx.(*prefixStringIndexer)
+	// 	if ok {
+	// 		return true
+	// 	}
 	case FullmatchIndexConf[string]:
 		_, ok := iidx.(*fullmatchIndexer[string])
 		if ok {
@@ -803,8 +865,8 @@ func (ego *RamCollection) RegisterIndexes() error {
 			switch v := idx.(type) {
 			case PrefixIndexConf[[]string]:
 				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[string](v))
-			case PrefixIndexConf[[]rune]:
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[rune](v))
+			// case PrefixIndexConf[string]:
+			// 	ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerStringNew(v))
 			case FullmatchIndexConf[string]:
 				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[string](v))
 			case FullmatchIndexConf[int]:
