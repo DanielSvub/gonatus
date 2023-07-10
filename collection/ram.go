@@ -180,7 +180,6 @@ func (ego *fullmatchIndexer[T]) Del(v any, id CId) error {
 }
 
 // Prefix implementation
-
 type trieNode[E comparable] struct {
 	children map[E]trieNode[E]
 	cids     []CId
@@ -238,10 +237,14 @@ func (ego *prefixIndexer[T]) Get(v any) ([]CId, error) {
 
 	if node == nil {
 		// not found
+		fmt.Printf("Node not FoUND!!!!!!\n")
 		return []CId{}, nil
 	}
 
 	idset := ego.accumulateSubtree(*node)
+
+	fmt.Printf("Node FoUND!!!!!! %+v %+v\n", node, idset)
+
 	return idset.ToSlice(), nil
 }
 
@@ -809,6 +812,8 @@ func (ego *RamCollection) Rows() map[CId][]any {
 }
 
 func (ego *RamCollection) Inspect() {
+	fmt.Printf("Table Name: %s\n", ego.param.Name)
+
 	print("ID, ")
 	for _, r := range ego.param.SchemaConf.FieldsNaming {
 		print(r, ", ")
