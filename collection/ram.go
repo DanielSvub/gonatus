@@ -370,9 +370,22 @@ type RamCollection struct {
 }
 
 func NewRamCollection(rc RamCollectionConf) *RamCollection {
+	if len(rc.SchemaConf.FieldsNaming) != len(rc.SchemaConf.Fields) {
+		// TODO: Fatal log || panic?
+		return nil
+	}
+
 	ego := new(RamCollection)
 
-	// TODO: check if implementing given fields
+	// TODO: check if implementing given fields'
+	for _, field := range rc.Fields {
+		switch field.(type) {
+		case FieldConf[string]:
+		case FieldConf[[]string]:
+		default:
+			panic(errors.NewNotImplError(ego))
+		}
+	}
 
 	ego.param = rc
 	ego.rows = make(map[CId][]any, 0)
