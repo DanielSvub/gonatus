@@ -237,13 +237,10 @@ func (ego *prefixIndexer[T]) Get(v any) ([]CId, error) {
 
 	if node == nil {
 		// not found
-		fmt.Printf("Node not FoUND!!!!!!\n")
 		return []CId{}, nil
 	}
 
 	idset := ego.accumulateSubtree(node)
-
-	fmt.Printf("Node FoUND!!!!!! %+v %+v\n", node, idset)
 
 	return idset.ToSlice(), nil
 }
@@ -264,12 +261,7 @@ func (ego *prefixIndexer[T]) addImpl(n *trieNode[T], accumpath []T, cid CId) err
 
 	if len(accumpath) == 0 {
 		// add id here
-
-		fmt.Printf("Adding cid to cids... %d\n", cid)
-
 		n.cids = sliceAddUnique(n.cids, cid)
-		fmt.Printf("Added cid to cids... %+v\n", n.cids)
-
 		return nil
 	} else {
 		if ch, found := n.children[first]; found {
@@ -373,9 +365,22 @@ type RamCollection struct {
 }
 
 func NewRamCollection(rc RamCollectionConf) *RamCollection {
+	if len(rc.SchemaConf.FieldsNaming) != len(rc.SchemaConf.Fields) {
+		// TODO: Fatal log || panic?
+		return nil
+	}
+
 	ego := new(RamCollection)
 
-	// TODO: check if implementing given fields
+	// TODO: check if implementing given fields'
+	for _, field := range rc.Fields {
+		switch field.(type) {
+		case FieldConf[string]:
+		case FieldConf[[]string]:
+		default:
+			panic(errors.NewNotImplError(ego))
+		}
+	}
 
 	ego.param = rc
 	ego.rows = make(map[CId][]any, 0)
