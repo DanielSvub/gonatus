@@ -181,7 +181,7 @@ func (ego *fullmatchIndexer[T]) Del(v any, id CId) error {
 
 // Prefix implementation
 type trieNode[E comparable] struct {
-	children map[E]trieNode[E]
+	children map[E]*trieNode[E]
 	cids     []CId
 }
 
@@ -194,12 +194,12 @@ func prefixIndexerNew[T comparable](c PrefixIndexConf[[]T]) *prefixIndexer[T] {
 	ego := new(prefixIndexer[T])
 
 	ego.index = new(trieNode[T])
-	ego.index.children = make(map[T]trieNode[T])
+	ego.index.children = make(map[T]*trieNode[T])
 
 	return ego
 }
 
-func (ego *prefixIndexer[T]) accumulateSubtree(n trieNode[T]) CIdSet {
+func (ego *prefixIndexer[T]) accumulateSubtree(n *trieNode[T]) CIdSet {
 	out := make(CIdSet, 0)
 
 	for _, c := range n.cids {
@@ -221,7 +221,7 @@ func (ego *prefixIndexer[T]) getImpl(n *trieNode[T], accumpath []T) (*trieNode[T
 	first := accumpath[0]
 
 	if ch, found := n.children[first]; found {
-		return ego.getImpl(&ch, accumpath[1:])
+		return ego.getImpl(ch, accumpath[1:])
 	}
 
 	return nil, nil
@@ -241,14 +241,14 @@ func (ego *prefixIndexer[T]) Get(v any) ([]CId, error) {
 		return []CId{}, nil
 	}
 
-	idset := ego.accumulateSubtree(*node)
+	idset := ego.accumulateSubtree(node)
 
 	fmt.Printf("Node FoUND!!!!!! %+v %+v\n", node, idset)
 
 	return idset.ToSlice(), nil
 }
 
-func (ego *prefixIndexer[T]) addImpl(n trieNode[T], accumpath []T, cid CId) error {
+func (ego *prefixIndexer[T]) addImpl(n *trieNode[T], accumpath []T, cid CId) error {
 	var first T
 
 	if l := len(accumpath); l >= 1 {
@@ -264,21 +264,24 @@ func (ego *prefixIndexer[T]) addImpl(n trieNode[T], accumpath []T, cid CId) erro
 
 	if len(accumpath) == 0 {
 		// add id here
+
+		fmt.Printf("Adding cid to cids... %d\n", cid)
+
 		n.cids = sliceAddUnique(n.cids, cid)
+		fmt.Printf("Added cid to cids... %+v\n", n.cids)
+
 		return nil
 	} else {
 		if ch, found := n.children[first]; found {
 			return ego.addImpl(ch, accumpath, cid)
 		} else {
-			nnode := *new(trieNode[T])
-			nnode.children = make(map[T]trieNode[T])
+			nnode := new(trieNode[T])
+			nnode.children = make(map[T]*trieNode[T])
 
 			n.children[first] = nnode
+			return ego.addImpl(nnode, accumpath[:1], cid)
 		}
 	}
-
-	return nil
-
 }
 
 func (ego *prefixIndexer[T]) checkForString(v any) []rune {
@@ -293,10 +296,10 @@ func (ego *prefixIndexer[T]) checkForString(v any) []rune {
 
 func (ego *prefixIndexer[T]) Add(v any, id CId) error {
 	val := v.([]T)
-	return ego.addImpl(*ego.index, val, id)
+	return ego.addImpl(ego.index, val, id)
 }
 
-func (ego *prefixIndexer[T]) delImpl(n trieNode[T], accumpath []T, id CId) (deleteP bool, err error) {
+func (ego *prefixIndexer[T]) delImpl(n *trieNode[T], accumpath []T, id CId) (deleteP bool, err error) {
 	first := accumpath[0]
 
 	if len(accumpath) == 1 {
@@ -339,14 +342,14 @@ func (ego *prefixIndexer[T]) delImpl(n trieNode[T], accumpath []T, id CId) (dele
 
 func (ego *prefixIndexer[T]) Del(v any, id CId) error {
 	// find from top to bottom, cleanup on going back
-	delP, err := ego.delImpl(*ego.index, v.([]T), id)
+	delP, err := ego.delImpl(ego.index, v.([]T), id)
 	if err != nil {
 		return err
 	}
 	if delP {
 		// index completely removed so reset index for sure?
 		ego.index = new(trieNode[T])
-		ego.index.children = make(map[T]trieNode[T])
+		ego.index.children = make(map[T]*trieNode[T])
 	}
 
 	return nil
@@ -426,6 +429,8 @@ func (ego *RamCollection) DeinterpretField(val any, nth int) (FielderConf, error
 	fc := ego.param.SchemaConf.Fields[nth]
 
 	switch fc.(type) {
+	case FieldConf[[]string]:
+		return FieldConf[[]string]{Value: val.([]string)}, nil
 	case FieldConf[string]:
 		return FieldConf[string]{Value: val.(string)}, nil
 	default:

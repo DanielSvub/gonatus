@@ -531,6 +531,11 @@ func TestStringPrefix(t *testing.T) {
 	// rmc.Inspect()
 }
 
+func consumeGPfxOutput(rcrds []RecordConf) error {
+
+	return nil
+}
+
 func TestGeneralPrefix(t *testing.T) {
 	rmC := RamCollectionConf{
 		SchemaConf: SchemaConf{
