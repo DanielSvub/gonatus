@@ -374,10 +374,7 @@ func NewRamCollection(rc RamCollectionConf) *RamCollection {
 
 	// TODO: check if implementing given fields'
 	for _, field := range rc.Fields {
-		switch field.(type) {
-		case FieldConf[string]:
-		case FieldConf[[]string]:
-		default:
+		if _, err := ego.InterpretField(field); err != nil {
 			panic(errors.NewNotImplError(ego))
 		}
 	}
@@ -390,7 +387,6 @@ func NewRamCollection(rc RamCollectionConf) *RamCollection {
 	if err := ego.RegisterIndexes(); err != nil {
 		panic(err)
 	}
-
 	return ego
 }
 
@@ -399,6 +395,14 @@ func (ego *RamCollection) InterpretField(fc FielderConf) (any, error) {
 	case FieldConf[string]:
 		return v.Value, nil
 	case FieldConf[[]string]:
+		return v.Value, nil
+	case FieldConf[[]int]:
+		return v.Value, nil
+	case FieldConf[[]float64]:
+		return v.Value, nil
+	case FieldConf[[]int64]:
+		return v.Value, nil
+	case FieldConf[[]uint64]:
 		return v.Value, nil
 	case FieldConf[int]:
 		return v.Value, nil
@@ -436,8 +440,26 @@ func (ego *RamCollection) DeinterpretField(val any, nth int) (FielderConf, error
 	switch fc.(type) {
 	case FieldConf[[]string]:
 		return FieldConf[[]string]{Value: val.([]string)}, nil
+	case FieldConf[[]int]:
+		return FieldConf[[]int]{Value: val.([]int)}, nil
+	case FieldConf[[]float64]:
+		return FieldConf[[]float64]{Value: val.([]float64)}, nil
+	case FieldConf[[]int64]:
+		return FieldConf[[]int64]{Value: val.([]int64)}, nil
+	case FieldConf[[]uint64]:
+		return FieldConf[[]uint64]{Value: val.([]uint64)}, nil
 	case FieldConf[string]:
 		return FieldConf[string]{Value: val.(string)}, nil
+	case FieldConf[int]:
+		return FieldConf[int]{Value: val.(int)}, nil
+	case FieldConf[float64]:
+		return FieldConf[float64]{Value: val.(float64)}, nil
+	case FieldConf[int64]:
+		return FieldConf[int64]{Value: val.(int64)}, nil
+	case FieldConf[uint64]:
+		return FieldConf[uint64]{Value: val.(uint64)}, nil
+	case FieldConf[time.Time]:
+		return FieldConf[time.Time]{Value: val.(time.Time)}, nil
 	default:
 		return nil, errors.NewNotImplError(ego)
 	}
@@ -555,7 +577,7 @@ func CIdSetFromSlice(s []CId) CIdSet {
 func (ego CIdSet) ToSlice() []CId {
 	out := make([]CId, len(ego))
 	i := 0
-	for k, _ := range ego {
+	for k := range ego {
 		out[i] = k
 		i++
 	}
@@ -598,7 +620,6 @@ func (ego CIdSet) Intersect(s CIdSet) CIdSet {
 			out[i] = true
 		}
 	}
-
 	return out
 }
 
@@ -609,11 +630,26 @@ func cmpIndexKind(qIdx IndexerConf, iidx ramCollectionIndexer) bool {
 		if ok {
 			return true
 		}
-	// case PrefixIndexConf[string]:
-	// 	_, ok := iidx.(*prefixStringIndexer)
-	// 	if ok {
-	// 		return true
-	// 	}
+	case PrefixIndexConf[[]int]:
+		_, ok := iidx.(*prefixIndexer[int])
+		if ok {
+			return true
+		}
+	case PrefixIndexConf[[]float64]:
+		_, ok := iidx.(*prefixIndexer[float64])
+		if ok {
+			return true
+		}
+	case PrefixIndexConf[[]int64]:
+		_, ok := iidx.(*prefixIndexer[int64])
+		if ok {
+			return true
+		}
+	case PrefixIndexConf[[]uint64]:
+		_, ok := iidx.(*prefixIndexer[uint64])
+		if ok {
+			return true
+		}
 	case FullmatchIndexConf[string]:
 		_, ok := iidx.(*fullmatchIndexer[string])
 		if ok {
@@ -880,8 +916,14 @@ func (ego *RamCollection) RegisterIndexes() error {
 			switch v := idx.(type) {
 			case PrefixIndexConf[[]string]:
 				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[string](v))
-			// case PrefixIndexConf[string]:
-			// 	ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerStringNew(v))
+			case PrefixIndexConf[[]int]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[int](v))
+			case PrefixIndexConf[[]float64]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[float64](v))
+			case PrefixIndexConf[[]int64]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[int64](v))
+			case PrefixIndexConf[[]uint64]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[uint64](v))
 			case FullmatchIndexConf[string]:
 				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[string](v))
 			case FullmatchIndexConf[int]:
