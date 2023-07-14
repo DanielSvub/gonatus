@@ -392,25 +392,58 @@ func NewRamCollection(rc RamCollectionConf) *RamCollection {
 
 func (ego *RamCollection) InterpretField(fc FielderConf) (any, error) {
 	switch v := fc.(type) {
-	case FieldConf[string]:
-		return v.Value, nil
+
 	case FieldConf[[]string]:
 		return v.Value, nil
 	case FieldConf[[]int]:
 		return v.Value, nil
-	case FieldConf[[]float64]:
+	case FieldConf[[]int8]:
+		return v.Value, nil
+	case FieldConf[[]int16]:
+		return v.Value, nil
+	case FieldConf[[]int32]:
 		return v.Value, nil
 	case FieldConf[[]int64]:
 		return v.Value, nil
+	case FieldConf[[]uint]:
+		return v.Value, nil
+	case FieldConf[[]uint8]:
+		return v.Value, nil
+	case FieldConf[[]uint16]:
+		return v.Value, nil
+	case FieldConf[[]uint32]:
+		return v.Value, nil
 	case FieldConf[[]uint64]:
+		return v.Value, nil
+	case FieldConf[[]float32]:
+		return v.Value, nil
+	case FieldConf[[]float64]:
+		return v.Value, nil
+	case FieldConf[string]:
 		return v.Value, nil
 	case FieldConf[int]:
 		return v.Value, nil
-	case FieldConf[float64]:
+	case FieldConf[int8]:
+		return v.Value, nil
+	case FieldConf[int16]:
+		return v.Value, nil
+	case FieldConf[int32]:
 		return v.Value, nil
 	case FieldConf[int64]:
 		return v.Value, nil
+	case FieldConf[uint]:
+		return v.Value, nil
+	case FieldConf[uint8]:
+		return v.Value, nil
+	case FieldConf[uint16]:
+		return v.Value, nil
+	case FieldConf[uint32]:
+		return v.Value, nil
 	case FieldConf[uint64]:
+		return v.Value, nil
+	case FieldConf[float32]:
+		return v.Value, nil
+	case FieldConf[float64]:
 		return v.Value, nil
 	case FieldConf[time.Time]:
 		return v.Value, nil
@@ -442,22 +475,54 @@ func (ego *RamCollection) DeinterpretField(val any, nth int) (FielderConf, error
 		return FieldConf[[]string]{Value: val.([]string)}, nil
 	case FieldConf[[]int]:
 		return FieldConf[[]int]{Value: val.([]int)}, nil
-	case FieldConf[[]float64]:
-		return FieldConf[[]float64]{Value: val.([]float64)}, nil
+	case FieldConf[[]int8]:
+		return FieldConf[[]int8]{Value: val.([]int8)}, nil
+	case FieldConf[[]int16]:
+		return FieldConf[[]int16]{Value: val.([]int16)}, nil
+	case FieldConf[[]int32]:
+		return FieldConf[[]int32]{Value: val.([]int32)}, nil
 	case FieldConf[[]int64]:
 		return FieldConf[[]int64]{Value: val.([]int64)}, nil
+	case FieldConf[[]uint]:
+		return FieldConf[[]uint]{Value: val.([]uint)}, nil
+	case FieldConf[[]uint8]:
+		return FieldConf[[]uint8]{Value: val.([]uint8)}, nil
+	case FieldConf[[]uint16]:
+		return FieldConf[[]uint16]{Value: val.([]uint16)}, nil
+	case FieldConf[[]uint32]:
+		return FieldConf[[]uint32]{Value: val.([]uint32)}, nil
 	case FieldConf[[]uint64]:
 		return FieldConf[[]uint64]{Value: val.([]uint64)}, nil
+	case FieldConf[[]float32]:
+		return FieldConf[[]float32]{Value: val.([]float32)}, nil
+	case FieldConf[[]float64]:
+		return FieldConf[[]float64]{Value: val.([]float64)}, nil
 	case FieldConf[string]:
 		return FieldConf[string]{Value: val.(string)}, nil
 	case FieldConf[int]:
 		return FieldConf[int]{Value: val.(int)}, nil
-	case FieldConf[float64]:
-		return FieldConf[float64]{Value: val.(float64)}, nil
+	case FieldConf[int8]:
+		return FieldConf[int8]{Value: val.(int8)}, nil
+	case FieldConf[int16]:
+		return FieldConf[int16]{Value: val.(int16)}, nil
+	case FieldConf[int32]:
+		return FieldConf[int32]{Value: val.(int32)}, nil
 	case FieldConf[int64]:
 		return FieldConf[int64]{Value: val.(int64)}, nil
+	case FieldConf[uint]:
+		return FieldConf[uint]{Value: val.(uint)}, nil
+	case FieldConf[uint8]:
+		return FieldConf[uint8]{Value: val.(uint8)}, nil
+	case FieldConf[uint16]:
+		return FieldConf[uint16]{Value: val.(uint16)}, nil
+	case FieldConf[uint32]:
+		return FieldConf[uint32]{Value: val.(uint32)}, nil
 	case FieldConf[uint64]:
 		return FieldConf[uint64]{Value: val.(uint64)}, nil
+	case FieldConf[float32]:
+		return FieldConf[float32]{Value: val.(float32)}, nil
+	case FieldConf[float64]:
+		return FieldConf[float64]{Value: val.(float64)}, nil
 	case FieldConf[time.Time]:
 		return FieldConf[time.Time]{Value: val.(time.Time)}, nil
 	default:
@@ -635,8 +700,18 @@ func cmpIndexKind(qIdx IndexerConf, iidx ramCollectionIndexer) bool {
 		if ok {
 			return true
 		}
-	case PrefixIndexConf[[]float64]:
-		_, ok := iidx.(*prefixIndexer[float64])
+	case PrefixIndexConf[[]int8]:
+		_, ok := iidx.(*prefixIndexer[int8])
+		if ok {
+			return true
+		}
+	case PrefixIndexConf[[]int16]:
+		_, ok := iidx.(*prefixIndexer[int16])
+		if ok {
+			return true
+		}
+	case PrefixIndexConf[[]int32]:
+		_, ok := iidx.(*prefixIndexer[int32])
 		if ok {
 			return true
 		}
@@ -645,8 +720,38 @@ func cmpIndexKind(qIdx IndexerConf, iidx ramCollectionIndexer) bool {
 		if ok {
 			return true
 		}
+	case PrefixIndexConf[[]uint]:
+		_, ok := iidx.(*prefixIndexer[uint])
+		if ok {
+			return true
+		}
+	case PrefixIndexConf[[]uint8]:
+		_, ok := iidx.(*prefixIndexer[uint8])
+		if ok {
+			return true
+		}
+	case PrefixIndexConf[[]uint16]:
+		_, ok := iidx.(*prefixIndexer[uint16])
+		if ok {
+			return true
+		}
+	case PrefixIndexConf[[]uint32]:
+		_, ok := iidx.(*prefixIndexer[uint32])
+		if ok {
+			return true
+		}
 	case PrefixIndexConf[[]uint64]:
 		_, ok := iidx.(*prefixIndexer[uint64])
+		if ok {
+			return true
+		}
+	case PrefixIndexConf[[]float32]:
+		_, ok := iidx.(*prefixIndexer[float32])
+		if ok {
+			return true
+		}
+	case PrefixIndexConf[[]float64]:
+		_, ok := iidx.(*prefixIndexer[float64])
 		if ok {
 			return true
 		}
@@ -660,8 +765,18 @@ func cmpIndexKind(qIdx IndexerConf, iidx ramCollectionIndexer) bool {
 		if ok {
 			return true
 		}
-	case FullmatchIndexConf[float64]:
-		_, ok := iidx.(*fullmatchIndexer[float64])
+	case FullmatchIndexConf[int8]:
+		_, ok := iidx.(*fullmatchIndexer[int8])
+		if ok {
+			return true
+		}
+	case FullmatchIndexConf[int16]:
+		_, ok := iidx.(*fullmatchIndexer[int16])
+		if ok {
+			return true
+		}
+	case FullmatchIndexConf[int32]:
+		_, ok := iidx.(*fullmatchIndexer[int32])
 		if ok {
 			return true
 		}
@@ -670,8 +785,38 @@ func cmpIndexKind(qIdx IndexerConf, iidx ramCollectionIndexer) bool {
 		if ok {
 			return true
 		}
+	case FullmatchIndexConf[uint]:
+		_, ok := iidx.(*fullmatchIndexer[uint])
+		if ok {
+			return true
+		}
+	case FullmatchIndexConf[uint8]:
+		_, ok := iidx.(*fullmatchIndexer[uint8])
+		if ok {
+			return true
+		}
+	case FullmatchIndexConf[uint16]:
+		_, ok := iidx.(*fullmatchIndexer[uint16])
+		if ok {
+			return true
+		}
+	case FullmatchIndexConf[uint32]:
+		_, ok := iidx.(*fullmatchIndexer[uint32])
+		if ok {
+			return true
+		}
 	case FullmatchIndexConf[uint64]:
 		_, ok := iidx.(*fullmatchIndexer[uint64])
+		if ok {
+			return true
+		}
+	case FullmatchIndexConf[float32]:
+		_, ok := iidx.(*fullmatchIndexer[float32])
+		if ok {
+			return true
+		}
+	case FullmatchIndexConf[float64]:
+		_, ok := iidx.(*fullmatchIndexer[float64])
 		if ok {
 			return true
 		}
@@ -918,22 +1063,54 @@ func (ego *RamCollection) RegisterIndexes() error {
 				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[string](v))
 			case PrefixIndexConf[[]int]:
 				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[int](v))
-			case PrefixIndexConf[[]float64]:
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[float64](v))
+			case PrefixIndexConf[[]int8]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[int8](v))
+			case PrefixIndexConf[[]int16]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[int16](v))
+			case PrefixIndexConf[[]int32]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[int32](v))
 			case PrefixIndexConf[[]int64]:
 				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[int64](v))
+			case PrefixIndexConf[[]uint]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[uint](v))
+			case PrefixIndexConf[[]uint8]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[uint8](v))
+			case PrefixIndexConf[[]uint16]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[uint16](v))
+			case PrefixIndexConf[[]uint32]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[uint32](v))
 			case PrefixIndexConf[[]uint64]:
 				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[uint64](v))
+			case PrefixIndexConf[[]float32]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[float32](v))
+			case PrefixIndexConf[[]float64]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[float64](v))
 			case FullmatchIndexConf[string]:
 				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[string](v))
 			case FullmatchIndexConf[int]:
 				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[int](v))
-			case FullmatchIndexConf[float64]:
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[float64](v))
+			case FullmatchIndexConf[int8]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[int8](v))
+			case FullmatchIndexConf[int16]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[int16](v))
+			case FullmatchIndexConf[int32]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[int32](v))
 			case FullmatchIndexConf[int64]:
 				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[int64](v))
+			case FullmatchIndexConf[uint]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[uint](v))
+			case FullmatchIndexConf[uint8]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[uint8](v))
+			case FullmatchIndexConf[uint16]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[uint16](v))
+			case FullmatchIndexConf[uint32]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[uint32](v))
 			case FullmatchIndexConf[uint64]:
 				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[uint64](v))
+			case FullmatchIndexConf[float32]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[float32](v))
+			case FullmatchIndexConf[float64]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[float64](v))
 			case FullmatchIndexConf[time.Time]:
 				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[time.Time](v))
 			default:
