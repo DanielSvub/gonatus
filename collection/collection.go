@@ -97,5 +97,6 @@ type Collection interface {
 	AddRecord(RecordConf) (CId, error)
 	DeleteRecord(RecordConf) error
 	DeleteByFilter(QueryConf) error
+	EditRecord(RecordConf, int, any) error
 	Commit() error
 }

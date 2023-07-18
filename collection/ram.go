@@ -650,6 +650,34 @@ func (ego *RamCollection) DeleteByFilter(q QueryConf) error {
 	return nil
 }
 
+func (ego *RamCollection) EditRecord(rc RecordConf, col int, newValue any) error {
+	cid := rc.Id
+
+	if !cid.ValidP() {
+		return errors.NewMisappError(ego, "Invalid Id field in record.")
+	}
+
+	record, found := ego.rows[cid]
+
+	if !found {
+		return errors.NewNotFoundError(ego, errors.LevelWarning, fmt.Sprintf("Record with id %d not found.", cid))
+	}
+
+	name := ego.param.FieldsNaming[col]
+
+	// Modify lookup indexes
+	if colidx, found := ego.indexes[name]; found {
+		for _, idx := range colidx {
+			idx.Del(record[col], cid)
+			idx.Add(record[col], cid)
+		}
+	}
+
+	ego.rows[cid][col] = newValue
+
+	return nil
+}
+
 type CIdSet map[CId]bool
 
 func CIdSetFromSlice(s []CId) CIdSet {
