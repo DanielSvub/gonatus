@@ -364,7 +364,6 @@ type RamCollectionConf struct {
 
 type RamCollection struct {
 	gonatus.Gobject
-	Collection
 	param         RamCollectionConf
 	autoincrement CId
 	rows          map[CId][]any
