@@ -109,6 +109,10 @@ func (ego *fullmatchIndexer[T]) Get(v any) ([]CId, error) {
 	return x, nil
 }
 
+func (ego *fullmatchIndexer[T]) Serialize() gonatus.Conf {
+	return nil
+}
+
 func sliceFind(rows []CId, idx CId) (uint64, bool) {
 	for i, v := range rows {
 		if v == idx {
@@ -344,6 +348,10 @@ func (ego *prefixIndexer[T]) Del(v any, id CId) error {
 		ego.index.children = make(map[T]*trieNode[T])
 	}
 
+	return nil
+}
+
+func (ego *prefixIndexer[T]) Serialize() gonatus.Conf {
 	return nil
 }
 
