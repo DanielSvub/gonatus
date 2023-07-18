@@ -627,6 +627,29 @@ func (ego *RamCollection) DeleteRecord(rc RecordConf) error {
 	return nil
 }
 
+func (ego *RamCollection) DeleteByFilter(q QueryConf) error {
+	if qq, ok := q.(QueryAndConf); ok && len(qq.Context) == 0 {
+		ego.indexes = make(map[string][]ramCollectionIndexer)
+		ego.rows = make(map[CId][]any)
+		ego.autoincrement = 1
+		return nil
+	}
+
+	if stream, err := ego.Filter(q); err != nil {
+		return err
+	} else {
+		for !stream.Closed() {
+			s := make([]RecordConf, 1)
+			if _, err := stream.Read(s); err != nil {
+				return err
+			}
+			rec := s[0]
+			ego.DeleteRecord(RecordConf{Id: rec.Id})
+		}
+	}
+	return nil
+}
+
 type CIdSet map[CId]bool
 
 func CIdSetFromSlice(s []CId) CIdSet {

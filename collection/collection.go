@@ -96,5 +96,6 @@ type Collection interface {
 	// Group(QueryConf, GroupQueryConf) (streams.ReadableOutputStreamer[GroupRecordConf], error) // TODO: define grouping
 	AddRecord(RecordConf) (CId, error)
 	DeleteRecord(RecordConf) error
+	DeleteByFilter(QueryConf) error
 	Commit() error
 }
