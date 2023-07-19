@@ -249,35 +249,26 @@ func (ego *prefixIndexer[T]) Get(v any) ([]CId, error) {
 	return idset.ToSlice(), nil
 }
 
-func (ego *prefixIndexer[T]) addImpl(n *trieNode[T], accumpath []T, cid CId) error {
-	var first T
-
-	if l := len(accumpath); l >= 1 {
-		first = accumpath[0]
-		if l > 1 {
-			accumpath = accumpath[1:]
-		} else { // really?
-			accumpath = make([]T, 0)
-		}
-	} else {
-		return errors.NewValueError(ego, errors.LevelError, "Cannot use zero path.")
-	}
+func (ego *prefixIndexer[T]) addImpl(n *trieNode[T], accumpath []T, cid CId) {
 
 	if len(accumpath) == 0 {
 		// add id here
 		n.cids = sliceAddUnique(n.cids, cid)
-		return nil
-	} else {
-		if ch, found := n.children[first]; found {
-			return ego.addImpl(ch, accumpath, cid)
-		} else {
-			nnode := new(trieNode[T])
-			nnode.children = make(map[T]*trieNode[T])
-
-			n.children[first] = nnode
-			return ego.addImpl(nnode, accumpath[:1], cid)
-		}
+		return
 	}
+
+	first := accumpath[0]
+
+	if ch, found := n.children[first]; found {
+		ego.addImpl(ch, accumpath[1:], cid)
+		return
+	}
+
+	nnode := new(trieNode[T])
+	nnode.children = make(map[T]*trieNode[T])
+
+	n.children[first] = nnode
+	ego.addImpl(nnode, accumpath[1:], cid)
 }
 
 func (ego *prefixIndexer[T]) checkForString(v any) []rune {
@@ -292,7 +283,8 @@ func (ego *prefixIndexer[T]) checkForString(v any) []rune {
 
 func (ego *prefixIndexer[T]) Add(v any, id CId) error {
 	val := v.([]T)
-	return ego.addImpl(ego.index, val, id)
+	ego.addImpl(ego.index, val, id)
+	return nil
 }
 
 func (ego *prefixIndexer[T]) delImpl(n *trieNode[T], accumpath []T, id CId) (deleteP bool, err error) {
@@ -356,7 +348,6 @@ func (ego *prefixIndexer[T]) Serialize() gonatus.Conf {
 }
 
 // RAM COLLECTION IMPL
-
 type RamCollectionConf struct {
 	SchemaConf
 	MaxMemory uint64
@@ -379,7 +370,6 @@ func NewRamCollection(rc RamCollectionConf) *RamCollection {
 
 	ego := new(RamCollection)
 
-	// TODO: check if implementing given fields'
 	for _, field := range rc.Fields {
 		if _, err := ego.InterpretField(field); err != nil {
 			panic(errors.NewNotImplError(ego))
@@ -579,7 +569,6 @@ func (ego *RamCollection) AddRecord(rc RecordConf) (CId, error) {
 	}
 
 	// TODO: Check mandatory fields
-
 	// TODO: Update default fields
 
 	// Add to main index
@@ -599,7 +588,6 @@ func (ego *RamCollection) AddRecord(rc RecordConf) (CId, error) {
 			}
 		}
 	}
-
 	return cid, nil
 }
 
