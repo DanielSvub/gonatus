@@ -452,7 +452,7 @@ func (ego *localCountedStorageDriver) exportToStream(path fs.Path, depth fs.Dept
 
 	go func() {
 		ego.forEach(path, func(rec record) error {
-			if len(rec.path())-pathLen <= int(depth) {
+			if fs.Depth(len(rec.path())-pathLen) <= depth {
 				inputStream.Write(ego.newFile(rec))
 			}
 			return nil
