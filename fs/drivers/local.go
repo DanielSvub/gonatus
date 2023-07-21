@@ -43,9 +43,9 @@ const (
 	fieldParent = iota
 	fieldPath
 	fieldFlags
+	fieldLocation
 	fieldOrigTime
 	fieldModifTime
-	fieldLocation
 )
 
 type record collection.RecordConf
@@ -55,27 +55,27 @@ func (ego *record) conf() collection.RecordConf {
 }
 
 func (ego *record) parent() collection.CId {
-	return collection.CId(ego.Cols[fieldParent].(uint64))
+	return collection.CId(ego.Cols[fieldParent].(collection.FieldConf[uint64]).Value)
 }
 
 func (ego *record) path() fs.Path {
-	return ego.Cols[fieldPath].([]string)
+	return fs.Path(ego.Cols[fieldPath].(collection.FieldConf[[]string]).Value)
 }
 
 func (ego *record) flags() fs.FileFlags {
-	return fs.FileFlags(ego.Cols[fieldFlags].(uint8))
-}
-
-func (ego *record) origTime() time.Time {
-	return ego.Cols[fieldOrigTime].(time.Time)
-}
-
-func (ego *record) modifTime() time.Time {
-	return ego.Cols[fieldModifTime].(time.Time)
+	return fs.FileFlags(ego.Cols[fieldFlags].(collection.FieldConf[uint8]).Value)
 }
 
 func (ego *record) location() string {
-	return ego.Cols[fieldLocation].(string)
+	return ego.Cols[fieldLocation].(collection.FieldConf[string]).Value
+}
+
+func (ego *record) origTime() time.Time {
+	return ego.Cols[fieldOrigTime].(collection.FieldConf[time.Time]).Value
+}
+
+func (ego *record) modifTime() time.Time {
+	return ego.Cols[fieldModifTime].(collection.FieldConf[time.Time]).Value
 }
 
 type LocalCountedStorageConf struct {
@@ -98,14 +98,14 @@ func NewLocalCountedStorage(conf LocalCountedStorageConf) fs.Storage {
 	ego.files = collection.NewRamCollection(collection.RamCollectionConf{
 		SchemaConf: collection.SchemaConf{
 			Name:         "FileTable",
-			FieldsNaming: []string{"parent", "path", "flags", "origTime", "modifTime", "location"},
+			FieldsNaming: []string{"parent", "path", "flags", "location", "origTime", "modifTime"},
 			Fields: []collection.FielderConf{
 				collection.FieldConf[uint64]{},
 				collection.FieldConf[[]string]{},
 				collection.FieldConf[uint8]{},
-				collection.FieldConf[time.Time]{},
-				collection.FieldConf[time.Time]{},
 				collection.FieldConf[string]{},
+				collection.FieldConf[time.Time]{},
+				collection.FieldConf[time.Time]{},
 			},
 			Indexes: [][]collection.IndexerConf{{collection.PrefixIndexConf[[]string]{Name: "path"}}},
 		},
@@ -124,6 +124,7 @@ func (ego *localCountedStorageDriver) createRoot() error {
 			collection.FieldConf[uint64]{Value: 0},
 			collection.FieldConf[[]string]{Value: []string{}},
 			collection.FieldConf[uint8]{Value: uint8(fs.FileTopology)},
+			collection.FieldConf[string]{},
 			collection.FieldConf[time.Time]{Value: now},
 			collection.FieldConf[time.Time]{Value: now},
 		},
@@ -152,8 +153,12 @@ func (ego *localCountedStorageDriver) findFile(path fs.Path) (*record, error) {
 		if s, err := stream.Collect(); err != nil {
 			return nil, err
 		} else if len(s) >= 1 {
-			rec := record(s[0])
-			return &rec, nil
+			for _, i := range s {
+				rec := record(i)
+				if rec.path().Equals(path) {
+					return &rec, nil
+				}
+			}
 		}
 	}
 
@@ -171,8 +176,10 @@ func (ego *localCountedStorageDriver) forEach(path fs.Path, fn func(record) erro
 	} else {
 		for !stream.Closed() {
 			s := make([]collection.RecordConf, 1)
-			if _, err := stream.Read(s); err != nil {
+			if n, err := stream.Read(s); err != nil {
 				return err
+			} else if n != 1 {
+				return nil
 			}
 			if err := fn(record(s[0])); err != nil {
 				return err
@@ -231,9 +238,9 @@ func (ego *localCountedStorageDriver) createFile(path fs.Path, location string, 
 			collection.FieldConf[uint64]{Value: uint64(parent.Id)},
 			collection.FieldConf[[]string]{Value: []string(path)},
 			collection.FieldConf[uint8]{Value: uint8(givenFlags)},
+			collection.FieldConf[string]{Value: location},
 			collection.FieldConf[time.Time]{Value: origTime},
 			collection.FieldConf[time.Time]{Value: time.Now()},
-			collection.FieldConf[string]{Value: location},
 		},
 	})
 
@@ -304,19 +311,28 @@ func (ego *localCountedStorageDriver) moveFile(source fs.Path, dest fs.Path) err
 	} else if rec == nil {
 		return errors.NewNotFoundError(ego, errors.LevelError, `The file "`+source.Base()+`" does not exist.`)
 	} else {
-		ego.files.DeleteRecord(collection.RecordConf{
+		if err := ego.files.DeleteRecord(collection.RecordConf{
 			Id: rec.Id,
-		})
-		ego.files.AddRecord(collection.RecordConf{
+		}); err != nil {
+			return err
+		}
+		newParent, err := ego.findFile(dest.Dir())
+		if err != nil {
+			return err
+		}
+		if _, err := ego.files.AddRecord(collection.RecordConf{
 			Id: rec.Id,
 			Cols: []collection.FielderConf{
-				collection.FieldConf[uint64]{Value: uint64(rec.parent())},
-				collection.FieldConf[[]string]{Value: []string(rec.path())},
+				collection.FieldConf[uint64]{Value: uint64(newParent.Id)},
+				collection.FieldConf[[]string]{Value: []string(dest)},
 				collection.FieldConf[uint8]{Value: uint8(rec.flags())},
+				collection.FieldConf[string]{Value: rec.location()},
 				collection.FieldConf[time.Time]{Value: rec.origTime()},
-				collection.FieldConf[time.Time]{Value: rec.modifTime()},
+				collection.FieldConf[time.Time]{Value: time.Now()},
 			},
-		})
+		}); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -378,9 +394,9 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 				collection.FieldConf[uint64]{Value: uint64(parent)},
 				collection.FieldConf[[]string]{Value: []string(path)},
 				collection.FieldConf[uint8]{Value: uint8(rec.flags())},
+				collection.FieldConf[string]{Value: location},
 				collection.FieldConf[time.Time]{Value: rec.origTime()},
 				collection.FieldConf[time.Time]{Value: time.Now()},
-				collection.FieldConf[string]{Value: location},
 			},
 		})
 		return nil
