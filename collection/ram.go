@@ -624,8 +624,9 @@ func (ego *RamCollection) DeleteRecord(rc RecordConf) error {
 
 func (ego *RamCollection) DeleteByFilter(q QueryConf) error {
 	if qq, ok := q.(QueryAndConf); ok && len(qq.Context) == 0 {
-		ego.indexes = make(map[string][]ramCollectionIndexer)
 		ego.rows = make(map[CId][]any)
+		ego.indexes = make(map[string][]ramCollectionIndexer)
+		ego.RegisterIndexes()
 		ego.autoincrement = 1
 		return nil
 	}
