@@ -21,332 +21,6 @@ type ramCollectionIndexer interface {
 	Del(any, CId) error
 }
 
-type primaryIndexer struct {
-	index map[CId][]any
-}
-
-func primaryIndexerCreate(rows map[CId][]any) *primaryIndexer {
-	ego := new(primaryIndexer)
-	ego.index = rows
-
-	return ego
-}
-
-func (ego *primaryIndexer) Get(arg []any) ([]CId, error) {
-	v := arg
-	ret := make([]CId, 0)
-
-	for id, row := range ego.index {
-		found := true
-
-		for j, col := range row {
-			if v[j] == nil {
-				continue
-			}
-
-			if v[j] == col {
-				continue
-			}
-
-			found = false
-			break
-		}
-
-		if found {
-			ret = append(ret, id)
-		}
-	}
-
-	return ret, nil
-}
-
-// func (ego *primaryIndexer) Add(s any, id CId) error {
-// 	val, found := ego.index[id]
-
-// 	if found {
-// 		return errors.NewMisappError(ego, "Row with id already registered")
-// 	}
-
-// 	ego.index[id] = val
-// 	return nil
-// }
-
-// func (ego *primaryIndexer) Del(s any, id CId) error {
-// 	rows, err := ego.Get(s.([]any))
-
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	for _, r := range rows {
-// 		delete(ego.index, r)
-// 	}
-
-// 	return nil
-// }
-
-// FULLMATCH INDEX
-
-type fullmatchIndexer[T comparable] struct {
-	ramCollectionIndexer
-	index map[T][]CId
-}
-
-func fullmatchIndexerNew[T comparable](c FullmatchIndexConf[T]) *fullmatchIndexer[T] {
-	ego := new(fullmatchIndexer[T])
-	ego.index = make(map[T][]CId)
-
-	return ego
-}
-
-func (ego *fullmatchIndexer[T]) Get(v any) ([]CId, error) {
-	s := v.(T)
-	x, found := ego.index[s]
-	if !found {
-		return nil, nil
-	}
-
-	return x, nil
-}
-
-func (ego *fullmatchIndexer[T]) Serialize() gonatus.Conf {
-	return nil
-}
-
-func sliceFind(rows []CId, idx CId) (uint64, bool) {
-	for i, v := range rows {
-		if v == idx {
-			return uint64(i), true
-		}
-	}
-
-	return uint64(MaxUint), false
-}
-
-func sliceAddUnique(slice []CId, cid CId) []CId {
-	if slice == nil {
-		return append(make([]CId, 0), cid)
-	}
-
-	if _, found := sliceFind(slice, cid); found {
-		return slice
-	}
-
-	// extending existing index record by id
-	return append(slice, cid)
-}
-
-func (ego *fullmatchIndexer[T]) Add(v any, id CId) error {
-	val, err := ego.Get(v)
-	s := v.(T)
-
-	if err != nil {
-		return err
-	}
-
-	// extending existing index record by id
-	ego.index[s] = sliceAddUnique(val, id)
-	return nil
-}
-
-func remove(rows []CId, ididx uint64) []CId {
-	return append(rows[:ididx], rows[ididx+1:]...)
-}
-
-func (ego *fullmatchIndexer[T]) Del(v any, id CId) error {
-	s := v.(T)
-	val, _ := ego.Get(v)
-
-	// Can not happen within RamCollection
-	// if err != nil {
-	// 	return err
-	// }
-
-	if val == nil {
-		return errors.NewNotFoundError(ego, errors.LevelWarning, "Index trouble - value not found")
-	}
-
-	idx, found := sliceFind(val, id)
-
-	if !found {
-		return errors.NewNotFoundError(ego, errors.LevelWarning, "Index trouble - row not found within index record")
-	}
-
-	reduced := remove(val, idx)
-
-	if len(reduced) <= 0 {
-		delete(ego.index, s)
-		return nil
-	}
-
-	ego.index[s] = reduced
-	return nil
-}
-
-// Prefix implementation
-type trieNode[E comparable] struct {
-	children map[E]*trieNode[E]
-	cids     []CId
-}
-
-type prefixIndexer[T comparable] struct {
-	ramCollectionIndexer
-	index *trieNode[T] // entry
-}
-
-func prefixIndexerNew[T comparable](c PrefixIndexConf[[]T]) *prefixIndexer[T] {
-	ego := new(prefixIndexer[T])
-
-	ego.index = new(trieNode[T])
-	ego.index.children = make(map[T]*trieNode[T])
-
-	return ego
-}
-
-func (ego *prefixIndexer[T]) accumulateSubtree(n *trieNode[T]) CIdSet {
-	out := make(CIdSet, 0)
-
-	for _, c := range n.cids {
-		out[c] = true
-	}
-
-	for _, c := range n.children {
-		out.Merge(ego.accumulateSubtree(c))
-	}
-
-	return out
-}
-
-func (ego *prefixIndexer[T]) getImpl(n *trieNode[T], accumpath []T) (*trieNode[T], error) {
-	if len(accumpath) <= 0 {
-		return n, nil
-	}
-
-	first := accumpath[0]
-
-	if ch, found := n.children[first]; found {
-		return ego.getImpl(ch, accumpath[1:])
-	}
-
-	return nil, nil
-}
-
-func (ego *prefixIndexer[T]) Get(v any) ([]CId, error) {
-	val := v.([]T)
-
-	node, err := ego.getImpl(ego.index, val)
-	if err != nil {
-		return nil, err
-	}
-
-	if node == nil {
-		// not found
-		return []CId{}, nil
-	}
-
-	idset := ego.accumulateSubtree(node)
-
-	return idset.ToSlice(), nil
-}
-
-func (ego *prefixIndexer[T]) addImpl(n *trieNode[T], accumpath []T, cid CId) {
-
-	if len(accumpath) == 0 {
-		// add id here
-		n.cids = sliceAddUnique(n.cids, cid)
-		return
-	}
-
-	first := accumpath[0]
-
-	if ch, found := n.children[first]; found {
-		ego.addImpl(ch, accumpath[1:], cid)
-		return
-	}
-
-	nnode := new(trieNode[T])
-	nnode.children = make(map[T]*trieNode[T])
-
-	n.children[first] = nnode
-	ego.addImpl(nnode, accumpath[1:], cid)
-}
-
-func (ego *prefixIndexer[T]) checkForString(v any) []rune {
-	vs, ok := v.(string)
-
-	if ok {
-		return []rune(vs)
-	}
-
-	return nil
-}
-
-func (ego *prefixIndexer[T]) Add(v any, id CId) error {
-	val := v.([]T)
-	ego.addImpl(ego.index, val, id)
-	return nil
-}
-
-func (ego *prefixIndexer[T]) delImpl(n *trieNode[T], accumpath []T, id CId) (deleteP bool, err error) {
-	first := accumpath[0]
-
-	if len(accumpath) == 1 {
-		// we are in the leaf
-		// remove id here
-		idx, found := sliceFind(n.cids, id)
-
-		if !found {
-			return false, errors.NewNotFoundError(ego, errors.LevelWarning, "Index trouble - row not found within index record")
-		}
-
-		reduced := remove(n.cids, idx)
-		n.cids = reduced
-
-		if len(reduced) <= 0 && len(n.children) <= 0 {
-			n.cids = nil
-			return true, nil
-		}
-
-		return false, nil
-	}
-
-	if ch, found := n.children[first]; found {
-		toRemove, err := ego.delImpl(ch, accumpath[1:], id)
-		if err != nil {
-			return false, err
-		}
-
-		if toRemove {
-			delete(n.children, first)
-		}
-
-		if len(n.cids) <= 0 && len(n.children) <= 0 {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-func (ego *prefixIndexer[T]) Del(v any, id CId) error {
-	// find from top to bottom, cleanup on going back
-	delP, err := ego.delImpl(ego.index, v.([]T), id)
-	if err != nil {
-		return err
-	}
-	if delP {
-		// index completely removed so reset index for sure?
-		ego.index = new(trieNode[T])
-		ego.index.children = make(map[T]*trieNode[T])
-	}
-
-	return nil
-}
-
-func (ego *prefixIndexer[T]) Serialize() gonatus.Conf {
-	return nil
-}
-
 // RAM COLLECTION IMPL
 type RamCollectionConf struct {
 	SchemaConf
@@ -388,6 +62,8 @@ func NewRamCollection(rc RamCollectionConf) *RamCollection {
 }
 
 func (ego *RamCollection) InterpretField(fc FielderConf) (any, error) {
+	// TODO: need to copy return value <<v.Value>>
+
 	switch v := fc.(type) {
 
 	case FieldConf[[]string]:
@@ -890,90 +566,21 @@ func (ego *RamCollection) getIndex(q QueryAtomConf) ramCollectionIndexer {
 	return nil
 }
 
-func (ego *RamCollection) primaryValue(q QueryAtomConf) []any {
-	anys := make([]any, len(ego.param.SchemaConf.FieldsNaming))
+func (ego *RamCollection) getFieldIndex(q QueryAtomConf) int {
 
 	for i, n := range ego.param.SchemaConf.FieldsNaming {
 		if n == q.Name {
-			anys[i] = q.Value // FIXME: Design hack
-			return anys
+			return i
 		}
 	}
 
+	return -1
+}
+
+func (ego *RamCollection) primaryValue(q QueryAtomConf, index int) []any {
+	anys := make([]any, len(ego.param.SchemaConf.FieldsNaming))
+	anys[index] = q.Value // FIXME: Design hack
 	return anys
-}
-
-func (ego *QueryAtomConf) eval(rc *RamCollection) (CIdSet, error) {
-	indexer := rc.getIndex(*ego)
-
-	if indexer == nil {
-		pi := rc.primaryIndex
-		rows, err := pi.Get(rc.primaryValue(*ego))
-
-		if err != nil {
-			return nil, err
-		}
-
-		return CIdSetFromSlice(rows), nil
-	} else {
-		rows, err := indexer.Get(ego.Value)
-		if err != nil {
-			return nil, err
-		}
-
-		return CIdSetFromSlice(rows), nil
-	}
-}
-
-func (ego *QueryAndConf) eval(rc *RamCollection) (CIdSet, error) {
-	accum := make(CIdSet, 0)
-	ctxlen := len(ego.QueryContextConf.Context)
-
-	if ctxlen == 0 {
-		return rc.allRowsSet(), nil // Returns whole space
-	}
-
-	for i := 0; i < ctxlen; i++ {
-		acc, err := rc.filterQueryEval(QueryConf(ego.QueryContextConf.Context[0]))
-		if i > 0 {
-			accum = accum.Intersect(acc)
-		} else {
-			accum = acc
-		}
-
-		if err != nil {
-			return nil, err
-		}
-		if len(accum) == 0 {
-			return make(CIdSet), nil
-		}
-	}
-
-	return accum, nil
-}
-
-func (ego *QueryOrConf) eval(rc *RamCollection) (CIdSet, error) {
-	accum := make(CIdSet, 0)
-	ctxlen := len(ego.QueryContextConf.Context)
-
-	if ctxlen == 0 {
-		return rc.noRowsSet(), nil // // Returns empty set
-	}
-
-	for i := 0; i < ctxlen; i++ {
-		acc, err := rc.filterQueryEval(QueryConf(ego.QueryContextConf.Context[i]))
-		if err != nil {
-			return nil, err
-		}
-
-		accum.Merge(acc)
-
-		if len(accum) == len(rc.rows) {
-			break
-		}
-	}
-
-	return accum, nil
 }
 
 func (ego *RamCollection) every() CIdSet {
@@ -983,35 +590,6 @@ func (ego *RamCollection) every() CIdSet {
 		result[k] = true
 	}
 	return result
-}
-
-func (ego *QueryImplicationConf) eval(rc *RamCollection) (CIdSet, error) {
-	le, err := rc.filterQueryEval(ego.Left)
-	if err != nil {
-		return nil, err
-	}
-
-	re, rerr := rc.filterQueryEval(ego.Right)
-	if rerr != nil {
-		return nil, rerr
-	}
-
-	if len(le) == 0 {
-		return re, nil
-	}
-
-	// filter out those elements which are on the left hand side and not on right hand side 1 => 0 = 0
-	le.Merge(re)
-
-	rws := rc.every()
-
-	for i := range re {
-		if _, found := le[i]; !found {
-			delete(rws, i)
-		}
-	}
-
-	return rws, nil
 }
 
 func (ego *RamCollection) allRowsSet() CIdSet {
@@ -1050,7 +628,7 @@ func (ego *RamCollection) Rows() map[CId][]any {
 }
 
 func (ego *RamCollection) Inspect() {
-	fmt.Printf("Table Name: %s\n", ego.param.Name)
+	fmt.Printf("\nTable Name: %s\n", ego.param.Name)
 
 	print("ID, ")
 	for _, r := range ego.param.SchemaConf.FieldsNaming {
@@ -1066,6 +644,7 @@ func (ego *RamCollection) Inspect() {
 		}
 		print("\n")
 	}
+	print("\n")
 }
 
 func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[RecordConf], error) {
@@ -1096,7 +675,6 @@ func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[Re
 	sbuf.Pipe(outs)
 
 	go fetchRows()
-
 	return outs, nil
 }
 
