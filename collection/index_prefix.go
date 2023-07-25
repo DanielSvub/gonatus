@@ -95,16 +95,6 @@ func (ego *prefixIndexer[T]) addImpl(n *trieNode[T], accumpath []T, cid CId) {
 	ego.addImpl(nnode, accumpath[1:], cid)
 }
 
-// func (ego *prefixIndexer[T]) checkForString(v any) []rune {
-// 	vs, ok := v.(string)
-
-// 	if ok {
-// 		return []rune(vs)
-// 	}
-
-// 	return nil
-// }
-
 func (ego *prefixIndexer[T]) Add(v any, id CId) error {
 	val := v.([]T)
 	ego.addImpl(ego.index, val, id)
@@ -171,4 +161,31 @@ func (ego *prefixIndexer[T]) Del(v any, id CId) error {
 
 func (ego *prefixIndexer[T]) Serialize() gonatus.Conf {
 	return nil
+}
+
+// STRING PREFIX INDEXER
+type stringPrefixIndexer struct {
+	*prefixIndexer[rune]
+}
+
+func stringPrefixIndexerNew(c PrefixIndexConf[string]) *stringPrefixIndexer {
+	ego := new(stringPrefixIndexer)
+	runePrefixConf := PrefixIndexConf[[]rune]{Name: c.Name}
+	ego.prefixIndexer = prefixIndexerNew[rune](runePrefixConf)
+	return ego
+}
+
+func (ego *stringPrefixIndexer) Get(v any) ([]CId, error) {
+	val := v.(string)
+	return ego.prefixIndexer.Get([]rune(val))
+}
+
+func (ego *stringPrefixIndexer) Add(v any, id CId) error {
+	val := (v.(string))
+	return ego.prefixIndexer.Add([]rune(val), id)
+}
+
+func (ego *stringPrefixIndexer) Del(v any, id CId) error {
+	val := v.(string)
+	return ego.prefixIndexer.Del([]rune(val), id)
 }

@@ -415,6 +415,11 @@ func (ego CIdSet) Intersect(s CIdSet) CIdSet {
 
 func cmpIndexKind(qIdx IndexerConf, iidx ramCollectionIndexer) bool {
 	switch qIdx.(type) {
+	case PrefixIndexConf[string]:
+		_, ok := iidx.(*stringPrefixIndexer)
+		if ok {
+			return true
+		}
 	case PrefixIndexConf[[]string]:
 		_, ok := iidx.(*prefixIndexer[string])
 		if ok {
@@ -686,6 +691,8 @@ func (ego *RamCollection) RegisterIndexes() error {
 	for _, idxcol := range ego.param.Indexes {
 		for _, idx := range idxcol {
 			switch v := idx.(type) {
+			case PrefixIndexConf[string]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], stringPrefixIndexerNew(v))
 			case PrefixIndexConf[[]string]:
 				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[string](v))
 			case PrefixIndexConf[[]int]:
