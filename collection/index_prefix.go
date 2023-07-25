@@ -1,6 +1,8 @@
 package collection
 
 import (
+	"fmt"
+
 	"github.com/SpongeData-cz/gonatus"
 	"github.com/SpongeData-cz/gonatus/errors"
 )
@@ -117,7 +119,8 @@ func (ego *prefixIndexer[T]) delImpl(n *trieNode[T], accumpath []T, id CId) (del
 		idx, found := sliceFind(n.cids, id)
 
 		if !found {
-			return false, errors.NewNotFoundError(ego, errors.LevelWarning, "Index trouble - row not found within index record")
+			msg := fmt.Sprintf("Index trouble - row %d not found within index record", idx)
+			return false, errors.NewNotFoundError(ego, errors.LevelWarning, msg)
 		}
 
 		reduced := remove(n.cids, idx)
@@ -130,6 +133,8 @@ func (ego *prefixIndexer[T]) delImpl(n *trieNode[T], accumpath []T, id CId) (del
 
 		return false, nil
 	}
+
+	first := accumpath[0]
 
 	if ch, found := n.children[first]; found {
 		toRemove, err := ego.delImpl(ch, accumpath[1:], id)

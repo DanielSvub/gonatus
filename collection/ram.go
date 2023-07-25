@@ -288,7 +288,9 @@ func (ego *RamCollection) DeleteRecord(rc RecordConf) error {
 	for i, name := range ego.param.FieldsNaming {
 		if colidx, found := ego.indexes[name]; found {
 			for _, idx := range colidx {
-				idx.Del(record[i], cid)
+				if err := idx.Del(record[i], cid); err != nil {
+					return err
+				}
 			}
 		}
 	}
