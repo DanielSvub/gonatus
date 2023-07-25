@@ -15,6 +15,9 @@ import (
 	"github.com/SpongeData-cz/gonatus/streams"
 )
 
+/*
+Gonatus abstraction of the Golang file descriptor.
+*/
 type localFileDescriptor struct {
 	fd *os.File
 }
@@ -48,6 +51,9 @@ const (
 	fieldModifTime
 )
 
+/*
+Abstraction of the collection record. Simplifies getting of the column values.
+*/
 type record collection.RecordConf
 
 func (ego *record) conf() collection.RecordConf {
@@ -115,6 +121,12 @@ func NewLocalCountedStorage(conf LocalCountedStorageConf) fs.Storage {
 	return fs.NewStorage(ego)
 }
 
+/*
+Creates a record for the root of the FS.
+
+Returns:
+  - error if any occurred.
+*/
 func (ego *localCountedStorageDriver) createRoot() error {
 	ego.fileCount = 1
 	now := time.Now()
@@ -133,15 +145,18 @@ func (ego *localCountedStorageDriver) createRoot() error {
 }
 
 /*
-Acquires an ID of the file on the given path.
+Acquires the record of the file with the given path.
 
 Parameters:
   - path - path to the file.
 
 Returns:
-  - ID of the found file, -1 if the path does not exist.
+  - pointer to the record of the found file, nil if the path does not exist,
+  - error if any occurred.
 */
 func (ego *localCountedStorageDriver) findFile(path fs.Path) (*record, error) {
+
+	// TODO: fullmatch slices
 
 	if stream, err := ego.files.Filter(collection.QueryAtomConf{
 		Name:      "path",
@@ -166,6 +181,16 @@ func (ego *localCountedStorageDriver) findFile(path fs.Path) (*record, error) {
 
 }
 
+/*
+Executes the given function over records of all files in the given path (unlimited recurse).
+
+Parameters:
+  - path - path to process,
+  - fn - function to execute.
+
+Returns:
+  - error if any occurred.
+*/
 func (ego *localCountedStorageDriver) forEach(path fs.Path, fn func(record) error) error {
 	if stream, err := ego.files.Filter(collection.QueryAtomConf{
 		Name:      "path",
@@ -207,11 +232,11 @@ func (ego *localCountedStorageDriver) newLocation() (location string, err error)
 }
 
 /*
-Crates an entries in the file table and content table.
+Crates an entry in the file table.
 
 Parameters:
   - path - path to the file,
-  - location - a physical location of the file on the disk,
+  - location - a physical location of the file on the disk (if the file has content, empty otherwise),
   - givenFlags - flags entered in FileConf,
   - origTime - time when the file was originally created.
 
@@ -279,6 +304,15 @@ func (ego *localCountedStorageDriver) deleteFile(path fs.Path) error {
 
 }
 
+/*
+Creates a new file from a record.
+
+Parameters:
+  - rec - file table record.
+
+Returns:
+  - file.
+*/
 func (ego *localCountedStorageDriver) newFile(rec record) fs.File {
 	return fs.NewFile(fs.FileConf{
 		Path:      rec.path(),
@@ -293,7 +327,7 @@ Sets a new parent to a file.
 
 Parameters:
   - source - path to the file,
-  - dest - path where the file should be moved.
+  - dest - path where the file should be moved (new parent).
 
 Returns:
   - error if any occurred.
@@ -367,26 +401,30 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 		return errors.NewNotFoundError(ego, errors.LevelError, `The file "`+source.Base()+`" does not exist.`)
 	}
 
+	// Opening the old file
 	srcFd, err := ego.Open(source, fs.ModeRead, rec.flags(), rec.origTime())
 	if err != nil {
 		return err
 	}
 	defer ego.Close(source)
 
+	// Creating a new location
 	newLocation, err := ego.newLocation()
 	if err != nil {
 		return err
 	}
 
+	// Opening the new file
 	dstFd, err := os.OpenFile(newLocation, os.O_WRONLY|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		return err
 	}
-
 	defer dstFd.Close()
 
+	// Copying the data
 	dstFd.ReadFrom(srcFd)
 
+	// Function creating the file
 	create := func(content bool, path fs.Path, parent collection.CId, id collection.CId, location string) error {
 		ego.files.AddRecord(collection.RecordConf{
 			Id: id,
@@ -405,6 +443,7 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 	ego.fileCount++
 	newId := ego.fileCount
 
+	// Recursive call for each descendant
 	ego.forEach(source, func(r record) error {
 		if rec.Id != r.Id {
 			if err := ego.copyFile(r.path(), newId, dest); err != nil {
@@ -414,14 +453,16 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 		return nil
 	})
 
-	if pid, err := ego.createDir(dest.Dir(), rec.origTime()); err != nil {
-		return err
-	} else {
-		if parent == 0 {
+	// Creating the parent directory (necessary only in on the highest level)
+	if parent == 0 {
+		if pid, err := ego.createDir(dest.Dir(), rec.origTime()); err != nil {
+			return err
+		} else {
 			parent = pid
 		}
-		return create(rec.flags()&fs.FileContent > 0, dest, parent, newId, rec.location())
 	}
+
+	return create(rec.flags()&fs.FileContent > 0, dest, parent, newId, rec.location())
 
 }
 
@@ -430,7 +471,7 @@ Exports files to a stream.
 
 Parameters:
   - path - where to begin the export,
-  - depth - how many levels under the file specified with path to export (0 for unlimited depth, 1 for LS).
+  - depth - how many levels under the file specified by path to export (0 for only the file itself, 1 for LS).
 
 Returns:
   - the readable stream with result,
@@ -450,6 +491,8 @@ func (ego *localCountedStorageDriver) exportToStream(path fs.Path, depth fs.Dept
 	outputStream := streams.NewReadableOutputStream[fs.File]()
 	inputStream.Pipe(outputStream)
 
+	// Parallelly write files satisfying the depth restriction to output pipe
+	// TODO: naive and uneffective
 	go func() {
 		ego.forEach(path, func(rec record) error {
 			if fs.Depth(len(rec.path())-pathLen) <= depth {
@@ -608,19 +651,14 @@ func (ego *localCountedStorageDriver) MkDir(path fs.Path, origTime time.Time) er
 }
 
 func (ego *localCountedStorageDriver) Copy(srcPath fs.Path, dstPath fs.Path) error {
-	if err := ego.copyFile(srcPath, 0, dstPath); err != nil {
-		return err
-	}
-	return nil
+	return ego.copyFile(srcPath, 0, dstPath)
 }
 
 func (ego *localCountedStorageDriver) Move(srcPath fs.Path, dstPath fs.Path) error {
-	if !srcPath.Equals(dstPath) {
-		if err := ego.moveFile(srcPath, dstPath); err != nil {
-			return err
-		}
+	if srcPath.Equals(dstPath) {
+		errors.NewStateError(ego, errors.LevelWarning, "The source and destination paths are equal.")
 	}
-	return nil
+	return ego.moveFile(srcPath, dstPath)
 }
 
 func (ego *localCountedStorageDriver) Delete(path fs.Path) error {
@@ -676,6 +714,10 @@ func (ego *localCountedStorageDriver) Clear() error {
 	}
 	ego.createRoot()
 	ego.locationCount = 0
+	for _, fd := range ego.openFiles {
+		fd.Close()
+	}
+	ego.openFiles = make(map[collection.CId]*os.File)
 	return os.RemoveAll(ego.prefix)
 }
 
