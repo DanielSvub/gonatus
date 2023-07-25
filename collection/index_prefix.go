@@ -110,9 +110,8 @@ func (ego *prefixIndexer[T]) Add(v any, id CId) error {
 }
 
 func (ego *prefixIndexer[T]) delImpl(n *trieNode[T], accumpath []T, id CId) (deleteP bool, err error) {
-	first := accumpath[0]
 
-	if len(accumpath) == 1 {
+	if len(accumpath) == 0 {
 		// we are in the leaf
 		// remove id here
 		idx, found := sliceFind(n.cids, id)
