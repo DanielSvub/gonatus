@@ -421,68 +421,68 @@ func cmpIndexKind(qIdx IndexerConf, iidx ramCollectionIndexer) bool {
 			return true
 		}
 	case PrefixIndexConf[[]string]:
-		_, ok := iidx.(*prefixIndexer[string])
-		if ok {
+		indexer, ok := iidx.(*prefixIndexer[string])
+		if ok && !indexer.ignoreChildren {
 			return true
 		}
 	case PrefixIndexConf[[]int]:
-		_, ok := iidx.(*prefixIndexer[int])
-		if ok {
+		indexer, ok := iidx.(*prefixIndexer[int])
+		if ok && !indexer.ignoreChildren {
 			return true
 		}
 	case PrefixIndexConf[[]int8]:
-		_, ok := iidx.(*prefixIndexer[int8])
-		if ok {
+		indexer, ok := iidx.(*prefixIndexer[int8])
+		if ok && !indexer.ignoreChildren {
 			return true
 		}
 	case PrefixIndexConf[[]int16]:
-		_, ok := iidx.(*prefixIndexer[int16])
-		if ok {
+		indexer, ok := iidx.(*prefixIndexer[int16])
+		if ok && !indexer.ignoreChildren {
 			return true
 		}
 	case PrefixIndexConf[[]int32]:
-		_, ok := iidx.(*prefixIndexer[int32])
-		if ok {
+		indexer, ok := iidx.(*prefixIndexer[int32])
+		if ok && !indexer.ignoreChildren {
 			return true
 		}
 	case PrefixIndexConf[[]int64]:
-		_, ok := iidx.(*prefixIndexer[int64])
-		if ok {
+		indexer, ok := iidx.(*prefixIndexer[int64])
+		if ok && !indexer.ignoreChildren {
 			return true
 		}
 	case PrefixIndexConf[[]uint]:
-		_, ok := iidx.(*prefixIndexer[uint])
-		if ok {
+		indexer, ok := iidx.(*prefixIndexer[uint])
+		if ok && !indexer.ignoreChildren {
 			return true
 		}
 	case PrefixIndexConf[[]uint8]:
-		_, ok := iidx.(*prefixIndexer[uint8])
-		if ok {
+		indexer, ok := iidx.(*prefixIndexer[uint8])
+		if ok && !indexer.ignoreChildren {
 			return true
 		}
 	case PrefixIndexConf[[]uint16]:
-		_, ok := iidx.(*prefixIndexer[uint16])
-		if ok {
+		indexer, ok := iidx.(*prefixIndexer[uint16])
+		if ok && !indexer.ignoreChildren {
 			return true
 		}
 	case PrefixIndexConf[[]uint32]:
-		_, ok := iidx.(*prefixIndexer[uint32])
-		if ok {
+		indexer, ok := iidx.(*prefixIndexer[uint32])
+		if ok && !indexer.ignoreChildren {
 			return true
 		}
 	case PrefixIndexConf[[]uint64]:
-		_, ok := iidx.(*prefixIndexer[uint64])
-		if ok {
+		indexer, ok := iidx.(*prefixIndexer[uint64])
+		if ok && !indexer.ignoreChildren {
 			return true
 		}
 	case PrefixIndexConf[[]float32]:
-		_, ok := iidx.(*prefixIndexer[float32])
-		if ok {
+		indexer, ok := iidx.(*prefixIndexer[float32])
+		if ok && !indexer.ignoreChildren {
 			return true
 		}
 	case PrefixIndexConf[[]float64]:
-		_, ok := iidx.(*prefixIndexer[float64])
-		if ok {
+		indexer, ok := iidx.(*prefixIndexer[float64])
+		if ok && !indexer.ignoreChildren {
 			return true
 		}
 	case FullmatchIndexConf[string]:
