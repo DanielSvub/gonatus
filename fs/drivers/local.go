@@ -84,6 +84,8 @@ func (ego *record) modifTime() time.Time {
 	return ego.Cols[fieldModifTime].(collection.FieldConf[time.Time]).Value
 }
 
+const rootId collection.CId = 1
+
 type LocalCountedStorageConf struct {
 	Prefix string
 }
@@ -131,10 +133,10 @@ Returns:
   - error if any occurred.
 */
 func (ego *localCountedStorageDriver) createRoot() error {
-	ego.fileCount = 1
+	ego.fileCount++
 	now := time.Now()
 	_, err := ego.files.AddRecord(collection.RecordConf{
-		Id: 1,
+		Id: rootId,
 		Cols: []collection.FielderConf{
 			collection.FieldConf[uint64]{Value: 0},
 			collection.FieldConf[[]string]{Value: []string{}},
@@ -257,8 +259,9 @@ func (ego *localCountedStorageDriver) createFile(path fs.Path, location string, 
 	}
 
 	ego.fileCount++
+	id = collection.CId(ego.fileCount)
 	ego.files.AddRecord(collection.RecordConf{
-		Id: collection.CId(ego.fileCount),
+		Id: id,
 		Cols: []collection.FielderConf{
 			collection.FieldConf[uint64]{Value: uint64(parent.Id)},
 			collection.FieldConf[[]string]{Value: []string(path)},
@@ -274,7 +277,37 @@ func (ego *localCountedStorageDriver) createFile(path fs.Path, location string, 
 }
 
 /*
-Deletes a file.
+Creates a directory (a file with topology).
+If the file already exists, just adds the topology flag, otherwise creates a new one.
+
+Parameters:
+  - path - path to the file,
+  - origTime - time when the file was originally created.
+*/
+func (ego *localCountedStorageDriver) createDir(path fs.Path, origTime time.Time) (collection.CId, error) {
+
+	rec, err := ego.findFile(path)
+	if err != nil {
+		return 0, err
+	}
+
+	if rec != nil {
+		if rec.flags()&fs.FileTopology == 0 {
+			return rec.Id, ego.files.EditRecord(rec.conf(), fieldFlags, rec.flags()|fs.FileTopology)
+		}
+		return rec.Id, nil
+	}
+
+	if _, err := ego.createDir(path.Dir(), origTime); err != nil {
+		return 0, err
+	}
+	id, err := ego.createFile(path, "", fs.FileTopology, origTime)
+	return id, err
+
+}
+
+/*
+Deletes a file (with all its descendants and their contents).
 
 Parameters:
   - path - path to the file.
@@ -324,10 +357,11 @@ func (ego *localCountedStorageDriver) newFile(rec record) fs.File {
 
 /*
 Sets a new parent to a file.
+Deletes the old file table record and creates a new one.
 
 Parameters:
   - source - path to the file,
-  - dest - path where the file should be moved (new parent).
+  - dest - path where the file should be moved (including the filename).
 
 Returns:
   - error if any occurred.
@@ -350,14 +384,14 @@ func (ego *localCountedStorageDriver) moveFile(source fs.Path, dest fs.Path) err
 		}); err != nil {
 			return err
 		}
-		newParent, err := ego.findFile(dest.Dir())
+		parentId, err := ego.createDir(dest.Dir(), time.Now())
 		if err != nil {
 			return err
 		}
 		if _, err := ego.files.AddRecord(collection.RecordConf{
 			Id: rec.Id,
 			Cols: []collection.FielderConf{
-				collection.FieldConf[uint64]{Value: uint64(newParent.Id)},
+				collection.FieldConf[uint64]{Value: uint64(parentId)},
 				collection.FieldConf[[]string]{Value: []string(dest)},
 				collection.FieldConf[uint8]{Value: uint8(rec.flags())},
 				collection.FieldConf[string]{Value: rec.location()},
@@ -375,11 +409,12 @@ func (ego *localCountedStorageDriver) moveFile(source fs.Path, dest fs.Path) err
 
 /*
 Creates a recursive copy of a file.
+Opens both files, copies the data, creates a new file table record and recursively calls the method for the children of the file.
 
 Parameters:
   - source - path to the file,
   - parent - ID of the parent file,
-  - dest - path where the file should be moved.
+  - dest - path where the file should be copied (including the filename).
 
 Returns:
   - error if any occurred.
@@ -424,7 +459,7 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 	// Copying the data
 	dstFd.ReadFrom(srcFd)
 
-	// Function creating the file
+	// A function for file creation
 	create := func(content bool, path fs.Path, parent collection.CId, id collection.CId, location string) error {
 		ego.files.AddRecord(collection.RecordConf{
 			Id: id,
@@ -440,19 +475,6 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 		return nil
 	}
 
-	ego.fileCount++
-	newId := ego.fileCount
-
-	// Recursive call for each descendant
-	ego.forEach(source, func(r record) error {
-		if rec.Id != r.Id {
-			if err := ego.copyFile(r.path(), newId, dest); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-
 	// Creating the parent directory (necessary only in on the highest level)
 	if parent == 0 {
 		if pid, err := ego.createDir(dest.Dir(), rec.origTime()); err != nil {
@@ -462,12 +484,28 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 		}
 	}
 
+	ego.fileCount++
+	newId := ego.fileCount
+
+	// Recursive call for each descendant
+	// TODO: uneffective
+	ego.forEach(source, func(r record) error {
+		if r.parent() == rec.Id {
+			name := fs.Path{r.path().Base()}
+			if err := ego.copyFile(r.path(), newId, dest.Join(name)); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
 	return create(rec.flags()&fs.FileContent > 0, dest, parent, newId, rec.location())
 
 }
 
 /*
 Exports files to a stream.
+Iterates over all records in the file table and creates a file from each of those that satisfy the depth constraint.
 
 Parameters:
   - path - where to begin the export,
@@ -491,7 +529,7 @@ func (ego *localCountedStorageDriver) exportToStream(path fs.Path, depth fs.Dept
 	outputStream := streams.NewReadableOutputStream[fs.File]()
 	inputStream.Pipe(outputStream)
 
-	// Parallelly write files satisfying the depth restriction to output pipe
+	// Parallelly write files satisfying the depth constraint to output pipe
 	// TODO: naive and uneffective
 	go func() {
 		ego.forEach(path, func(rec record) error {
@@ -509,6 +547,7 @@ func (ego *localCountedStorageDriver) exportToStream(path fs.Path, depth fs.Dept
 
 /*
 Closes a file.
+Invokes closing of file descriptor, deletes the it from opened files and refreshes the modification time in the file table.
 
 Parameters:
   - path - path to the file.
@@ -623,28 +662,6 @@ func (ego *localCountedStorageDriver) Close(path fs.Path) error {
 	return ego.closeFile(path)
 }
 
-func (ego *localCountedStorageDriver) createDir(path fs.Path, origTime time.Time) (collection.CId, error) {
-
-	rec, err := ego.findFile(path)
-	if err != nil {
-		return 0, err
-	}
-
-	if rec != nil {
-		if rec.flags()&fs.FileTopology == 0 {
-			return rec.Id, ego.files.EditRecord(rec.conf(), fieldFlags, rec.flags()|fs.FileTopology)
-		}
-		return rec.Id, nil
-	}
-
-	if _, err := ego.createDir(path.Dir(), origTime); err != nil {
-		return 0, err
-	}
-	id, err := ego.createFile(path, "", fs.FileTopology, origTime)
-	return id, err
-
-}
-
 func (ego *localCountedStorageDriver) MkDir(path fs.Path, origTime time.Time) error {
 	_, err := ego.createDir(path, origTime)
 	return err
@@ -670,11 +687,14 @@ func (ego *localCountedStorageDriver) Tree(path fs.Path, depth fs.Depth) (stream
 }
 
 func (ego *localCountedStorageDriver) Size(path fs.Path) (uint64, error) {
+
 	var fd *os.File
+
 	rec, err := ego.findFile(path)
 	if err != nil {
 		return 0, err
 	}
+
 	if ofd, ok := ego.openFiles[rec.Id]; !ok {
 		descriptor, err := ego.Open(path, fs.ModeRead, fs.FileUndetermined, *new(time.Time))
 		if err != nil {
@@ -685,18 +705,19 @@ func (ego *localCountedStorageDriver) Size(path fs.Path) (uint64, error) {
 	} else {
 		fd = ofd
 	}
+
 	stat, err := fd.Stat()
 	if err != nil {
 		return 0, err
 	}
+
 	return uint64(stat.Size()), nil
+
 }
 
 func (ego *localCountedStorageDriver) Flags(path fs.Path) (fs.FileFlags, error) {
-	if rec, err := ego.findFile(path); err != nil {
+	if rec, err := ego.findFile(path); err != nil || rec == nil {
 		return fs.FileUndetermined, err
-	} else if rec == nil {
-		return fs.FileUndetermined, nil
 	} else {
 		return rec.flags(), nil
 	}
@@ -707,18 +728,23 @@ func (ego *localCountedStorageDriver) Commit() error {
 }
 
 func (ego *localCountedStorageDriver) Clear() error {
+
 	if err := ego.files.DeleteByFilter(collection.QueryAndConf{
 		QueryContextConf: collection.QueryContextConf{Context: []collection.QueryConf{}},
 	}); err != nil {
 		return err
 	}
-	ego.createRoot()
-	ego.locationCount = 0
+
 	for _, fd := range ego.openFiles {
 		fd.Close()
 	}
 	ego.openFiles = make(map[collection.CId]*os.File)
+
+	ego.createRoot()
+	ego.locationCount = 0
+
 	return os.RemoveAll(ego.prefix)
+
 }
 
 func (ego *localCountedStorageDriver) Features() fs.StorageFeatures {
