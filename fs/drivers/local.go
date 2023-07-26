@@ -113,7 +113,10 @@ func NewLocalCountedStorage(conf LocalCountedStorageConf) fs.Storage {
 				collection.FieldConf[time.Time]{},
 				collection.FieldConf[time.Time]{},
 			},
-			Indexes: [][]collection.IndexerConf{{collection.PrefixIndexConf[[]string]{Name: "path"}}},
+			Indexes: [][]collection.IndexerConf{{
+				collection.PrefixIndexConf[[]string]{Name: "path"},
+				collection.FullmatchIndexConf[[]string]{Name: "path"},
+			}},
 		},
 	})
 	ego.openFiles = make(map[collection.CId]*os.File)
@@ -156,28 +159,25 @@ Returns:
 */
 func (ego *localCountedStorageDriver) findFile(path fs.Path) (*record, error) {
 
-	// TODO: fullmatch slices
-
 	if stream, err := ego.files.Filter(collection.QueryAtomConf{
 		Name:      "path",
 		Value:     []string(path),
-		MatchType: collection.PrefixIndexConf[[]string]{},
+		MatchType: collection.FullmatchIndexConf[[]string]{},
 	}); err != nil {
 		return nil, err
 	} else {
-		if s, err := stream.Collect(); err != nil {
+		s := make([]collection.RecordConf, 1)
+		if n, err := stream.Read(s); err != nil {
 			return nil, err
-		} else if len(s) >= 1 {
-			for _, i := range s {
-				rec := record(i)
-				if rec.path().Equals(path) {
-					return &rec, nil
-				}
-			}
+		} else if n == 0 {
+			return nil, nil
+		} else if stream.Closed() {
+			rec := record(s[0])
+			return &rec, nil
+		} else {
+			return nil, errors.NewStateError(ego, errors.LevelError, "Multiple records found for a single path.")
 		}
 	}
-
-	return nil, nil
 
 }
 
