@@ -15,7 +15,8 @@ type trieNode[E comparable] struct {
 
 type prefixIndexer[T comparable] struct {
 	ramCollectionIndexer
-	index *trieNode[T] // entry
+	index          *trieNode[T] // entry
+	ignoreChildren bool
 }
 
 func prefixIndexerNew[T comparable](c PrefixIndexConf[[]T]) *prefixIndexer[T] {
@@ -27,6 +28,16 @@ func prefixIndexerNew[T comparable](c PrefixIndexConf[[]T]) *prefixIndexer[T] {
 	return ego
 }
 
+func prefixIndexerNewIgnore[T comparable](c FullmatchIndexConf[[]T]) *prefixIndexer[T] {
+	ego := new(prefixIndexer[T])
+
+	ego.index = new(trieNode[T])
+	ego.index.children = make(map[T]*trieNode[T])
+	ego.ignoreChildren = true
+
+	return ego
+}
+
 func (ego *prefixIndexer[T]) accumulateSubtree(n *trieNode[T]) CIdSet {
 	out := make(CIdSet, 0)
 
@@ -34,8 +45,10 @@ func (ego *prefixIndexer[T]) accumulateSubtree(n *trieNode[T]) CIdSet {
 		out[c] = true
 	}
 
-	for _, c := range n.children {
-		out.Merge(ego.accumulateSubtree(c))
+	if !ego.ignoreChildren {
+		for _, c := range n.children {
+			out.Merge(ego.accumulateSubtree(c))
+		}
 	}
 
 	return out

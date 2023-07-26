@@ -555,6 +555,71 @@ func cmpIndexKind(qIdx IndexerConf, iidx ramCollectionIndexer) bool {
 		if ok {
 			return true
 		}
+	case FullmatchIndexConf[[]string]:
+		indexer, ok := iidx.(*prefixIndexer[string])
+		if ok && indexer.ignoreChildren {
+			return true
+		}
+	case FullmatchIndexConf[[]int]:
+		indexer, ok := iidx.(*prefixIndexer[int])
+		if ok && indexer.ignoreChildren {
+			return true
+		}
+	case FullmatchIndexConf[[]int8]:
+		indexer, ok := iidx.(*prefixIndexer[int8])
+		if ok && indexer.ignoreChildren {
+			return true
+		}
+	case FullmatchIndexConf[[]int16]:
+		indexer, ok := iidx.(*prefixIndexer[int16])
+		if ok && indexer.ignoreChildren {
+			return true
+		}
+	case FullmatchIndexConf[[]int32]:
+		indexer, ok := iidx.(*prefixIndexer[int32])
+		if ok && indexer.ignoreChildren {
+			return true
+		}
+	case FullmatchIndexConf[[]int64]:
+		indexer, ok := iidx.(*prefixIndexer[int64])
+		if ok && indexer.ignoreChildren {
+			return true
+		}
+	case FullmatchIndexConf[[]uint]:
+		indexer, ok := iidx.(*prefixIndexer[uint])
+		if ok && indexer.ignoreChildren {
+			return true
+		}
+	case FullmatchIndexConf[[]uint8]:
+		indexer, ok := iidx.(*prefixIndexer[uint8])
+		if ok && indexer.ignoreChildren {
+			return true
+		}
+	case FullmatchIndexConf[[]uint16]:
+		indexer, ok := iidx.(*prefixIndexer[uint16])
+		if ok && indexer.ignoreChildren {
+			return true
+		}
+	case FullmatchIndexConf[[]uint32]:
+		indexer, ok := iidx.(*prefixIndexer[uint32])
+		if ok && indexer.ignoreChildren {
+			return true
+		}
+	case FullmatchIndexConf[[]uint64]:
+		indexer, ok := iidx.(*prefixIndexer[uint64])
+		if ok && indexer.ignoreChildren {
+			return true
+		}
+	case FullmatchIndexConf[[]float32]:
+		indexer, ok := iidx.(*prefixIndexer[float32])
+		if ok && indexer.ignoreChildren {
+			return true
+		}
+	case FullmatchIndexConf[[]float64]:
+		indexer, ok := iidx.(*prefixIndexer[float64])
+		if ok && indexer.ignoreChildren {
+			return true
+		}
 	}
 	return false
 }
@@ -747,6 +812,32 @@ func (ego *RamCollection) RegisterIndexes() error {
 				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[float64](v))
 			case FullmatchIndexConf[time.Time]:
 				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[time.Time](v))
+			case FullmatchIndexConf[[]string]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[string](v))
+			case FullmatchIndexConf[[]int]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[int](v))
+			case FullmatchIndexConf[[]int8]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[int8](v))
+			case FullmatchIndexConf[[]int16]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[int16](v))
+			case FullmatchIndexConf[[]int32]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[int32](v))
+			case FullmatchIndexConf[[]int64]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[int64](v))
+			case FullmatchIndexConf[[]uint]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[uint](v))
+			case FullmatchIndexConf[[]uint8]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[uint8](v))
+			case FullmatchIndexConf[[]uint16]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[uint16](v))
+			case FullmatchIndexConf[[]uint32]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[uint32](v))
+			case FullmatchIndexConf[[]uint64]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[uint64](v))
+			case FullmatchIndexConf[[]float32]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[float32](v))
+			case FullmatchIndexConf[[]float64]:
+				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[float64](v))
 			default:
 				return errors.NewNotImplError(ego)
 			}
