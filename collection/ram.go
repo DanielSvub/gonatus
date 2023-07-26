@@ -2,6 +2,7 @@ package collection
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/SpongeData-cz/gonatus"
@@ -34,6 +35,7 @@ type RamCollection struct {
 	rows          map[CId][]any
 	indexes       map[string][]ramCollectionIndexer // FIXME: make array of indexes for fields not one index as max
 	primaryIndex  *primaryIndexer
+	mutex         *sync.RWMutex
 }
 
 func NewRamCollection(rc RamCollectionConf) *RamCollection {
@@ -51,6 +53,7 @@ func NewRamCollection(rc RamCollectionConf) *RamCollection {
 	}
 
 	ego.param = rc
+	ego.mutex = new(sync.RWMutex)
 	ego.rows = make(map[CId][]any, 0)
 	ego.indexes = make(map[string][]ramCollectionIndexer, 0)
 	// TODO: implement id index as default one ego.indexes["id"] = idIndexerNew() // must be present in every collection
@@ -222,6 +225,9 @@ func (ego *RamCollection) DeinterpretRecord(r []any) (RecordConf, error) {
 }
 
 func (ego *RamCollection) AddRecord(rc RecordConf) (CId, error) {
+	ego.mutex.Lock()
+	defer ego.mutex.Unlock()
+
 	cid := rc.Id
 	if !cid.ValidP() {
 		// need to generate a new one
@@ -278,6 +284,9 @@ func (ego *RamCollection) DeleteRecord(rc RecordConf) error {
 		return errors.NewMisappError(ego, "Invalid Id field in record.")
 	}
 
+	ego.mutex.Lock()
+	defer ego.mutex.Unlock()
+
 	record, found := ego.rows[cid]
 
 	if !found {
@@ -301,6 +310,9 @@ func (ego *RamCollection) DeleteRecord(rc RecordConf) error {
 }
 
 func (ego *RamCollection) DeleteByFilter(q QueryConf) error {
+	ego.mutex.Lock()
+	defer ego.mutex.Unlock()
+
 	if qq, ok := q.(QueryAndConf); ok && len(qq.Context) == 0 {
 		ego.rows = make(map[CId][]any)
 		ego.indexes = make(map[string][]ramCollectionIndexer)
@@ -330,6 +342,9 @@ func (ego *RamCollection) EditRecord(rc RecordConf, col int, newValue any) error
 	if !cid.ValidP() {
 		return errors.NewMisappError(ego, "Invalid Id field in record.")
 	}
+
+	ego.mutex.Lock()
+	defer ego.mutex.Unlock()
 
 	record, found := ego.rows[cid]
 
@@ -720,6 +735,8 @@ func (ego *RamCollection) Inspect() {
 }
 
 func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[RecordConf], error) {
+	ego.mutex.RLock()
+
 	ret, err := ego.filterQueryEval(q)
 
 	if err != nil {
@@ -729,6 +746,7 @@ func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[Re
 	sbuf := streams.NewBufferInputStream[RecordConf](100)
 
 	fetchRows := func() {
+		defer ego.mutex.RUnlock()
 		for i := range ret {
 			rec, err := ego.DeinterpretRecord(ego.rows[i])
 			rec.Id = i
