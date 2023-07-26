@@ -118,6 +118,7 @@ func NewLocalCountedStorage(conf LocalCountedStorageConf) fs.Storage {
 			Indexes: [][]collection.IndexerConf{{
 				collection.PrefixIndexConf[[]string]{Name: "path"},
 				collection.FullmatchIndexConf[[]string]{Name: "path"},
+				collection.FullmatchIndexConf[uint64]{Name: "parent"},
 			}},
 		},
 	})
@@ -183,6 +184,21 @@ func (ego *localCountedStorageDriver) findFile(path fs.Path) (*record, error) {
 
 }
 
+func (ego *localCountedStorageDriver) forEach(stream streams.ReadableOutputStreamer[collection.RecordConf], fn func(record) error) error {
+	for !stream.Closed() {
+		s := make([]collection.RecordConf, 1)
+		if n, err := stream.Read(s); err != nil {
+			return err
+		} else if n != 1 {
+			return nil
+		}
+		if err := fn(record(s[0])); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 /*
 Executes the given function over records of all files in the given path (unlimited recurse).
 
@@ -193,27 +209,28 @@ Parameters:
 Returns:
   - error if any occurred.
 */
-func (ego *localCountedStorageDriver) forEach(path fs.Path, fn func(record) error) error {
+func (ego *localCountedStorageDriver) forFilesWithPrefix(prefix fs.Path, fn func(record) error) error {
 	if stream, err := ego.files.Filter(collection.QueryAtomConf{
 		Name:      "path",
-		Value:     []string(path),
+		Value:     []string(prefix),
 		MatchType: collection.PrefixIndexConf[[]string]{},
 	}); err != nil {
 		return err
 	} else {
-		for !stream.Closed() {
-			s := make([]collection.RecordConf, 1)
-			if n, err := stream.Read(s); err != nil {
-				return err
-			} else if n != 1 {
-				return nil
-			}
-			if err := fn(record(s[0])); err != nil {
-				return err
-			}
-		}
+		return ego.forEach(stream, fn)
 	}
-	return nil
+}
+
+func (ego *localCountedStorageDriver) forFilesWithParent(parent collection.CId, fn func(record) error) error {
+	if stream, err := ego.files.Filter(collection.QueryAtomConf{
+		Name:      "parent",
+		Value:     uint64(parent),
+		MatchType: collection.FullmatchIndexConf[uint64]{},
+	}); err != nil {
+		return err
+	} else {
+		return ego.forEach(stream, fn)
+	}
 }
 
 /*
@@ -317,7 +334,7 @@ Returns:
 */
 func (ego *localCountedStorageDriver) deleteFile(path fs.Path) error {
 
-	return ego.forEach(path, func(rec record) error {
+	return ego.forFilesWithPrefix(path, func(rec record) error {
 
 		if err := ego.files.DeleteRecord(collection.RecordConf{
 			Id: rec.Id,
@@ -489,14 +506,8 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 
 	// Recursive call for each descendant
 	// TODO: uneffective
-	ego.forEach(source, func(r record) error {
-		if r.parent() == rec.Id {
-			name := fs.Path{r.path().Base()}
-			if err := ego.copyFile(r.path(), newId, dest.Join(name)); err != nil {
-				return err
-			}
-		}
-		return nil
+	ego.forFilesWithParent(rec.Id, func(r record) error {
+		return ego.copyFile(r.path(), newId, dest.Join(fs.Path{r.path().Base()}))
 	})
 
 	return create(rec.flags()&fs.FileContent > 0, dest, parent, newId, rec.location())
@@ -532,7 +543,7 @@ func (ego *localCountedStorageDriver) exportToStream(path fs.Path, depth fs.Dept
 	// Parallelly write files satisfying the depth constraint to output pipe
 	// TODO: naive and uneffective
 	go func() {
-		ego.forEach(path, func(rec record) error {
+		ego.forFilesWithPrefix(path, func(rec record) error {
 			if fs.Depth(len(rec.path())-pathLen) <= depth {
 				inputStream.Write(ego.newFile(rec))
 			}
