@@ -184,6 +184,16 @@ func (ego *localCountedStorageDriver) findFile(path fs.Path) (*record, error) {
 
 }
 
+/*
+Executes the given function over records in the given stream.
+
+Parameters:
+  - stream - stream to process,
+  - fn - function to execute.
+
+Returns:
+  - error if any occurred.
+*/
 func (ego *localCountedStorageDriver) forEach(stream streams.ReadableOutputStreamer[collection.RecordConf], fn func(record) error) error {
 	for !stream.Closed() {
 		s := make([]collection.RecordConf, 1)
@@ -203,7 +213,7 @@ func (ego *localCountedStorageDriver) forEach(stream streams.ReadableOutputStrea
 Executes the given function over records of all files in the given path (unlimited recurse).
 
 Parameters:
-  - path - path to process,
+  - prefix - path prefix to process,
   - fn - function to execute.
 
 Returns:
@@ -221,6 +231,16 @@ func (ego *localCountedStorageDriver) forFilesWithPrefix(prefix fs.Path, fn func
 	}
 }
 
+/*
+Executes the given function over records of all files with the given parent (children of the given file).
+
+Parameters:
+  - parent - ID of the parent file,
+  - fn - function to execute.
+
+Returns:
+  - error if any occurred.
+*/
 func (ego *localCountedStorageDriver) forFilesWithParent(parent collection.CId, fn func(record) error) error {
 	if stream, err := ego.files.Filter(collection.QueryAtomConf{
 		Name:      "parent",
