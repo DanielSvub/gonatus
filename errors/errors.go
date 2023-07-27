@@ -57,7 +57,7 @@ func serializeSource(object gonatus.Gobjecter) (msg string) {
 		confName := reflect.TypeOf(conf).Name()
 		className := confName[:len(confName)-len(confSuffix)]
 		if json, err := json.Marshal(conf); err == nil {
-			msg = className + string(json) + ": "
+			msg = className + string(json)
 		}
 	}
 	return
@@ -93,21 +93,25 @@ Parameters:
 Returns:
   - created error.
 */
-func New(errType ErrorType, level ErrorLevel, msg string) error {
+func New(conf ErrorConf) error {
 
-	fullMsg := string(errType)
-	if len(msg) > 0 {
-		fullMsg += ": " + msg
+	fullMsg := string(conf.ErrType)
+	if len(conf.Msg) > 0 {
+		fullMsg += ": " + conf.Msg
 	}
 
 	ego := gonatusError{
-		errType: errType,
+		errType: conf.ErrType,
 		msg:     fullMsg,
-		level:   level,
+		level:   conf.Level,
 	}
 
-	if level <= thresholdLevel {
+	if conf.Level <= thresholdLevel {
 		ego.createTraceback()
+	}
+
+	if conf.Wrapped != nil && len(conf.Wrapped) > 0 {
+		ego.wrapped = New(conf.Wrapped[0])
 	}
 
 	return ego
@@ -236,6 +240,41 @@ func Traceback(err error) string {
 	return "No traceback."
 }
 
+func Serialize(err error) gonatus.Conf {
+
+	gonatusErr, ok := err.(gonatusError)
+
+	if ok {
+
+		var wrapped []ErrorConf
+
+		if gonatusErr.wrapped != nil {
+			conf := Serialize(gonatusErr.wrapped)
+			if conf != nil {
+				wrapped = []ErrorConf{conf.(ErrorConf)}
+			}
+		}
+
+		return ErrorConf{
+			ErrType: gonatusErr.errType,
+			Level:   gonatusErr.level,
+			Msg:     gonatusErr.msg,
+			Wrapped: wrapped,
+		}
+
+	}
+
+	return nil
+
+}
+
+type ErrorConf struct {
+	ErrType ErrorType
+	Level   ErrorLevel
+	Msg     string
+	Wrapped []ErrorConf
+}
+
 /*
 Gonatus error structure.
 
@@ -260,7 +299,7 @@ Returns:
 func (ego gonatusError) Error() (msg string) {
 	msg = ego.msg
 	if ego.wrapped != nil {
-		msg += ego.wrapped.Error()
+		msg += ": " + ego.wrapped.Error()
 	}
 	return
 }
@@ -297,7 +336,7 @@ Returns:
   - created error.
 */
 func NewUnknownError(src gonatus.Gobjecter) error {
-	return NewSrcWrapper(src, New(TypeUnknown, LevelFatal, ""))
+	return NewSrcWrapper(src, New(ErrorConf{TypeUnknown, LevelFatal, "", nil}))
 }
 
 /*
@@ -310,7 +349,7 @@ Returns:
   - created error.
 */
 func NewNilError(src gonatus.Gobjecter, level ErrorLevel, msg string) error {
-	return NewSrcWrapper(src, New(TypeNil, level, msg))
+	return NewSrcWrapper(src, New(ErrorConf{TypeNil, level, msg, nil}))
 }
 
 /*
@@ -323,7 +362,7 @@ Returns:
   - created error.
 */
 func NewValueError(src gonatus.Gobjecter, level ErrorLevel, msg string) error {
-	return NewSrcWrapper(src, New(TypeValue, level, msg))
+	return NewSrcWrapper(src, New(ErrorConf{TypeValue, level, msg, nil}))
 }
 
 /*
@@ -336,7 +375,7 @@ Returns:
   - created error.
 */
 func NewStateError(src gonatus.Gobjecter, level ErrorLevel, msg string) error {
-	return NewSrcWrapper(src, New(TypeState, level, msg))
+	return NewSrcWrapper(src, New(ErrorConf{TypeState, level, msg, nil}))
 }
 
 /*
@@ -349,7 +388,7 @@ Returns:
   - created error.
 */
 func NewNotFoundError(src gonatus.Gobjecter, level ErrorLevel, msg string) error {
-	return NewSrcWrapper(src, New(TypeNotFound, level, msg))
+	return NewSrcWrapper(src, New(ErrorConf{TypeNotFound, level, msg, nil}))
 }
 
 /*
@@ -362,7 +401,7 @@ Returns:
   - created error.
 */
 func NewMisappError(src gonatus.Gobjecter, msg string) error {
-	return NewSrcWrapper(src, New(TypeMisapp, LevelError, msg))
+	return NewSrcWrapper(src, New(ErrorConf{TypeMisapp, LevelError, msg, nil}))
 }
 
 /*
@@ -375,5 +414,5 @@ Returns:
   - created error.
 */
 func NewNotImplError(src gonatus.Gobjecter) error {
-	return NewSrcWrapper(src, New(TypeNotImpl, LevelFatal, ""))
+	return NewSrcWrapper(src, New(ErrorConf{TypeNotImpl, LevelFatal, "", nil}))
 }
