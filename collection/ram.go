@@ -2,6 +2,7 @@ package collection
 
 import (
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -349,6 +350,10 @@ func (ego *RamCollection) EditRecord(rc RecordConf, col int, newValue any) error
 	defer ego.mutex.Unlock()
 
 	record, found := ego.rows[cid]
+
+	if reflect.TypeOf(record[col]) != reflect.TypeOf(newValue) {
+		return errors.NewMisappError(ego, "Invalid type")
+	}
 
 	if !found {
 		return errors.NewNotFoundError(ego, errors.LevelWarning, fmt.Sprintf("Record with id %d not found.", cid))

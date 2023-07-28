@@ -330,7 +330,7 @@ func (ego *localCountedStorageDriver) createDir(path fs.Path, origTime time.Time
 
 	if rec != nil {
 		if rec.flags()&fs.FileTopology == 0 {
-			return rec.Id, ego.files.EditRecord(rec.conf(), fieldFlags, rec.flags()|fs.FileTopology)
+			return rec.Id, ego.files.EditRecord(rec.conf(), fieldFlags, uint8(rec.flags()|fs.FileTopology))
 		}
 		return rec.Id, nil
 	}
