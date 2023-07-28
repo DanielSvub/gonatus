@@ -344,8 +344,12 @@ func (ego *RamCollection) EditRecord(rc RecordConf, col int, newValue any) error
 	// Modify lookup indexes
 	if colidx, found := ego.indexes[name]; found {
 		for _, idx := range colidx {
-			idx.Del(record[col], cid)
-			idx.Add(record[col], cid)
+			if err := idx.Del(record[col], cid); err != nil {
+				return err //FIXME: inconsitent state if any call of Del fails
+			}
+			if err := idx.Add(record[col], cid); err != nil {
+				return err //FIXME: inconsitent state if any call of Del fails
+			}
 		}
 	}
 
