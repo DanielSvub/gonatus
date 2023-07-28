@@ -260,7 +260,9 @@ func (ego *RamCollection) AddRecord(rc RecordConf) (CId, error) {
 	for i, name := range ego.param.FieldsNaming {
 		if colidx, found := ego.indexes[name]; found {
 			for _, idx := range colidx {
-				idx.Add(record[i], cid)
+				if err := idx.Add(record[i], cid); err != nil {
+					return 0, err //FIXME: inconsitent state if any call of Add fails
+				}
 			}
 		}
 	}
@@ -284,12 +286,12 @@ func (ego *RamCollection) DeleteRecord(rc RecordConf) error {
 		return errors.NewNotFoundError(ego, errors.LevelWarning, fmt.Sprintf("Record with id %d not found.", cid))
 	}
 
-	// Add to lookup indexes
+	// Delete from lookup indices
 	for i, name := range ego.param.FieldsNaming {
 		if colidx, found := ego.indexes[name]; found {
 			for _, idx := range colidx {
 				if err := idx.Del(record[i], cid); err != nil {
-					return err
+					return err //FIXME: inconsitent state if any call of Del fails
 				}
 			}
 		}
