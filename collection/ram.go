@@ -351,8 +351,10 @@ func (ego *RamCollection) EditRecord(rc RecordConf, col int, newValue any) error
 
 	record, found := ego.rows[cid]
 
-	if reflect.TypeOf(record[col]) != reflect.TypeOf(newValue) {
-		return errors.NewMisappError(ego, "Invalid type")
+	oldType := reflect.TypeOf(record[col])
+	newType := reflect.TypeOf(newValue)
+	if oldType != newType {
+		return errors.NewMisappError(ego, fmt.Sprintf("Type mismatch (%s given, %s expected).", newType.String(), oldType.String()))
 	}
 
 	if !found {

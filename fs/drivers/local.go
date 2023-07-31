@@ -599,7 +599,9 @@ func (ego *localCountedStorageDriver) closeFile(path fs.Path) error {
 
 	ego.openFiles[rec.Id].Close()
 	delete(ego.openFiles, rec.Id)
-	ego.files.EditRecord(rec.conf(), fieldModifTime, time.Now())
+	if err := ego.files.EditRecord(rec.conf(), fieldModifTime, time.Now()); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -639,8 +641,12 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 			if err != nil {
 				return nil, err
 			}
-			ego.files.EditRecord(rec.conf(), fieldFlags, rec.flags()|fs.FileContent)
-			ego.files.EditRecord(rec.conf(), fieldLocation, location)
+			if err := ego.files.EditRecord(rec.conf(), fieldFlags, uint8(rec.flags()|fs.FileContent)); err != nil {
+				return nil, err
+			}
+			if err := ego.files.EditRecord(rec.conf(), fieldLocation, location); err != nil {
+				return nil, err
+			}
 		}
 
 		// Opening the existing file
