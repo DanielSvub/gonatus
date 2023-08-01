@@ -313,9 +313,6 @@ func (ego *RamCollection) DeleteRecord(rc RecordConf) error {
 }
 
 func (ego *RamCollection) DeleteByFilter(q QueryConf) error {
-	ego.mutex.Lock()
-	defer ego.mutex.Unlock()
-
 	if qq, ok := q.(QueryAndConf); ok && len(qq.Context) == 0 {
 		ego.rows = make(map[CId][]any)
 		ego.indexes = make(map[string][]ramCollectionIndexer)
