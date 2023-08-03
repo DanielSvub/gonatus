@@ -29,7 +29,11 @@ type nativeStorageDriver struct {
 
 func NewNativeStorage(conf NativeStorageConf) fs.Storage {
 	driver := new(nativeStorageDriver)
-	driver.prefix, _ = filepath.Abs(conf.Prefix)
+	if conf.Prefix == "" {
+		driver.prefix = "/"
+	} else {
+		driver.prefix, _ = filepath.Abs(conf.Prefix)
+	}
 	driver.opened = make(map[*os.File]fs.FileConf)
 	driver.openedR = make(map[string]*os.File)
 	return fs.NewStorage(driver)
