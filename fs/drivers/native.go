@@ -23,6 +23,7 @@ type nativeStorageDriver struct {
 	gonatus.Gobject
 	id      fs.StorageId
 	prefix  string
+	cwd     fs.Path
 	opened  map[*os.File]fs.FileConf
 	openedR map[string]*os.File
 }
@@ -50,6 +51,10 @@ func (ego *nativeStorageDriver) storagePath(path string) fs.Path {
 
 func (ego *nativeStorageDriver) PrintFAT() {
 	print(errors.NewNotImplError(ego).Error())
+}
+
+func (ego *nativeStorageDriver) AbsPath(path fs.Path) fs.Path {
+	return ego.cwd.Join(path)
 }
 
 func (ego *nativeStorageDriver) Open(path fs.Path, mode fs.FileMode, givenFlags fs.FileFlags, origTime time.Time) (fs.FileDescriptor, error) {
@@ -201,6 +206,18 @@ func (ego *nativeStorageDriver) Tree(path fs.Path, depth fs.Depth) (streams.Read
 	}
 
 	return ego.exportToStream(lst)
+}
+
+func (ego *nativeStorageDriver) SetCwd(path fs.Path) error {
+	if exists, rec, err := nativeStat(ego.nativePath(path)); err != nil {
+		return err
+	} else if !exists {
+		return errors.NewNotFoundError(ego, errors.LevelError, "The path does not exist.")
+	} else if !rec.isDir {
+		return errors.NewStateError(ego, errors.LevelError, "The file cannot have children.")
+	}
+	ego.cwd = path
+	return nil
 }
 
 func (ego *nativeStorageDriver) Flags(path fs.Path) (fs.FileFlags, error) {

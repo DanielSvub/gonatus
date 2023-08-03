@@ -401,6 +401,17 @@ type Storage interface {
 	Tree(depth Depth) (streams.ReadableOutputStreamer[File], error)
 
 	/*
+		Changes the current working directory to the given path.
+
+		Parameters:
+		  - path - the path to set.
+
+		Returns:
+		  - error if any occurred.
+	*/
+	ChDir(path Path) error
+
+	/*
 		Commits the changes.
 
 		Returns:
@@ -434,6 +445,17 @@ Extends:
 */
 type StorageDriver interface {
 	gonatus.Gobjecter
+
+	/*
+		Acquires absolute path for the given relative path (joins storage's CWD with the given path).
+
+		Parameters:
+		  - path - relative path.
+
+		Returns:
+		  - absolute path.
+	*/
+	AbsPath(path Path) Path
 
 	/*
 		Opens a file.
@@ -521,6 +543,17 @@ type StorageDriver interface {
 		  - error if any occurred.
 	*/
 	Tree(path Path, depth Depth) (streams.ReadableOutputStreamer[File], error)
+
+	/*
+		Changes the current working directory to the given path.
+
+		Parameters:
+		  - path - the path to set.
+
+		Returns:
+		  - error if any occurred.
+	*/
+	SetCwd(path Path) error
 
 	/*
 		Acquires a size of a file with the given path.

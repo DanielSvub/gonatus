@@ -88,7 +88,7 @@ func (ego *storage) Merge(source Storage) error {
 
 		dstFile := NewFile(FileConf{
 			StorageId: ego.driver().Id(),
-			Path:      srcFile.Path(),
+			Path:      ego.driver().AbsPath(srcFile.Path()),
 			Flags:     stat.Flags,
 		})
 
@@ -116,6 +116,10 @@ func (ego *storage) Merge(source Storage) error {
 
 func (ego *storage) Tree(depth Depth) (streams.ReadableOutputStreamer[File], error) {
 	return ego.drv.Tree(Path{}, depth)
+}
+
+func (ego *storage) ChDir(path Path) error {
+	return ego.drv.SetCwd(path)
 }
 
 func (ego *storage) Commit() error {
