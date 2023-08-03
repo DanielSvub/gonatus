@@ -31,6 +31,7 @@ type StorageFeatures uint8
 const (
 	FeatureRead StorageFeatures = 1 << iota
 	FeatureWrite
+	FeatureLocation
 )
 
 /*
@@ -259,6 +260,15 @@ type File interface {
 		  - path as a slice of strings.
 	*/
 	Path() Path
+
+	/*
+		Acquires the real location (native path) of the file.
+
+		Returns:
+		  - native path,
+		  - error if any occurred.
+	*/
+	Location() (string, error)
 
 	/*
 		Acquires the name of the file (last element of the path).
@@ -535,6 +545,18 @@ type StorageDriver interface {
 		  - error if any occurred.
 	*/
 	Flags(path Path) (FileFlags, error)
+
+	/*
+		Acquires real location (native path) of a file with the given path.
+
+		Parameters:
+		  - path - path to the file.
+
+		Returns:
+		  - native path,
+		  - error if any occurred.
+	*/
+	Location(path Path) (string, error)
 
 	/*
 		Commits the changes.

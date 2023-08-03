@@ -216,6 +216,10 @@ func (ego *nativeStorageDriver) Flags(path fs.Path) (fs.FileFlags, error) {
 	return fs.FileContent, nil
 }
 
+func (ego *nativeStorageDriver) Location(path fs.Path) (string, error) {
+	return ego.nativePath(path), nil
+}
+
 func (ego *nativeStorageDriver) Size(path fs.Path) (uint64, error) {
 	valid, record, err := nativeStat(ego.nativePath(path))
 
@@ -239,7 +243,7 @@ func (ego *nativeStorageDriver) Clear() (err error) {
 }
 
 func (ego *nativeStorageDriver) Features() fs.StorageFeatures {
-	return fs.FeatureRead
+	return fs.FeatureRead | fs.FeatureLocation
 }
 
 func (ego *nativeStorageDriver) Id() fs.StorageId {

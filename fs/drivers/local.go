@@ -760,6 +760,26 @@ func (ego *localCountedStorageDriver) Flags(path fs.Path) (fs.FileFlags, error) 
 	}
 }
 
+func (ego *localCountedStorageDriver) Location(path fs.Path) (location string, err error) {
+
+	rec, err := ego.findFile(path)
+
+	if err == nil {
+
+		if rec == nil {
+			err = errors.NewNotFoundError(ego, errors.LevelError, "The file does not exist.")
+		} else if rec.flags()&fs.FileContent == 0 {
+			err = errors.NewStateError(ego, errors.LevelWarning, "The file does not have content.")
+		} else {
+			location = rec.location()
+		}
+
+	}
+
+	return
+
+}
+
 func (ego *localCountedStorageDriver) Commit() error {
 	return nil
 }
@@ -785,7 +805,7 @@ func (ego *localCountedStorageDriver) Clear() error {
 }
 
 func (ego *localCountedStorageDriver) Features() fs.StorageFeatures {
-	return fs.FeatureRead | fs.FeatureWrite
+	return fs.FeatureRead | fs.FeatureWrite | fs.FeatureLocation
 }
 
 func (ego *localCountedStorageDriver) Id() fs.StorageId {
