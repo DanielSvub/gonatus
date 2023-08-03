@@ -129,6 +129,19 @@ func NewLocalCountedStorage(conf LocalCountedStorageConf) fs.Storage {
 }
 
 /*
+Acquires absolute path for the given relative path (joins storage's CWD with the given path).
+
+Parameters:
+  - path - relative path.
+
+Returns:
+  - absolute path.
+*/
+func (ego *localCountedStorageDriver) absPath(path fs.Path) fs.Path {
+	return ego.cwd.Join(path)
+}
+
+/*
 Creates a record for the root of the FS.
 
 Returns:
@@ -606,13 +619,9 @@ func (ego *localCountedStorageDriver) closeFile(path fs.Path) error {
 	return nil
 }
 
-func (ego *localCountedStorageDriver) AbsPath(path fs.Path) fs.Path {
-	return ego.cwd.Join(path)
-}
-
 func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, givenFlags fs.FileFlags, origTime time.Time) (fs.FileDescriptor, error) {
 
-	absPath := ego.AbsPath(path)
+	absPath := ego.absPath(path)
 
 	// Creating modeFlags
 	var modeFlags int
@@ -702,31 +711,31 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 }
 
 func (ego *localCountedStorageDriver) Close(path fs.Path) error {
-	return ego.closeFile(ego.AbsPath(path))
+	return ego.closeFile(ego.absPath(path))
 }
 
 func (ego *localCountedStorageDriver) MkDir(path fs.Path, origTime time.Time) error {
-	_, err := ego.createDir(ego.AbsPath(path), origTime)
+	_, err := ego.createDir(ego.absPath(path), origTime)
 	return err
 }
 
 func (ego *localCountedStorageDriver) Copy(srcPath fs.Path, dstPath fs.Path) error {
-	return ego.copyFile(ego.AbsPath(srcPath), 0, ego.AbsPath(dstPath))
+	return ego.copyFile(ego.absPath(srcPath), 0, ego.absPath(dstPath))
 }
 
 func (ego *localCountedStorageDriver) Move(srcPath fs.Path, dstPath fs.Path) error {
 	if srcPath.Equals(dstPath) {
 		errors.NewStateError(ego, errors.LevelWarning, "The source and destination paths are equal.")
 	}
-	return ego.moveFile(ego.AbsPath(srcPath), ego.AbsPath(dstPath))
+	return ego.moveFile(ego.absPath(srcPath), ego.absPath(dstPath))
 }
 
 func (ego *localCountedStorageDriver) Delete(path fs.Path) error {
-	return ego.deleteFile(ego.AbsPath(path))
+	return ego.deleteFile(ego.absPath(path))
 }
 
 func (ego *localCountedStorageDriver) Tree(path fs.Path, depth fs.Depth) (streams.ReadableOutputStreamer[fs.File], error) {
-	return ego.exportToStream(ego.AbsPath(path), depth)
+	return ego.exportToStream(ego.absPath(path), depth)
 }
 
 func (ego *localCountedStorageDriver) SetCwd(path fs.Path) error {
@@ -745,7 +754,7 @@ func (ego *localCountedStorageDriver) Size(path fs.Path) (uint64, error) {
 
 	var fd *os.File
 
-	absPath := ego.AbsPath(path)
+	absPath := ego.absPath(path)
 
 	rec, err := ego.findFile(absPath)
 	if err != nil {
@@ -773,7 +782,7 @@ func (ego *localCountedStorageDriver) Size(path fs.Path) (uint64, error) {
 }
 
 func (ego *localCountedStorageDriver) Flags(path fs.Path) (fs.FileFlags, error) {
-	if rec, err := ego.findFile(ego.AbsPath(path)); err != nil || rec == nil {
+	if rec, err := ego.findFile(ego.absPath(path)); err != nil || rec == nil {
 		return fs.FileUndetermined, err
 	} else {
 		return rec.flags(), nil
@@ -782,7 +791,7 @@ func (ego *localCountedStorageDriver) Flags(path fs.Path) (fs.FileFlags, error) 
 
 func (ego *localCountedStorageDriver) Location(path fs.Path) (location string, err error) {
 
-	rec, err := ego.findFile(ego.AbsPath(path))
+	rec, err := ego.findFile(ego.absPath(path))
 
 	if err == nil {
 

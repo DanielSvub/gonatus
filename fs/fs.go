@@ -447,17 +447,6 @@ type StorageDriver interface {
 	gonatus.Gobjecter
 
 	/*
-		Acquires absolute path for the given relative path (joins storage's CWD with the given path).
-
-		Parameters:
-		  - path - relative path.
-
-		Returns:
-		  - absolute path.
-	*/
-	AbsPath(path Path) Path
-
-	/*
 		Opens a file.
 
 		Parameters:

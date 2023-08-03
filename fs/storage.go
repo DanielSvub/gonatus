@@ -88,7 +88,7 @@ func (ego *storage) Merge(source Storage) error {
 
 		dstFile := NewFile(FileConf{
 			StorageId: ego.driver().Id(),
-			Path:      ego.driver().AbsPath(srcFile.Path()),
+			Path:      srcFile.Path(),
 			Flags:     stat.Flags,
 		})
 
@@ -104,7 +104,7 @@ func (ego *storage) Merge(source Storage) error {
 		if err := srcFile.Close(); err != nil {
 			return err
 		}
-		if err := ego.drv.Close(srcFile.Path()); err != nil {
+		if err := ego.drv.Close(dstFile.Path()); err != nil {
 			return err
 		}
 
