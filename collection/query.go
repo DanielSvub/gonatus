@@ -4,6 +4,16 @@ import (
 	"errors"
 )
 
+/*
+Filters rows based on the atom-query.
+
+Parameters:
+  - rc - Ram Collection.
+
+Returns:
+  - CId set of rows satisfying the atom-query condition,
+  - error, if any.
+*/
 func (ego *QueryAtomConf) eval(rc *RamCollection) (CIdSet, error) {
 
 	idx := rc.getFieldIndex(*ego)
@@ -20,8 +30,10 @@ func (ego *QueryAtomConf) eval(rc *RamCollection) (CIdSet, error) {
 		pi := rc.primaryIndex
 		if ego.isPrefix(rc, idx) {
 			rows, err = pi.getPrefix(rc.primaryValue(*ego, idx))
-		} else {
+		} else if ego.isFullmatch(rc, idx) {
 			rows, err = pi.Get(rc.primaryValue(*ego, idx))
+		} else {
+			err = errors.New("not valid prefix in query")
 		}
 	} else {
 		rows, err = indexer.Get(ego.Value)
@@ -34,12 +46,22 @@ func (ego *QueryAtomConf) eval(rc *RamCollection) (CIdSet, error) {
 	return CIdSetFromSlice(rows), nil
 }
 
+/*
+Filters rows based on the and-query.
+
+Parameters:
+  - rc - Ram Collection.
+
+Returns:
+  - CId set of rows satisfying the and-query condition,
+  - error, if any.
+*/
 func (ego *QueryAndConf) eval(rc *RamCollection) (CIdSet, error) {
 	accum := make(CIdSet, 0)
 	ctxlen := len(ego.QueryContextConf.Context)
 
 	if ctxlen == 0 {
-		return rc.allRowsSet(), nil // Returns whole space
+		return rc.setAllRows(), nil // Returns whole space
 	}
 
 	for i := 0; i < ctxlen; i++ {
@@ -61,6 +83,16 @@ func (ego *QueryAndConf) eval(rc *RamCollection) (CIdSet, error) {
 	return accum, nil
 }
 
+/*
+Filters rows based on the or-query.
+
+Parameters:
+  - rc - Ram Collection.
+
+Returns:
+  - CId set of rows satisfying the or-query condition,
+  - error, if any.
+*/
 func (ego *QueryOrConf) eval(rc *RamCollection) (CIdSet, error) {
 	accum := make(CIdSet, 0)
 	ctxlen := len(ego.QueryContextConf.Context)
@@ -85,6 +117,16 @@ func (ego *QueryOrConf) eval(rc *RamCollection) (CIdSet, error) {
 	return accum, nil
 }
 
+/*
+Filters rows based on the implication-query.
+
+Parameters:
+  - rc - Ram Collection.
+
+Returns:
+  - CId set of rows satisfying the implication-query condition,
+  - error, if any.
+*/
 func (ego *QueryImplicationConf) eval(rc *RamCollection) (CIdSet, error) {
 	le, err := rc.filterQueryEval(ego.Left)
 	if err != nil {
@@ -103,7 +145,7 @@ func (ego *QueryImplicationConf) eval(rc *RamCollection) (CIdSet, error) {
 	// filter out those elements which are on the left hand side and not on right hand side 1 => 0 = 0
 	le.Merge(re)
 
-	rws := rc.every()
+	rws := rc.setAllRows()
 
 	for i := range re {
 		if _, found := le[i]; !found {
@@ -112,87 +154,4 @@ func (ego *QueryImplicationConf) eval(rc *RamCollection) (CIdSet, error) {
 	}
 
 	return rws, nil
-}
-
-func (ego *QueryAtomConf) isPrefix(rc *RamCollection, idx int) bool {
-
-	if ego.MatchType == nil {
-		return false
-	}
-
-	switch ego.MatchType.(type) {
-	case PrefixIndexConf[string]:
-		if _, isMatch := rc.param.Fields[idx].(FieldConf[string]); !isMatch {
-			return false
-		}
-		return true
-	case PrefixIndexConf[[]string]:
-		if _, isMatch := rc.param.Fields[idx].(FieldConf[[]string]); !isMatch {
-			println(30)
-			return false
-		}
-		return true
-	case PrefixIndexConf[[]int]:
-		if _, isMatch := rc.param.Fields[idx].(FieldConf[[]int]); !isMatch {
-			return false
-		}
-		return true
-	case PrefixIndexConf[[]int8]:
-		if _, isMatch := rc.param.Fields[idx].(FieldConf[[]int8]); !isMatch {
-			return false
-		}
-		return true
-	case PrefixIndexConf[[]int16]:
-		if _, isMatch := rc.param.Fields[idx].(FieldConf[[]int16]); !isMatch {
-			return false
-		}
-		return true
-	case PrefixIndexConf[[]int32]:
-		if _, isMatch := rc.param.Fields[idx].(FieldConf[[]int32]); !isMatch {
-			return false
-		}
-		return true
-	case PrefixIndexConf[[]int64]:
-		if _, isMatch := rc.param.Fields[idx].(FieldConf[[]int64]); !isMatch {
-			return false
-		}
-		return true
-	case PrefixIndexConf[[]uint]:
-		if _, isMatch := rc.param.Fields[idx].(FieldConf[[]uint]); !isMatch {
-			return false
-		}
-		return true
-	case PrefixIndexConf[[]uint8]:
-		if _, isMatch := rc.param.Fields[idx].(FieldConf[[]uint8]); !isMatch {
-			return false
-		}
-		return true
-	case PrefixIndexConf[[]uint16]:
-		if _, isMatch := rc.param.Fields[idx].(FieldConf[[]uint16]); !isMatch {
-			return false
-		}
-		return true
-	case PrefixIndexConf[[]uint32]:
-		if _, isMatch := rc.param.Fields[idx].(FieldConf[[]uint32]); !isMatch {
-			return false
-		}
-		return true
-	case PrefixIndexConf[[]uint64]:
-		if _, isMatch := rc.param.Fields[idx].(FieldConf[[]uint64]); !isMatch {
-			return false
-		}
-		return true
-	case PrefixIndexConf[[]float32]:
-		if _, isMatch := rc.param.Fields[idx].(FieldConf[[]float32]); !isMatch {
-			return false
-		}
-		return true
-	case PrefixIndexConf[[]float64]:
-		if _, isMatch := rc.param.Fields[idx].(FieldConf[[]float64]); !isMatch {
-			return false
-		}
-		return true
-	default:
-		return false
-	}
 }

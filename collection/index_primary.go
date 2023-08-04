@@ -5,6 +5,15 @@ type primaryIndexer struct {
 	index map[CId][]any
 }
 
+/*
+Creates new primaryIndexer.
+
+Parameters:
+  - rows - Rows of RamCollection.
+
+Returns:
+  - pointer to a new instance of primaryIndexer.
+*/
 func primaryIndexerCreate(rows map[CId][]any) *primaryIndexer {
 	ego := new(primaryIndexer)
 	ego.index = rows
@@ -12,6 +21,16 @@ func primaryIndexerCreate(rows map[CId][]any) *primaryIndexer {
 	return ego
 }
 
+/*
+Searches for rows that full match the specified patter in <<arg>>.
+
+Parameters:
+  - arg -  Array (len(Array) == len(columns)) filled with null except for the index of the search column that contains the pattern.
+
+Returns:
+  - CIds of rows that match,
+  - error, if any.
+*/
 func (ego *primaryIndexer) Get(arg []any) ([]CId, error) {
 	v := arg
 	ret := make([]CId, 0)
@@ -40,6 +59,16 @@ func (ego *primaryIndexer) Get(arg []any) ([]CId, error) {
 	return ret, nil
 }
 
+/*
+Prefix searches for rows that match the specified patter in <<arg>>.
+
+Parameters:
+  - arg -  Array (len(Array) == len(columns)) filled with null except for the index of the search column that contains the pattern.
+
+Returns:
+  - CId of rows that match,
+  - error, if any.
+*/
 func (ego *primaryIndexer) getPrefix(arg []any) ([]CId, error) {
 	ret := make([]CId, 0)
 
@@ -73,83 +102,6 @@ func (ego *primaryIndexer) getPrefix(arg []any) ([]CId, error) {
 
 	}
 	return ret, nil
-}
-
-func cmpValues(idx int, tableValue any, queryValue any) (bool, int) {
-
-	switch tValue := tableValue.(type) {
-	case string:
-		if qValue, isMatch := queryValue.(string); isMatch {
-			return (len([]rune(tValue)) >= len([]rune(qValue))) && ([]rune(tValue)[idx] == []rune(qValue)[idx]), len([]rune(qValue))
-		}
-		return false, -1
-	case []string:
-		if qValue, isMatch := queryValue.([]string); isMatch {
-			return (len(tValue) >= len(qValue)) && (tValue[idx] == qValue[idx]), len(qValue)
-		}
-		return false, -1
-	case []int:
-		if qValue, isMatch := queryValue.([]int); isMatch {
-			return (len(tValue) >= len(qValue)) && (tValue[idx] == qValue[idx]), len(qValue)
-		}
-		return false, -1
-	case []int8:
-		if qValue, isMatch := queryValue.([]int8); isMatch {
-			return (len(tValue) >= len(qValue)) && (tValue[idx] == qValue[idx]), len(qValue)
-		}
-		return false, -1
-	case []int16:
-		if qValue, isMatch := queryValue.([]int16); isMatch {
-			return (len(tValue) >= len(qValue)) && (tValue[idx] == qValue[idx]), len(qValue)
-		}
-		return false, -1
-	case []int32:
-		if qValue, isMatch := queryValue.([]int32); isMatch {
-			return (len(tValue) >= len(qValue)) && (tValue[idx] == qValue[idx]), len(qValue)
-		}
-		return false, -1
-	case []int64:
-		if qValue, isMatch := queryValue.([]int64); isMatch {
-			return (len(tValue) >= len(qValue)) && (tValue[idx] == qValue[idx]), len(qValue)
-		}
-		return false, -1
-	case []uint:
-		if qValue, isMatch := queryValue.([]uint); isMatch {
-			return (len(tValue) >= len(qValue)) && (tValue[idx] == qValue[idx]), len(qValue)
-		}
-		return false, -1
-	case []uint8:
-		if qValue, isMatch := queryValue.([]uint8); isMatch {
-			return (len(tValue) >= len(qValue)) && (tValue[idx] == qValue[idx]), len(qValue)
-		}
-		return false, -1
-	case []uint16:
-		if qValue, isMatch := queryValue.([]uint16); isMatch {
-			return (len(tValue) >= len(qValue)) && (tValue[idx] == qValue[idx]), len(qValue)
-		}
-		return false, -1
-	case []uint32:
-		if qValue, isMatch := queryValue.([]uint32); isMatch {
-			return (len(tValue) >= len(qValue)) && (tValue[idx] == qValue[idx]), len(qValue)
-		}
-		return false, -1
-	case []uint64:
-		if qValue, isMatch := queryValue.([]uint64); isMatch {
-			return (len(tValue) >= len(qValue)) && (tValue[idx] == qValue[idx]), len(qValue)
-		}
-		return false, -1
-	case []float32:
-		if qValue, isMatch := queryValue.([]float32); isMatch {
-			return (len(tValue) >= len(qValue)) && (tValue[idx] == qValue[idx]), len(qValue)
-		}
-		return false, -1
-	case []float64:
-		if qValue, isMatch := queryValue.([]float64); isMatch {
-			return (len(tValue) >= len(qValue)) && (tValue[idx] == qValue[idx]), len(qValue)
-		}
-		return false, -1
-	}
-	return false, -1
 }
 
 // func (ego *primaryIndexer) Add(s any, id CId) error {

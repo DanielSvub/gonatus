@@ -3,7 +3,6 @@ package collection
 import (
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/SpongeData-cz/gonatus"
 	"github.com/SpongeData-cz/gonatus/errors"
@@ -39,6 +38,15 @@ type RamCollection struct {
 	mutex         *sync.RWMutex
 }
 
+/*
+Creates new RamCollection.
+
+Parameters:
+  - rc - RamCollection Conf.
+
+Returns:
+  - pointer to a new instance of RamCollection.
+*/
 func NewRamCollection(rc RamCollectionConf) *RamCollection {
 	if len(rc.SchemaConf.FieldsNaming) != len(rc.SchemaConf.Fields) {
 		// TODO: Fatal log || panic?
@@ -60,75 +68,22 @@ func NewRamCollection(rc RamCollectionConf) *RamCollection {
 	// TODO: implement id index as default one ego.indexes["id"] = idIndexerNew() // must be present in every collection
 
 	if err := ego.registerIndexes(); err != nil {
+		// TODO: Fatal log || panic?
 		panic(err)
 	}
 	return ego
 }
 
-func (ego *RamCollection) InterpretField(fc FielderConf) (any, error) {
-	// TODO: need to copy return value <<v.Value>>
+/*
+Interprets the Record passed in the parameter.
 
-	switch v := fc.(type) {
+Parameters:
+  - rc - Configuration of Record.
 
-	case FieldConf[[]string]:
-		return v.Value, nil
-	case FieldConf[[]int]:
-		return v.Value, nil
-	case FieldConf[[]int8]:
-		return v.Value, nil
-	case FieldConf[[]int16]:
-		return v.Value, nil
-	case FieldConf[[]int32]:
-		return v.Value, nil
-	case FieldConf[[]int64]:
-		return v.Value, nil
-	case FieldConf[[]uint]:
-		return v.Value, nil
-	case FieldConf[[]uint8]:
-		return v.Value, nil
-	case FieldConf[[]uint16]:
-		return v.Value, nil
-	case FieldConf[[]uint32]:
-		return v.Value, nil
-	case FieldConf[[]uint64]:
-		return v.Value, nil
-	case FieldConf[[]float32]:
-		return v.Value, nil
-	case FieldConf[[]float64]:
-		return v.Value, nil
-	case FieldConf[string]:
-		return v.Value, nil
-	case FieldConf[int]:
-		return v.Value, nil
-	case FieldConf[int8]:
-		return v.Value, nil
-	case FieldConf[int16]:
-		return v.Value, nil
-	case FieldConf[int32]:
-		return v.Value, nil
-	case FieldConf[int64]:
-		return v.Value, nil
-	case FieldConf[uint]:
-		return v.Value, nil
-	case FieldConf[uint8]:
-		return v.Value, nil
-	case FieldConf[uint16]:
-		return v.Value, nil
-	case FieldConf[uint32]:
-		return v.Value, nil
-	case FieldConf[uint64]:
-		return v.Value, nil
-	case FieldConf[float32]:
-		return v.Value, nil
-	case FieldConf[float64]:
-		return v.Value, nil
-	case FieldConf[time.Time]:
-		return v.Value, nil
-	default:
-		return nil, errors.NewNotImplError(ego)
-	}
-}
-
+Returns:
+  - Slice of values from a row,
+  - error, if any.
+*/
 func (ego *RamCollection) InterpretRecord(rc RecordConf) ([]any, error) {
 	ret := make([]any, 0)
 
@@ -144,69 +99,16 @@ func (ego *RamCollection) InterpretRecord(rc RecordConf) ([]any, error) {
 	return ret, nil
 }
 
-func (ego *RamCollection) DeinterpretField(val any, nth int) (FielderConf, error) {
-	fc := ego.param.SchemaConf.Fields[nth]
+/*
+Deinterprets the values of the row passed in the parameter.
 
-	switch fc.(type) {
-	case FieldConf[[]string]:
-		return FieldConf[[]string]{Value: val.([]string)}, nil
-	case FieldConf[[]int]:
-		return FieldConf[[]int]{Value: val.([]int)}, nil
-	case FieldConf[[]int8]:
-		return FieldConf[[]int8]{Value: val.([]int8)}, nil
-	case FieldConf[[]int16]:
-		return FieldConf[[]int16]{Value: val.([]int16)}, nil
-	case FieldConf[[]int32]:
-		return FieldConf[[]int32]{Value: val.([]int32)}, nil
-	case FieldConf[[]int64]:
-		return FieldConf[[]int64]{Value: val.([]int64)}, nil
-	case FieldConf[[]uint]:
-		return FieldConf[[]uint]{Value: val.([]uint)}, nil
-	case FieldConf[[]uint8]:
-		return FieldConf[[]uint8]{Value: val.([]uint8)}, nil
-	case FieldConf[[]uint16]:
-		return FieldConf[[]uint16]{Value: val.([]uint16)}, nil
-	case FieldConf[[]uint32]:
-		return FieldConf[[]uint32]{Value: val.([]uint32)}, nil
-	case FieldConf[[]uint64]:
-		return FieldConf[[]uint64]{Value: val.([]uint64)}, nil
-	case FieldConf[[]float32]:
-		return FieldConf[[]float32]{Value: val.([]float32)}, nil
-	case FieldConf[[]float64]:
-		return FieldConf[[]float64]{Value: val.([]float64)}, nil
-	case FieldConf[string]:
-		return FieldConf[string]{Value: val.(string)}, nil
-	case FieldConf[int]:
-		return FieldConf[int]{Value: val.(int)}, nil
-	case FieldConf[int8]:
-		return FieldConf[int8]{Value: val.(int8)}, nil
-	case FieldConf[int16]:
-		return FieldConf[int16]{Value: val.(int16)}, nil
-	case FieldConf[int32]:
-		return FieldConf[int32]{Value: val.(int32)}, nil
-	case FieldConf[int64]:
-		return FieldConf[int64]{Value: val.(int64)}, nil
-	case FieldConf[uint]:
-		return FieldConf[uint]{Value: val.(uint)}, nil
-	case FieldConf[uint8]:
-		return FieldConf[uint8]{Value: val.(uint8)}, nil
-	case FieldConf[uint16]:
-		return FieldConf[uint16]{Value: val.(uint16)}, nil
-	case FieldConf[uint32]:
-		return FieldConf[uint32]{Value: val.(uint32)}, nil
-	case FieldConf[uint64]:
-		return FieldConf[uint64]{Value: val.(uint64)}, nil
-	case FieldConf[float32]:
-		return FieldConf[float32]{Value: val.(float32)}, nil
-	case FieldConf[float64]:
-		return FieldConf[float64]{Value: val.(float64)}, nil
-	case FieldConf[time.Time]:
-		return FieldConf[time.Time]{Value: val.(time.Time)}, nil
-	default:
-		return nil, errors.NewNotImplError(ego)
-	}
-}
+Parameters:
+  - r - Values of row.
 
+Returns:
+  - Configuration of Record,
+  - error, if any.
+*/
 func (ego *RamCollection) DeinterpretRecord(r []any) (RecordConf, error) {
 	ret := RecordConf{
 		Cols: make([]FielderConf, len(ego.param.SchemaConf.Fields)),
@@ -225,6 +127,17 @@ func (ego *RamCollection) DeinterpretRecord(r []any) (RecordConf, error) {
 	return ret, nil
 }
 
+/*
+Adds to the RamCollection the record whose configuration is passed by the parameter,
+and adds it to the lookup indexes.
+
+Parameters:
+  - rc - Configuration of the Record.
+
+Returns:
+  - CId of newly added record,
+  - error, if any.
+*/
 func (ego *RamCollection) AddRecord(rc RecordConf) (CId, error) {
 	ego.mutex.Lock()
 	defer ego.mutex.Unlock()
@@ -276,10 +189,26 @@ func (ego *RamCollection) AddRecord(rc RecordConf) (CId, error) {
 	return cid, nil
 }
 
+/*
+Checks, if CId is valid.
+
+Returns:
+  - True, if CId is valid, false otherwise.
+*/
 func (c CId) ValidP() bool {
 	return c > 0
 }
 
+/*
+Deletes from the RamCollection the record whose configuration is passed by the parameter,
+and deletes it from lookup indexes.
+
+Parameters:
+  - rc - Configuration of the Record.
+
+Returns:
+  - Error, if any.
+*/
 func (ego *RamCollection) DeleteRecord(rc RecordConf) error {
 	cid := rc.Id
 
@@ -312,6 +241,17 @@ func (ego *RamCollection) DeleteRecord(rc RecordConf) error {
 	return nil
 }
 
+/*
+Filters the matching rows according to the given query.
+It then deletes them from the RamCollection and deletes
+them from the search indexers.
+
+Parameters:
+  - q - Configuration of the query.
+
+Returns:
+  - Error, if any.
+*/
 func (ego *RamCollection) DeleteByFilter(q QueryConf) error {
 	if qq, ok := q.(QueryAndConf); ok && len(qq.Context) == 0 {
 		ego.rows = make(map[CId][]any)
@@ -336,6 +276,18 @@ func (ego *RamCollection) DeleteByFilter(q QueryConf) error {
 	return nil
 }
 
+/*
+Edits the RamCollection record whose configuration is passed by the parameter
+and modifies it in the lookup indexes.
+
+Parameters:
+  - rc - Configuration of Record,
+  - col - the index of the column in the row to be overwriten,
+  - newValue - new value to overwrite the old one.
+
+Returns:
+  - Error, if any.
+*/
 func (ego *RamCollection) EditRecord(rc RecordConf, col int, newValue any) error {
 	cid := rc.Id
 
@@ -373,6 +325,15 @@ func (ego *RamCollection) EditRecord(rc RecordConf, col int, newValue any) error
 
 type CIdSet map[CId]bool
 
+/*
+Creates a CId set from the CId slice.
+
+Parameters:
+  - s - CId slice.
+
+Returns:
+  - New CId set.
+*/
 func CIdSetFromSlice(s []CId) CIdSet {
 	ret := make(CIdSet, 0)
 
@@ -383,6 +344,12 @@ func CIdSetFromSlice(s []CId) CIdSet {
 	return ret
 }
 
+/*
+Creates a CId slice from the CId set.
+
+Returns:
+  - New CId slice.
+*/
 func (ego CIdSet) ToSlice() []CId {
 	out := make([]CId, len(ego))
 	i := 0
@@ -406,12 +373,27 @@ func (ego CIdSet) ToSlice() []CId {
 // 	return keys
 // }
 
+/*
+Merges two CId sets.
+
+Parameters:
+  - s - Set to be merged.
+*/
 func (ego CIdSet) Merge(s CIdSet) {
 	for k, v := range s {
 		ego[k] = v
 	}
 }
 
+/*
+Makes the intersection of two CId sets.
+
+Parameters:
+  - s - One of the CId sets.
+
+Returns:
+  - Newly created CId set by intersection.
+*/
 func (ego CIdSet) Intersect(s CIdSet) CIdSet {
 	lesser := ego
 	greater := s
@@ -432,217 +414,15 @@ func (ego CIdSet) Intersect(s CIdSet) CIdSet {
 	return out
 }
 
-func cmpIndexKind(qIdx IndexerConf, iidx ramCollectionIndexer) bool {
-	switch qIdx.(type) {
-	case PrefixIndexConf[string]:
-		_, ok := iidx.(*stringPrefixIndexer)
-		if ok {
-			return true
-		}
-	case PrefixIndexConf[[]string]:
-		indexer, ok := iidx.(*prefixIndexer[string])
-		if ok && !indexer.ignoreChildren {
-			return true
-		}
-	case PrefixIndexConf[[]int]:
-		indexer, ok := iidx.(*prefixIndexer[int])
-		if ok && !indexer.ignoreChildren {
-			return true
-		}
-	case PrefixIndexConf[[]int8]:
-		indexer, ok := iidx.(*prefixIndexer[int8])
-		if ok && !indexer.ignoreChildren {
-			return true
-		}
-	case PrefixIndexConf[[]int16]:
-		indexer, ok := iidx.(*prefixIndexer[int16])
-		if ok && !indexer.ignoreChildren {
-			return true
-		}
-	case PrefixIndexConf[[]int32]:
-		indexer, ok := iidx.(*prefixIndexer[int32])
-		if ok && !indexer.ignoreChildren {
-			return true
-		}
-	case PrefixIndexConf[[]int64]:
-		indexer, ok := iidx.(*prefixIndexer[int64])
-		if ok && !indexer.ignoreChildren {
-			return true
-		}
-	case PrefixIndexConf[[]uint]:
-		indexer, ok := iidx.(*prefixIndexer[uint])
-		if ok && !indexer.ignoreChildren {
-			return true
-		}
-	case PrefixIndexConf[[]uint8]:
-		indexer, ok := iidx.(*prefixIndexer[uint8])
-		if ok && !indexer.ignoreChildren {
-			return true
-		}
-	case PrefixIndexConf[[]uint16]:
-		indexer, ok := iidx.(*prefixIndexer[uint16])
-		if ok && !indexer.ignoreChildren {
-			return true
-		}
-	case PrefixIndexConf[[]uint32]:
-		indexer, ok := iidx.(*prefixIndexer[uint32])
-		if ok && !indexer.ignoreChildren {
-			return true
-		}
-	case PrefixIndexConf[[]uint64]:
-		indexer, ok := iidx.(*prefixIndexer[uint64])
-		if ok && !indexer.ignoreChildren {
-			return true
-		}
-	case PrefixIndexConf[[]float32]:
-		indexer, ok := iidx.(*prefixIndexer[float32])
-		if ok && !indexer.ignoreChildren {
-			return true
-		}
-	case PrefixIndexConf[[]float64]:
-		indexer, ok := iidx.(*prefixIndexer[float64])
-		if ok && !indexer.ignoreChildren {
-			return true
-		}
-	case FullmatchIndexConf[string]:
-		_, ok := iidx.(*fullmatchIndexer[string])
-		if ok {
-			return true
-		}
-	case FullmatchIndexConf[int]:
-		_, ok := iidx.(*fullmatchIndexer[int])
-		if ok {
-			return true
-		}
-	case FullmatchIndexConf[int8]:
-		_, ok := iidx.(*fullmatchIndexer[int8])
-		if ok {
-			return true
-		}
-	case FullmatchIndexConf[int16]:
-		_, ok := iidx.(*fullmatchIndexer[int16])
-		if ok {
-			return true
-		}
-	case FullmatchIndexConf[int32]:
-		_, ok := iidx.(*fullmatchIndexer[int32])
-		if ok {
-			return true
-		}
-	case FullmatchIndexConf[int64]:
-		_, ok := iidx.(*fullmatchIndexer[int64])
-		if ok {
-			return true
-		}
-	case FullmatchIndexConf[uint]:
-		_, ok := iidx.(*fullmatchIndexer[uint])
-		if ok {
-			return true
-		}
-	case FullmatchIndexConf[uint8]:
-		_, ok := iidx.(*fullmatchIndexer[uint8])
-		if ok {
-			return true
-		}
-	case FullmatchIndexConf[uint16]:
-		_, ok := iidx.(*fullmatchIndexer[uint16])
-		if ok {
-			return true
-		}
-	case FullmatchIndexConf[uint32]:
-		_, ok := iidx.(*fullmatchIndexer[uint32])
-		if ok {
-			return true
-		}
-	case FullmatchIndexConf[uint64]:
-		_, ok := iidx.(*fullmatchIndexer[uint64])
-		if ok {
-			return true
-		}
-	case FullmatchIndexConf[float32]:
-		_, ok := iidx.(*fullmatchIndexer[float32])
-		if ok {
-			return true
-		}
-	case FullmatchIndexConf[float64]:
-		_, ok := iidx.(*fullmatchIndexer[float64])
-		if ok {
-			return true
-		}
-	case FullmatchIndexConf[time.Time]:
-		_, ok := iidx.(*fullmatchIndexer[time.Time])
-		if ok {
-			return true
-		}
-	case FullmatchIndexConf[[]string]:
-		indexer, ok := iidx.(*prefixIndexer[string])
-		if ok && indexer.ignoreChildren {
-			return true
-		}
-	case FullmatchIndexConf[[]int]:
-		indexer, ok := iidx.(*prefixIndexer[int])
-		if ok && indexer.ignoreChildren {
-			return true
-		}
-	case FullmatchIndexConf[[]int8]:
-		indexer, ok := iidx.(*prefixIndexer[int8])
-		if ok && indexer.ignoreChildren {
-			return true
-		}
-	case FullmatchIndexConf[[]int16]:
-		indexer, ok := iidx.(*prefixIndexer[int16])
-		if ok && indexer.ignoreChildren {
-			return true
-		}
-	case FullmatchIndexConf[[]int32]:
-		indexer, ok := iidx.(*prefixIndexer[int32])
-		if ok && indexer.ignoreChildren {
-			return true
-		}
-	case FullmatchIndexConf[[]int64]:
-		indexer, ok := iidx.(*prefixIndexer[int64])
-		if ok && indexer.ignoreChildren {
-			return true
-		}
-	case FullmatchIndexConf[[]uint]:
-		indexer, ok := iidx.(*prefixIndexer[uint])
-		if ok && indexer.ignoreChildren {
-			return true
-		}
-	case FullmatchIndexConf[[]uint8]:
-		indexer, ok := iidx.(*prefixIndexer[uint8])
-		if ok && indexer.ignoreChildren {
-			return true
-		}
-	case FullmatchIndexConf[[]uint16]:
-		indexer, ok := iidx.(*prefixIndexer[uint16])
-		if ok && indexer.ignoreChildren {
-			return true
-		}
-	case FullmatchIndexConf[[]uint32]:
-		indexer, ok := iidx.(*prefixIndexer[uint32])
-		if ok && indexer.ignoreChildren {
-			return true
-		}
-	case FullmatchIndexConf[[]uint64]:
-		indexer, ok := iidx.(*prefixIndexer[uint64])
-		if ok && indexer.ignoreChildren {
-			return true
-		}
-	case FullmatchIndexConf[[]float32]:
-		indexer, ok := iidx.(*prefixIndexer[float32])
-		if ok && indexer.ignoreChildren {
-			return true
-		}
-	case FullmatchIndexConf[[]float64]:
-		indexer, ok := iidx.(*prefixIndexer[float64])
-		if ok && indexer.ignoreChildren {
-			return true
-		}
-	}
-	return false
-}
+/*
+Returns the indexer that is bound to the given column in the query, if any.
 
+Parameters:
+  - q - Query.
+
+Returns:
+  - Indexer, if any, nil otherwise.
+*/
 func (ego *RamCollection) getIndex(q QueryAtomConf) ramCollectionIndexer {
 	if idxcol, found := ego.indexes[q.Name]; found {
 		// index for that name found
@@ -657,6 +437,16 @@ func (ego *RamCollection) getIndex(q QueryAtomConf) ramCollectionIndexer {
 	return nil
 }
 
+/*
+Returns the index of the column with the name specified in the query.
+If such a column does not exist, returns -1.
+
+Parameters:
+  - q - Query.
+
+Returns:
+  - Column index, if it doesn't exist, returns -1.
+*/
 func (ego *RamCollection) getFieldIndex(q QueryAtomConf) int {
 
 	for i, n := range ego.param.SchemaConf.FieldsNaming {
@@ -668,22 +458,31 @@ func (ego *RamCollection) getFieldIndex(q QueryAtomConf) int {
 	return -1
 }
 
+/*
+Creates an array as long as the number of columns.
+The array is filled with nil. The value being searched
+for is at the index of the column being searched.
+
+Parameters:
+  - q - Query,
+  - index - where the value will be stored.
+
+Returns:
+  - array filled with nil, except on index of the searched column.
+*/
 func (ego *RamCollection) primaryValue(q QueryAtomConf, index int) []any {
 	anys := make([]any, len(ego.param.SchemaConf.FieldsNaming))
 	anys[index] = q.Value // FIXME: Design hack
 	return anys
 }
 
-func (ego *RamCollection) every() CIdSet {
-	result := make(CIdSet, len(ego.rows))
+/*
+Creates a CId set and sets all existing row indexes to true.
 
-	for k := range ego.rows {
-		result[k] = true
-	}
-	return result
-}
-
-func (ego *RamCollection) allRowsSet() CIdSet {
+Returns:
+  - New CId set.
+*/
+func (ego *RamCollection) setAllRows() CIdSet {
 	ids := make(CIdSet, len(ego.rows))
 
 	for key := range ego.rows {
@@ -693,10 +492,25 @@ func (ego *RamCollection) allRowsSet() CIdSet {
 	return ids
 }
 
+/*
+Returns:
+  - Empty set of CIds
+*/
 func (ego *RamCollection) noRowsSet() CIdSet {
 	return make(CIdSet, len(ego.rows))
 }
 
+/*
+Depending on the query type, it sends the query
+and RamCollection to the corresponding evaluation function.
+
+Parameters:
+  - q - Query.
+
+Returns:
+  - The set of CIds that match the given query,
+  - error, if any.
+*/
 func (ego *RamCollection) filterQueryEval(q QueryConf) (CIdSet, error) {
 	switch v := q.(type) {
 	case QueryAndConf:
@@ -708,12 +522,16 @@ func (ego *RamCollection) filterQueryEval(q QueryConf) (CIdSet, error) {
 	case QueryAtomConf:
 		return v.eval(ego)
 	case QueryConf:
-		return ego.allRowsSet(), nil
+		return ego.setAllRows(), nil
 	default:
 		return nil, errors.NewMisappError(ego, "Unknown collection filter query.")
 	}
 }
 
+/*
+Returns:
+  - RamCollection's rows
+*/
 func (ego *RamCollection) Rows() map[CId][]any {
 	return ego.rows
 }
@@ -738,6 +556,17 @@ func (ego *RamCollection) Inspect() {
 	print("\n")
 }
 
+/*
+Filters rows based on the type and content of the query
+and writes them to the stream.
+
+Parameters:
+  - q - Query.
+
+Returns:
+  - Readable Output Streamer,
+  - error, if any.
+*/
 func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[RecordConf], error) {
 	ego.mutex.RLock()
 
@@ -777,12 +606,25 @@ type cols map[string]colTuple
 
 type colTuple struct {
 	fc       FielderConf
-	indexers uint16 // The individual nth bits represent individual indexers.
+	indexers uint16 // The individual bits represent individual indexers.
 }
 
 const prefixIndexBit = 0    // 0th bit
 const fullmatchIndexBit = 1 // 1st bit
 
+/*
+Checks if a column with this name exists.
+If it does, it checks to see if we are about to
+bind a duplicate indexer to FielderConf.
+If not, it sets the nth (by indexer type) bit of Fielder.
+
+Parameters:
+  - name - name of the column,
+  - nthBit - represent individual indexers.
+
+Returns:
+  - True, if the indexer is correctly bound, false otherwise.
+*/
 func (ego *cols) checkNum(name string, nthBit int) bool {
 	if tuple, found := (*ego)[name]; found {
 		if (tuple.indexers & (1 << nthBit)) != 0 {
@@ -795,368 +637,33 @@ func (ego *cols) checkNum(name string, nthBit int) bool {
 	return false
 }
 
-func (ego *RamCollection) registerIndexes() error {
-	ego.primaryIndex = primaryIndexerCreate(ego.rows)
+/*
+Checks if a column named <name> exists in the RamCollection.
 
-	columns := cols{}
-	for i, name := range ego.param.FieldsNaming {
-		columns[name] = colTuple{fc: ego.param.Fields[i], indexers: 0}
-	}
+Parameters:
+  - name - name to be chacked in RamCollection.
 
-	var name string
-	indexes := ego.param.Indexes
-
-	for _, idxcol := range indexes {
-		for _, idx := range idxcol {
-			switch v := idx.(type) {
-			case PrefixIndexConf[string]:
-				if _, found := columns[v.Name].fc.(FieldConf[string]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, prefixIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], stringPrefixIndexerNew(v))
-				name = v.Name
-			case PrefixIndexConf[[]string]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]string]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, prefixIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[string](v))
-				name = v.Name
-			case PrefixIndexConf[[]int]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]int]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, prefixIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[int](v))
-				name = v.Name
-			case PrefixIndexConf[[]int8]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]int8]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, prefixIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[int8](v))
-				name = v.Name
-			case PrefixIndexConf[[]int16]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]int16]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, prefixIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[int16](v))
-				name = v.Name
-			case PrefixIndexConf[[]int32]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]int32]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, prefixIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[int32](v))
-				name = v.Name
-			case PrefixIndexConf[[]int64]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]int64]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, prefixIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[int64](v))
-				name = v.Name
-			case PrefixIndexConf[[]uint]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]uint]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, prefixIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[uint](v))
-				name = v.Name
-			case PrefixIndexConf[[]uint8]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]uint8]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, prefixIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[uint8](v))
-				name = v.Name
-			case PrefixIndexConf[[]uint16]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]uint16]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, prefixIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[uint16](v))
-				name = v.Name
-			case PrefixIndexConf[[]uint32]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]uint32]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, prefixIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[uint32](v))
-				name = v.Name
-			case PrefixIndexConf[[]uint64]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]uint64]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, prefixIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[uint64](v))
-				name = v.Name
-			case PrefixIndexConf[[]float32]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]float32]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, prefixIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[float32](v))
-				name = v.Name
-			case PrefixIndexConf[[]float64]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]float64]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, prefixIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNew[float64](v))
-				name = v.Name
-			case FullmatchIndexConf[string]:
-				if _, found := columns[v.Name].fc.(FieldConf[string]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[string](v))
-				name = v.Name
-			case FullmatchIndexConf[int]:
-				if _, found := columns[v.Name].fc.(FieldConf[int]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[int](v))
-				name = v.Name
-			case FullmatchIndexConf[int8]:
-				if _, found := columns[v.Name].fc.(FieldConf[int8]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[int8](v))
-				name = v.Name
-			case FullmatchIndexConf[int16]:
-				if _, found := columns[v.Name].fc.(FieldConf[int16]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[int16](v))
-				name = v.Name
-			case FullmatchIndexConf[int32]:
-				if _, found := columns[v.Name].fc.(FieldConf[int32]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[int32](v))
-				name = v.Name
-			case FullmatchIndexConf[int64]:
-				if _, found := columns[v.Name].fc.(FieldConf[int64]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[int64](v))
-				name = v.Name
-			case FullmatchIndexConf[uint]:
-				if _, found := columns[v.Name].fc.(FieldConf[uint]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[uint](v))
-				name = v.Name
-			case FullmatchIndexConf[uint8]:
-				if _, found := columns[v.Name].fc.(FieldConf[uint8]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[uint8](v))
-				name = v.Name
-			case FullmatchIndexConf[uint16]:
-				if _, found := columns[v.Name].fc.(FieldConf[uint16]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[uint16](v))
-				name = v.Name
-			case FullmatchIndexConf[uint32]:
-				if _, found := columns[v.Name].fc.(FieldConf[uint32]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[uint32](v))
-				name = v.Name
-			case FullmatchIndexConf[uint64]:
-				if _, found := columns[v.Name].fc.(FieldConf[uint64]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[uint64](v))
-				name = v.Name
-			case FullmatchIndexConf[float32]:
-				if _, found := columns[v.Name].fc.(FieldConf[float32]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[float32](v))
-				name = v.Name
-			case FullmatchIndexConf[float64]:
-				if _, found := columns[v.Name].fc.(FieldConf[float64]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[float64](v))
-				name = v.Name
-			case FullmatchIndexConf[time.Time]:
-				if _, found := columns[v.Name].fc.(FieldConf[time.Time]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], fullmatchIndexerNew[time.Time](v))
-				name = v.Name
-			case FullmatchIndexConf[[]string]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]string]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[string](v))
-				name = v.Name
-			case FullmatchIndexConf[[]int]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]int]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[int](v))
-				name = v.Name
-			case FullmatchIndexConf[[]int8]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]int8]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[int8](v))
-				name = v.Name
-			case FullmatchIndexConf[[]int16]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]int16]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[int16](v))
-				name = v.Name
-			case FullmatchIndexConf[[]int32]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]int32]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[int32](v))
-				name = v.Name
-			case FullmatchIndexConf[[]int64]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]int64]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[int64](v))
-				name = v.Name
-			case FullmatchIndexConf[[]uint]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]uint]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[uint](v))
-				name = v.Name
-			case FullmatchIndexConf[[]uint8]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]uint8]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[uint8](v))
-				name = v.Name
-			case FullmatchIndexConf[[]uint16]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]uint16]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[uint16](v))
-				name = v.Name
-			case FullmatchIndexConf[[]uint32]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]uint32]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[uint32](v))
-				name = v.Name
-			case FullmatchIndexConf[[]uint64]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]uint64]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[uint64](v))
-				name = v.Name
-			case FullmatchIndexConf[[]float32]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]float32]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[float32](v))
-				name = v.Name
-			case FullmatchIndexConf[[]float64]:
-				if _, found := columns[v.Name].fc.(FieldConf[[]float64]); !found {
-					return errors.NewNotImplError(ego)
-				} else if !columns.checkNum(v.Name, fullmatchIndexBit) {
-					return errors.NewNotImplError(ego)
-				}
-				ego.indexes[v.Name] = append(ego.indexes[v.Name], prefixIndexerNewIgnore[float64](v))
-				name = v.Name
-			default:
-				return errors.NewNotImplError(ego)
-			}
-		}
-	}
-	if len(indexes) > 0 && len(indexes[0]) > 0 && !ego.checkName(name) {
-		return errors.NewNotImplError(ego)
-	}
-
-	return nil
-}
-
+Returns:
+  - True, if exists, false otherwise.
+*/
 func (ego *RamCollection) checkName(name string) bool {
 	return slices.Contains(ego.param.FieldsNaming, name)
 }
 
+/*
+Serializes RamCollection.
+
+Returns:
+  - configuration of the Gobject.
+*/
 func (ego *RamCollection) Serialize() gonatus.Conf {
 	return ego.param
 }
 
+/*
+Returns:
+  - error, if any.
+*/
 func (ego *RamCollection) Commit() error {
 	// Doing nothing - in future possibly commit content/oplog to a ndjson file?
 	return nil

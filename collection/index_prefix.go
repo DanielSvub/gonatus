@@ -19,6 +19,15 @@ type prefixIndexer[T comparable] struct {
 	ignoreChildren bool
 }
 
+/*
+Creates new prefixIndexer.
+
+Parameters:
+  - c - Configuration of PrefixIndexer.
+
+Returns:
+  - pointer to a new instance of prefixIndexer.
+*/
 func prefixIndexerNew[T comparable](c PrefixIndexConf[[]T]) *prefixIndexer[T] {
 	ego := new(prefixIndexer[T])
 
@@ -28,6 +37,15 @@ func prefixIndexerNew[T comparable](c PrefixIndexConf[[]T]) *prefixIndexer[T] {
 	return ego
 }
 
+/*
+Creates new prefixIndexer that allows you to ignore the children..
+
+Parameters:
+  - c - Configuration of FullmatchIndex.
+
+Returns:
+  - pointer to a new instance of prefixIndexer.
+*/
 func prefixIndexerNewIgnore[T comparable](c FullmatchIndexConf[[]T]) *prefixIndexer[T] {
 	ego := new(prefixIndexer[T])
 
@@ -38,6 +56,11 @@ func prefixIndexerNewIgnore[T comparable](c FullmatchIndexConf[[]T]) *prefixInde
 	return ego
 }
 
+/*
+TODO
+Parameters:
+Returns:
+*/
 func (ego *prefixIndexer[T]) accumulateSubtree(n *trieNode[T]) CIdSet {
 	out := make(CIdSet, 0)
 
@@ -54,6 +77,11 @@ func (ego *prefixIndexer[T]) accumulateSubtree(n *trieNode[T]) CIdSet {
 	return out
 }
 
+/*
+TODO
+Parameters:
+Returns:
+*/
 func (ego *prefixIndexer[T]) getImpl(n *trieNode[T], accumpath []T) (*trieNode[T], error) {
 	if len(accumpath) <= 0 {
 		return n, nil
@@ -68,6 +96,16 @@ func (ego *prefixIndexer[T]) getImpl(n *trieNode[T], accumpath []T) (*trieNode[T
 	return nil, nil
 }
 
+/*
+Searches for rows that has prefix matching the <v> parameter.
+
+Parameters:
+  - v - Searched prefix.
+
+Returns:
+  - CId of rows that match,
+  - error, if any.
+*/
 func (ego *prefixIndexer[T]) Get(v any) ([]CId, error) {
 	val := v.([]T)
 
@@ -86,6 +124,11 @@ func (ego *prefixIndexer[T]) Get(v any) ([]CId, error) {
 	return idset.ToSlice(), nil
 }
 
+/*
+TODO
+Parameters:
+Returns:
+*/
 func (ego *prefixIndexer[T]) addImpl(n *trieNode[T], accumpath []T, cid CId) {
 
 	if len(accumpath) == 0 {
@@ -108,12 +151,27 @@ func (ego *prefixIndexer[T]) addImpl(n *trieNode[T], accumpath []T, cid CId) {
 	ego.addImpl(nnode, accumpath[1:], cid)
 }
 
+/*
+Extends or adds an existing index record by id.
+
+Parameters:
+  - v - Value from specific row and column,
+  - id - CId of record.
+
+Returns:
+  - Error, if any.
+*/
 func (ego *prefixIndexer[T]) Add(v any, id CId) error {
 	val := v.([]T)
 	ego.addImpl(ego.index, val, id)
 	return nil
 }
 
+/*
+TODO
+Parameters:
+Returns:
+*/
 func (ego *prefixIndexer[T]) delImpl(n *trieNode[T], accumpath []T, id CId) (deleteP bool, err error) {
 
 	if len(accumpath) == 0 {
@@ -157,6 +215,16 @@ func (ego *prefixIndexer[T]) delImpl(n *trieNode[T], accumpath []T, id CId) (del
 	return false, nil
 }
 
+/*
+Removes an existing index record by id.
+
+Parameters:
+  - v - Value from specific row and column,
+  - id - CId of record.
+
+Returns:
+  - Error, if any.
+*/
 func (ego *prefixIndexer[T]) Del(v any, id CId) error {
 	// find from top to bottom, cleanup on going back
 	delP, err := ego.delImpl(ego.index, v.([]T), id)
@@ -172,6 +240,12 @@ func (ego *prefixIndexer[T]) Del(v any, id CId) error {
 	return nil
 }
 
+/*
+Serializes prefixIndexer.
+
+Returns:
+  - configuration of the Gobject.
+*/
 func (ego *prefixIndexer[T]) Serialize() gonatus.Conf {
 	return nil
 }
@@ -181,6 +255,15 @@ type stringPrefixIndexer struct {
 	*prefixIndexer[rune]
 }
 
+/*
+Creates new stringPrefixIndexer.
+
+Parameters:
+  - c - PrefixIndex Conf of type string.
+
+Returns:
+  - pointer to a new instance of stringPrefixIndexer.
+*/
 func stringPrefixIndexerNew(c PrefixIndexConf[string]) *stringPrefixIndexer {
 	ego := new(stringPrefixIndexer)
 	runePrefixConf := PrefixIndexConf[[]rune]{Name: c.Name}
@@ -188,16 +271,46 @@ func stringPrefixIndexerNew(c PrefixIndexConf[string]) *stringPrefixIndexer {
 	return ego
 }
 
+/*
+Searches for rows that has prefix matching the <v> parameter.
+
+Parameters:
+  - v - Searched prefix.
+
+Returns:
+  - CId of rows that match,
+  - error, if any.
+*/
 func (ego *stringPrefixIndexer) Get(v any) ([]CId, error) {
 	val := v.(string)
 	return ego.prefixIndexer.Get([]rune(val))
 }
 
+/*
+Extends or adds an existing index record by id.
+
+Parameters:
+  - v - Value from specific row and column,
+  - id - CId of record.
+
+Returns:
+  - Error, if any.
+*/
 func (ego *stringPrefixIndexer) Add(v any, id CId) error {
 	val := (v.(string))
 	return ego.prefixIndexer.Add([]rune(val), id)
 }
 
+/*
+Removes an existing index record by id.
+
+Parameters:
+  - v - Value from specific row and column,
+  - id - CId of record.
+
+Returns:
+  - Error, if any.
+*/
 func (ego *stringPrefixIndexer) Del(v any, id CId) error {
 	val := v.(string)
 	return ego.prefixIndexer.Del([]rune(val), id)
