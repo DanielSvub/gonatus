@@ -2,7 +2,6 @@ package collection
 
 import (
 	"fmt"
-	"reflect"
 	"sync"
 
 	"github.com/SpongeData-cz/gonatus"
@@ -50,8 +49,7 @@ Returns:
 */
 func NewRamCollection(rc RamCollectionConf) *RamCollection {
 	if len(rc.SchemaConf.FieldsNaming) != len(rc.SchemaConf.Fields) {
-		// TODO: Fatal log || panic?
-		return nil
+		return nil // Fatal log || panic?
 	}
 
 	ego := new(RamCollection)
@@ -69,8 +67,7 @@ func NewRamCollection(rc RamCollectionConf) *RamCollection {
 	// TODO: implement id index as default one ego.indexes["id"] = idIndexerNew() // must be present in every collection
 
 	if err := ego.registerIndexes(); err != nil {
-		// TODO: Fatal log || panic?
-		panic(err)
+		return nil // Fatal log || panic?
 	}
 	return ego
 }
@@ -301,12 +298,6 @@ func (ego *RamCollection) EditRecord(rc RecordConf, col int, newValue any) error
 
 	record, found := ego.rows[cid]
 
-	oldType := reflect.TypeOf(record[col])
-	newType := reflect.TypeOf(newValue)
-	if oldType != newType {
-		return errors.NewMisappError(ego, fmt.Sprintf("Type mismatch (%s given, %s expected).", newType.String(), oldType.String()))
-	}
-
 	if !found {
 		return errors.NewNotFoundError(ego, errors.LevelWarning, fmt.Sprintf("Record with id %d not found.", cid))
 	}
@@ -479,7 +470,7 @@ Returns:
 */
 func (ego *RamCollection) primaryValue(q QueryAtomConf, index int) []any {
 	anys := make([]any, len(ego.param.SchemaConf.FieldsNaming))
-	anys[index] = q.Value // FIXME: Design hack
+	anys[index] = q.Value
 	return anys
 }
 
