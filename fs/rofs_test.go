@@ -52,7 +52,6 @@ func TestROStorage(t *testing.T) {
 		if res, err := ls.Collect(); err != nil {
 			t.Error(err)
 		} else if len(res) != 3 {
-			println(len(res))
 			t.Error("Wrong number of files in LS.")
 		} else if !(containsPath(res, Path{}) &&
 			containsPath(res, Path{"a"}) &&

@@ -167,6 +167,10 @@ func (ego *file) Path() Path {
 	return ego.path
 }
 
+func (ego *file) Location() (string, error) {
+	return ego.storage.driver().Location(ego.path)
+}
+
 func (ego *file) Name() string {
 	length := len(ego.path)
 	if length == 0 {

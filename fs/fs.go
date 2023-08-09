@@ -31,6 +31,7 @@ type StorageFeatures uint8
 const (
 	FeatureRead StorageFeatures = 1 << iota
 	FeatureWrite
+	FeatureLocation
 )
 
 /*
@@ -261,6 +262,15 @@ type File interface {
 	Path() Path
 
 	/*
+		Acquires the real location (native path) of the file.
+
+		Returns:
+		  - native path,
+		  - error if any occurred.
+	*/
+	Location() (string, error)
+
+	/*
 		Acquires the name of the file (last element of the path).
 
 		Returns:
@@ -391,6 +401,17 @@ type Storage interface {
 	Tree(depth Depth) (streams.ReadableOutputStreamer[File], error)
 
 	/*
+		Changes the current working directory to the given path.
+
+		Parameters:
+		  - path - the path to set.
+
+		Returns:
+		  - error if any occurred.
+	*/
+	ChDir(path Path) error
+
+	/*
 		Commits the changes.
 
 		Returns:
@@ -513,6 +534,17 @@ type StorageDriver interface {
 	Tree(path Path, depth Depth) (streams.ReadableOutputStreamer[File], error)
 
 	/*
+		Changes the current working directory to the given path.
+
+		Parameters:
+		  - path - the path to set.
+
+		Returns:
+		  - error if any occurred.
+	*/
+	SetCwd(path Path) error
+
+	/*
 		Acquires a size of a file with the given path.
 
 		Parameters:
@@ -535,6 +567,18 @@ type StorageDriver interface {
 		  - error if any occurred.
 	*/
 	Flags(path Path) (FileFlags, error)
+
+	/*
+		Acquires real location (native path) of a file with the given path.
+
+		Parameters:
+		  - path - path to the file.
+
+		Returns:
+		  - native path,
+		  - error if any occurred.
+	*/
+	Location(path Path) (string, error)
 
 	/*
 		Commits the changes.

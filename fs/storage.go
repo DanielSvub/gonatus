@@ -104,7 +104,7 @@ func (ego *storage) Merge(source Storage) error {
 		if err := srcFile.Close(); err != nil {
 			return err
 		}
-		if err := ego.drv.Close(srcFile.Path()); err != nil {
+		if err := ego.drv.Close(dstFile.Path()); err != nil {
 			return err
 		}
 
@@ -116,6 +116,10 @@ func (ego *storage) Merge(source Storage) error {
 
 func (ego *storage) Tree(depth Depth) (streams.ReadableOutputStreamer[File], error) {
 	return ego.drv.Tree(Path{}, depth)
+}
+
+func (ego *storage) ChDir(path Path) error {
+	return ego.drv.SetCwd(path)
 }
 
 func (ego *storage) Commit() error {

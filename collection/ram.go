@@ -2,6 +2,7 @@ package collection
 
 import (
 	"fmt"
+	"reflect"
 	"sync"
 
 	"github.com/SpongeData-cz/gonatus"
@@ -299,6 +300,12 @@ func (ego *RamCollection) EditRecord(rc RecordConf, col int, newValue any) error
 	defer ego.mutex.Unlock()
 
 	record, found := ego.rows[cid]
+
+	oldType := reflect.TypeOf(record[col])
+	newType := reflect.TypeOf(newValue)
+	if oldType != newType {
+		return errors.NewMisappError(ego, fmt.Sprintf("Type mismatch (%s given, %s expected).", newType.String(), oldType.String()))
+	}
 
 	if !found {
 		return errors.NewNotFoundError(ego, errors.LevelWarning, fmt.Sprintf("Record with id %d not found.", cid))
