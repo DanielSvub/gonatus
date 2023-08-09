@@ -5,7 +5,7 @@ import (
 
 	"github.com/SpongeData-cz/gonatus/errors"
 	. "github.com/SpongeData-cz/gonatus/fs"
-	. "github.com/SpongeData-cz/gonatus/fs/drivers"
+	. "github.com/SpongeData-cz/gonatus/fs/driver"
 )
 
 func TestROStorage(t *testing.T) {

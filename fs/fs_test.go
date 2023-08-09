@@ -6,7 +6,7 @@ import (
 	"time"
 
 	. "github.com/SpongeData-cz/gonatus/fs"
-	. "github.com/SpongeData-cz/gonatus/fs/drivers"
+	. "github.com/SpongeData-cz/gonatus/fs/driver"
 )
 
 func containsPath(slice []File, path Path) bool {
