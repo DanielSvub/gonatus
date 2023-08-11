@@ -268,7 +268,12 @@ func (ego *RamCollection) DeleteByFilter(q QueryConf) error {
 				return err
 			}
 			rec := s[0]
-			ego.DeleteRecord(RecordConf{Id: rec.Id})
+
+			err = ego.DeleteRecord(RecordConf{Id: rec.Id})
+			if err != nil {
+				return err
+			}
+
 		}
 	}
 	return nil
@@ -571,6 +576,7 @@ func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[Re
 	ret, err := ego.filterQueryEval(q)
 
 	if err != nil {
+		ego.mutex.RUnlock()
 		return nil, err
 	}
 
@@ -587,7 +593,9 @@ func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[Re
 				panic(err)
 			}
 
-			sbuf.Write(rec)
+			if _, err := sbuf.Write(rec); err != nil {
+				panic(err)
+			}
 		}
 		sbuf.Close()
 	}
