@@ -304,15 +304,6 @@ func TestCollection(t *testing.T) {
 			t.Error("Found more or less results, then 2.")
 		}
 
-		// fmt.Printf("\nID   who        whom")
-		// for _, o := range output {
-		// 	fmt.Printf("\n%d", o.Id)
-		// 	for _, j := range o.Cols {
-		// 		fmt.Printf(", %s", j.(FieldConf[[]string]).Value)
-		// 	}
-		// }
-		// println()
-
 		row1 := output[0]
 		row2 := output[1]
 		r1c1 := output[0].Cols[0].(FieldConf[[]string])
@@ -429,14 +420,20 @@ func TestCollection(t *testing.T) {
 			t.Errorf("Expect 1 result, got: %d", len(output))
 		}
 
-		// fmt.Printf("\nID   who        whom")
-		// for _, o := range output {
-		// 	fmt.Printf("\n%d", o.Id)
-		// 	for _, j := range o.Cols {
-		// 		fmt.Printf(", %s", j.(FieldConf[[]string]).Value)
-		// 	}
-		// }
-		// println()
+		query = QueryAtomConf{
+			Name:      "who",
+			Value:     []string{"row5_str165", "row15_str312"},
+			MatchType: PrefixIndexConf[[]string]{},
+		}
+
+		output, err = filterCollect(rmc, query)
+		if err != nil {
+			t.Error(err.Error())
+		}
+
+		if len(output) != 0 {
+			t.Errorf("Expect 0 result, got: %d", len(output))
+		}
 
 	})
 
@@ -465,6 +462,135 @@ func TestCollection(t *testing.T) {
 	})
 
 	// TYPES
+	t.Run("typesPrimaryPrefix", func(t *testing.T) {
+		rmC := RamCollectionConf{
+			SchemaConf: SchemaConf{
+				Name:         "Vroom",
+				FieldsNaming: []string{"col0", "col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col9", "col10", "col11", "col12", "col13"},
+				Fields: []FielderConf{
+					FieldConf[string]{},
+					FieldConf[[]string]{},
+					FieldConf[[]int]{},
+					FieldConf[[]int8]{},
+					FieldConf[[]int16]{},
+					FieldConf[[]int32]{},
+					FieldConf[[]int64]{},
+					FieldConf[[]uint]{},
+					FieldConf[[]uint8]{},
+					FieldConf[[]uint16]{},
+					FieldConf[[]uint32]{},
+					FieldConf[[]uint64]{},
+					FieldConf[[]float32]{},
+					FieldConf[[]float64]{},
+				},
+				Indexes: [][]IndexerConf{},
+			},
+			MaxMemory: 1024 * 1024 * 1024,
+		}
+		rmc := NewRamCollection(rmC)
+		if rmc == nil {
+			t.Errorf("Should return valid instance of RamCollection.")
+		}
+
+		rcrds := fillPrefix(rmc)
+
+		for i := 0; i < 3; i++ {
+			_, err := rmc.AddRecord(rcrds[i])
+			if err != nil {
+				t.Error(err)
+			}
+		}
+
+		// rmc.Inspect()
+
+		output, err := getOut(true, rmc)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if len(output) != 2 {
+			t.Error("Found more or less results, then 2.")
+		}
+
+		val1, _ := output[0].Cols[1].(FieldConf[[]string])
+		val2, _ := output[1].Cols[1].(FieldConf[[]string])
+
+		if (val1.Value[1] != "StrNmbr1004" && val2.Value[1] != "StrNmbr1005") && (val1.Value[1] != "StrNmbr1005" && val2.Value[1] != "StrNmbr1004") {
+			t.Errorf("Should be <<StrNmbr1004, StrNmbr1005>> or <<StrNmbr1005, StrNmbr1004>>, but got: %s, %s", val1.Value[1], val2.Value[1])
+		}
+
+	})
+	t.Run("typesPrimaryFM", func(t *testing.T) {
+		rmC := RamCollectionConf{
+			SchemaConf: SchemaConf{
+				Name:         "Vroom",
+				FieldsNaming: []string{"col0", "col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col9", "col10", "col11", "col12", "col13", "col14", "col15", "col16", "col17", "col18", "col19", "col20", "col21", "col22", "col23", "col24", "col25", "col26"},
+				Fields: []FielderConf{
+					FieldConf[string]{},
+					FieldConf[int]{},
+					FieldConf[int8]{},
+					FieldConf[int16]{},
+					FieldConf[int32]{},
+					FieldConf[int64]{},
+					FieldConf[uint]{},
+					FieldConf[uint8]{},
+					FieldConf[uint16]{},
+					FieldConf[uint32]{},
+					FieldConf[uint64]{},
+					FieldConf[float32]{},
+					FieldConf[float64]{},
+					FieldConf[time.Time]{},
+					FieldConf[[]string]{},
+					FieldConf[[]int]{},
+					FieldConf[[]int8]{},
+					FieldConf[[]int16]{},
+					FieldConf[[]int32]{},
+					FieldConf[[]int64]{},
+					FieldConf[[]uint]{},
+					FieldConf[[]uint8]{},
+					FieldConf[[]uint16]{},
+					FieldConf[[]uint32]{},
+					FieldConf[[]uint64]{},
+					FieldConf[[]float32]{},
+					FieldConf[[]float64]{},
+				},
+				Indexes: [][]IndexerConf{},
+			},
+			MaxMemory: 1024 * 1024 * 1024,
+		}
+		rmc := NewRamCollection(rmC)
+		if rmc == nil {
+			t.Errorf("Should return valid instance of RamCollection.")
+		}
+
+		rcrds := fillFullmatch(rmc)
+
+		for i := 0; i < 3; i++ {
+			_, err := rmc.AddRecord(rcrds[i])
+			if err != nil {
+				t.Error(err)
+			}
+		}
+
+		// rmc.Inspect()
+
+		output, err := getOut(false, rmc)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if len(output) != 2 {
+			t.Error("Found more or less results, then 2.")
+		}
+
+		val1, _ := output[0].Cols[0].(FieldConf[string])
+		val2, _ := output[1].Cols[0].(FieldConf[string])
+
+		if (val1.Value != "str4" && val2.Value != "str5") && (val1.Value != "str5" && val2.Value != "str4") {
+			t.Errorf("Should be <<str14, str15>> or <<str15, str14>>, but got: %s, %s", val1.Value, val2.Value)
+		}
+
+	})
 	t.Run("typesWfullmatch", func(t *testing.T) {
 		rmC := RamCollectionConf{
 			SchemaConf: SchemaConf{
@@ -545,151 +671,8 @@ func TestCollection(t *testing.T) {
 			}
 		}
 		// rmc.Inspect()
-		timeT := time.Time{}
 
-		query := QueryOrConf{
-			QueryContextConf{
-				Context: []QueryConf{
-					QueryAtomConf{
-						Name:      "col0",
-						Value:     "str4",
-						MatchType: FullmatchIndexConf[string]{},
-					},
-					QueryAtomConf{
-						Name:      "col1",
-						Value:     14,
-						MatchType: FullmatchIndexConf[int]{},
-					},
-					QueryAtomConf{
-						Name:      "col2",
-						Value:     int8(15),
-						MatchType: FullmatchIndexConf[int8]{},
-					},
-					QueryAtomConf{
-						Name:      "col3",
-						Value:     int16(16),
-						MatchType: FullmatchIndexConf[int16]{},
-					},
-					QueryAtomConf{
-						Name:      "col4",
-						Value:     int32(17),
-						MatchType: FullmatchIndexConf[int32]{},
-					},
-					QueryAtomConf{
-						Name:      "col5",
-						Value:     int64(18),
-						MatchType: FullmatchIndexConf[int64]{},
-					},
-					QueryAtomConf{
-						Name:      "col6",
-						Value:     uint(24),
-						MatchType: FullmatchIndexConf[uint]{},
-					},
-					QueryAtomConf{
-						Name:      "col7",
-						Value:     uint8(25),
-						MatchType: FullmatchIndexConf[uint8]{},
-					},
-					QueryAtomConf{
-						Name:      "col8",
-						Value:     uint16(26),
-						MatchType: FullmatchIndexConf[uint16]{},
-					},
-					QueryAtomConf{
-						Name:      "col9",
-						Value:     uint32(27),
-						MatchType: FullmatchIndexConf[uint32]{},
-					},
-					QueryAtomConf{
-						Name:      "col10",
-						Value:     uint64(28),
-						MatchType: FullmatchIndexConf[uint64]{},
-					},
-					QueryAtomConf{
-						Name:      "col11",
-						Value:     float32(34),
-						MatchType: FullmatchIndexConf[float32]{},
-					},
-					QueryAtomConf{
-						Name:      "col12",
-						Value:     float64(35),
-						MatchType: FullmatchIndexConf[float64]{},
-					},
-					QueryAtomConf{
-						Name:      "col13",
-						Value:     timeT.Add(time.Duration(5)),
-						MatchType: FullmatchIndexConf[time.Time]{},
-					},
-					QueryAtomConf{
-						Name:      "col14",
-						Value:     []string{"strA4"},
-						MatchType: FullmatchIndexConf[[]string]{},
-					},
-					QueryAtomConf{
-						Name:      "col15",
-						Value:     []int{14},
-						MatchType: FullmatchIndexConf[[]int]{},
-					},
-					QueryAtomConf{
-						Name:      "col16",
-						Value:     []int8{int8(15)},
-						MatchType: FullmatchIndexConf[[]int8]{},
-					},
-					QueryAtomConf{
-						Name:      "col17",
-						Value:     []int16{int16(16)},
-						MatchType: FullmatchIndexConf[[]int16]{},
-					},
-					QueryAtomConf{
-						Name:      "col18",
-						Value:     []int32{int32(17)},
-						MatchType: FullmatchIndexConf[[]int32]{},
-					},
-					QueryAtomConf{
-						Name:      "col19",
-						Value:     []int64{int64(18)},
-						MatchType: FullmatchIndexConf[[]int64]{},
-					},
-					QueryAtomConf{
-						Name:      "col20",
-						Value:     []uint{uint(24)},
-						MatchType: FullmatchIndexConf[[]uint]{},
-					},
-					QueryAtomConf{
-						Name:      "col21",
-						Value:     []uint8{uint8(25)},
-						MatchType: FullmatchIndexConf[[]uint8]{},
-					},
-					QueryAtomConf{
-						Name:      "col22",
-						Value:     []uint16{uint16(26)},
-						MatchType: FullmatchIndexConf[[]uint16]{},
-					},
-					QueryAtomConf{
-						Name:      "col23",
-						Value:     []uint32{uint32(27)},
-						MatchType: FullmatchIndexConf[[]uint32]{},
-					},
-					QueryAtomConf{
-						Name:      "col24",
-						Value:     []uint64{uint64(28)},
-						MatchType: FullmatchIndexConf[[]uint64]{},
-					},
-					QueryAtomConf{
-						Name:      "col25",
-						Value:     []float32{float32(34)},
-						MatchType: FullmatchIndexConf[[]float32]{},
-					},
-					QueryAtomConf{
-						Name:      "col26",
-						Value:     []float64{float64(35)},
-						MatchType: FullmatchIndexConf[[]float64]{},
-					},
-				},
-			},
-		}
-
-		output, err := filterCollect(rmc, query)
+		output, err := getOut(false, rmc)
 		if err != nil {
 			t.Error(err)
 		}
@@ -710,8 +693,9 @@ func TestCollection(t *testing.T) {
 		rmC := RamCollectionConf{
 			SchemaConf: SchemaConf{
 				Name:         "Vroom",
-				FieldsNaming: []string{"col0", "col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col9", "col10", "col11", "col12"},
+				FieldsNaming: []string{"col0", "col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col9", "col10", "col11", "col12", "col13"},
 				Fields: []FielderConf{
+					FieldConf[string]{},
 					FieldConf[[]string]{},
 					FieldConf[[]int]{},
 					FieldConf[[]int8]{},
@@ -727,19 +711,20 @@ func TestCollection(t *testing.T) {
 					FieldConf[[]float64]{},
 				},
 				Indexes: [][]IndexerConf{{
-					PrefixIndexConf[[]string]{Name: "col0"},
-					PrefixIndexConf[[]int]{Name: "col1"},
-					PrefixIndexConf[[]int8]{Name: "col2"},
-					PrefixIndexConf[[]int16]{Name: "col3"},
-					PrefixIndexConf[[]int32]{Name: "col4"},
-					PrefixIndexConf[[]int64]{Name: "col5"},
-					PrefixIndexConf[[]uint]{Name: "col6"},
-					PrefixIndexConf[[]uint8]{Name: "col7"},
-					PrefixIndexConf[[]uint16]{Name: "col8"},
-					PrefixIndexConf[[]uint32]{Name: "col9"},
-					PrefixIndexConf[[]uint64]{Name: "col10"},
-					PrefixIndexConf[[]float32]{Name: "col11"},
-					PrefixIndexConf[[]float64]{Name: "col12"},
+					PrefixIndexConf[string]{Name: "col0"},
+					PrefixIndexConf[[]string]{Name: "col1"},
+					PrefixIndexConf[[]int]{Name: "col2"},
+					PrefixIndexConf[[]int8]{Name: "col3"},
+					PrefixIndexConf[[]int16]{Name: "col4"},
+					PrefixIndexConf[[]int32]{Name: "col5"},
+					PrefixIndexConf[[]int64]{Name: "col6"},
+					PrefixIndexConf[[]uint]{Name: "col7"},
+					PrefixIndexConf[[]uint8]{Name: "col8"},
+					PrefixIndexConf[[]uint16]{Name: "col9"},
+					PrefixIndexConf[[]uint32]{Name: "col10"},
+					PrefixIndexConf[[]uint64]{Name: "col11"},
+					PrefixIndexConf[[]float32]{Name: "col12"},
+					PrefixIndexConf[[]float64]{Name: "col13"},
 				}},
 			},
 			MaxMemory: 1024 * 1024 * 1024,
@@ -756,79 +741,8 @@ func TestCollection(t *testing.T) {
 		}
 
 		// rmc.Inspect()
-		query := QueryOrConf{
-			QueryContextConf{
-				Context: []QueryConf{
-					QueryAtomConf{
-						Name:      "col0",
-						Value:     []string{"StrNmbr4"},
-						MatchType: PrefixIndexConf[[]string]{},
-					},
-					QueryAtomConf{
-						Name:      "col1",
-						Value:     []int{15},
-						MatchType: PrefixIndexConf[[]int]{},
-					},
-					QueryAtomConf{
-						Name:      "col2",
-						Value:     []int8{20},
-						MatchType: PrefixIndexConf[[]int8]{},
-					},
-					QueryAtomConf{
-						Name:      "col3",
-						Value:     []int16{22},
-						MatchType: PrefixIndexConf[[]int16]{},
-					},
-					QueryAtomConf{
-						Name:      "col4",
-						Value:     []int32{30},
-						MatchType: PrefixIndexConf[[]int32]{},
-					},
-					QueryAtomConf{
-						Name:      "col5",
-						Value:     []int64{30},
-						MatchType: PrefixIndexConf[[]int64]{},
-					},
-					QueryAtomConf{
-						Name:      "col6",
-						Value:     []uint{40},
-						MatchType: PrefixIndexConf[[]uint]{},
-					},
-					QueryAtomConf{
-						Name:      "col7",
-						Value:     []uint8{38},
-						MatchType: PrefixIndexConf[[]uint8]{},
-					},
-					QueryAtomConf{
-						Name:      "col8",
-						Value:     []uint16{50},
-						MatchType: PrefixIndexConf[[]uint16]{},
-					},
-					QueryAtomConf{
-						Name:      "col9",
-						Value:     []uint32{46},
-						MatchType: PrefixIndexConf[[]uint32]{},
-					},
-					QueryAtomConf{
-						Name:      "col10",
-						Value:     []uint64{60},
-						MatchType: PrefixIndexConf[[]uint64]{},
-					},
-					QueryAtomConf{
-						Name:      "col11",
-						Value:     []float32{float32(64)},
-						MatchType: PrefixIndexConf[[]float32]{},
-					},
-					QueryAtomConf{
-						Name:      "col12",
-						Value:     []float64{float64(90)},
-						MatchType: PrefixIndexConf[[]float64]{},
-					},
-				},
-			},
-		}
 
-		output, err := filterCollect(rmc, query)
+		output, err := getOut(true, rmc)
 		if err != nil {
 			t.Error(err)
 		}
@@ -837,11 +751,11 @@ func TestCollection(t *testing.T) {
 			t.Error("Found more or less results, then 2.")
 		}
 
-		val1, _ := output[0].Cols[1].(FieldConf[[]int])
-		val2, _ := output[1].Cols[1].(FieldConf[[]int])
+		val1, _ := output[0].Cols[1].(FieldConf[[]string])
+		val2, _ := output[1].Cols[1].(FieldConf[[]string])
 
-		if (val1.Value[1] != 104 && val2.Value[1] != 105) && (val1.Value[1] != 105 && val2.Value[1] != 104) {
-			t.Errorf("Should be <<104, 105>> or <<105, 104>>, but got: %d, %d", val1.Value[1], val2.Value[1])
+		if (val1.Value[1] != "StrNmbr1004" && val2.Value[1] != "StrNmbr1005") && (val1.Value[1] != "StrNmbr1005" && val2.Value[1] != "StrNmbr1004") {
+			t.Errorf("Should be <<StrNmbr1004, StrNmbr1005>> or <<StrNmbr1005, StrNmbr1004>>, but got: %s, %s", val1.Value[1], val2.Value[1])
 		}
 
 	})
@@ -1000,6 +914,63 @@ func TestCollection(t *testing.T) {
 
 		if len(rmc.Rows()) != 1 {
 			t.Error("Expecting 1 row after remove second.")
+		}
+
+		// Non-valid
+		query = QueryAtomConf{
+			Name:      "nonexisting",
+			Value:     "row1_str121",
+			MatchType: FullmatchIndexConf[string]{},
+		}
+
+		err = rmc.DeleteByFilter(query)
+		if err == nil {
+			t.Error("Should throw an error")
+		}
+
+		// rmc.Inspect()
+
+		if len(rmc.Rows()) != 1 {
+			t.Error("Expecting 1 row after remove second.")
+		}
+
+		// Valid and-conf
+		queryAnd := QueryAndConf{
+			QueryContextConf{
+				Context: []QueryConf{
+					QueryAtomConf{
+						Name:      "who",
+						Value:     "row0_str110",
+						MatchType: FullmatchIndexConf[string]{},
+					},
+					QueryAtomConf{
+						Name:      "whom",
+						Value:     "row0_str345",
+						MatchType: FullmatchIndexConf[string]{},
+					},
+				},
+			},
+		}
+
+		err = rmc.DeleteByFilter(queryAnd)
+		if err != nil {
+			t.Error(err.Error())
+		}
+
+		if len(rmc.Rows()) != 0 {
+			t.Error("Expecting 0 row after remove second.")
+		}
+
+		// Valid and-conf
+		queryAnd = QueryAndConf{QueryContextConf{Context: []QueryConf{}}}
+
+		err = rmc.DeleteByFilter(queryAnd)
+		if err != nil {
+			t.Error(err.Error())
+		}
+
+		if len(rmc.Rows()) != 0 {
+			t.Error("Expecting 0 row after remove second.")
 		}
 
 	})
@@ -1163,6 +1134,27 @@ func TestCollection(t *testing.T) {
 			t.Error("Shoud return nil RamCollection")
 		}
 
+		// duplicate valid indexer
+		rmCE = RamCollectionConf{
+			SchemaConf: SchemaConf{
+				Name:         "FooBarTable2",
+				FieldsNaming: []string{"err"},
+				Fields: []FielderConf{
+					FieldConf[string]{},
+				},
+				Indexes: [][]IndexerConf{{
+					FullmatchIndexConf[string]{Name: "err"},
+					FullmatchIndexConf[string]{Name: "err"},
+				}},
+			},
+			MaxMemory: 1024 * 1024 * 1024,
+		}
+
+		rmc = NewRamCollection(rmCE)
+		if rmc != nil {
+			t.Error("Shoud return nil RamCollection")
+		}
+
 	})
 	t.Run("notValidQuery", func(t *testing.T) {
 		rmc := prepareTable(false, false, false)
@@ -1178,6 +1170,29 @@ func TestCollection(t *testing.T) {
 		_, err = rmc.Filter(query)
 		if err == nil {
 			t.Error("Should throw en error column not found.")
+		}
+
+		query = QueryAtomConf{Name: "who", Value: "row0_str110"}
+
+		_, err = rmc.Filter(query)
+		if err == nil {
+			t.Error("Should throw en error: not valid prefix in query")
+		}
+
+		// Returns all rows
+		queryA := QueryAndConf{QueryContextConf{}}
+
+		output, _ := filterCollect(rmc, queryA)
+		if len(output) != 2 {
+			t.Error("Should return 2 rows.")
+		}
+
+		// Returns empty rows
+		queryO := QueryOrConf{QueryContextConf{}}
+
+		output, _ = filterCollect(rmc, queryO)
+		if len(output) != 0 {
+			t.Error("Should return 0 rows.")
 		}
 
 	})
@@ -1285,7 +1300,6 @@ func prepareTable(fullmatchIndexP bool, prefixIndexP bool, stringPrefixIndexP bo
 	return NewRamCollection(rmC)
 }
 
-// MAIN
 func testFilling(rmc *RamCollection, iteration int, prefixI bool) error {
 
 	for i := 0; i < iteration; i++ {
@@ -1353,7 +1367,7 @@ func testLogical(t *testing.T, op string) []RecordConf {
 		t.Error(err)
 	}
 
-	rmc.Inspect()
+	// rmc.Inspect()
 
 	var query QueryConf
 
@@ -1423,21 +1437,22 @@ func fillPrefix(rmc *RamCollection) []RecordConf {
 
 	for r := 4; r < 7; r++ {
 		row = RecordConf{
-			Cols: make([]FielderConf, 13),
+			Cols: make([]FielderConf, 14),
 		}
-		row.Cols[0] = FieldConf[[]string]{Value: []string{fmt.Sprintf("StrNmbr%d", 0+r), fmt.Sprintf("StrNmbr%d", 1000+r)}}
-		row.Cols[1] = FieldConf[[]int]{Value: []int{10 + r, 100 + r}}
-		row.Cols[2] = FieldConf[[]int8]{Value: []int8{int8(10 + 2*r), int8(100 + 2*r)}}
-		row.Cols[3] = FieldConf[[]int16]{Value: []int16{int16(10 + 3*r), int16(100 + 3*r)}}
-		row.Cols[4] = FieldConf[[]int32]{Value: []int32{int32(10 + 4*r), int32(100 + 4*r)}}
-		row.Cols[5] = FieldConf[[]int64]{Value: []int64{int64(10 + 5*r), int64(100 + 5*r)}}
-		row.Cols[6] = FieldConf[[]uint]{Value: []uint{uint(10 + 6*r), uint(100 + 6*r)}}
-		row.Cols[7] = FieldConf[[]uint8]{Value: []uint8{uint8(10 + 7*r), uint8(100 + 7*r)}}
-		row.Cols[8] = FieldConf[[]uint16]{Value: []uint16{uint16(10 + 8*r), uint16(100 + 8*r)}}
-		row.Cols[9] = FieldConf[[]uint32]{Value: []uint32{uint32(10 + 9*r), uint32(100 + 9*r)}}
-		row.Cols[10] = FieldConf[[]uint64]{Value: []uint64{uint64(10 + 10*r), uint64(100 + 10*r)}}
-		row.Cols[11] = FieldConf[[]float32]{Value: []float32{float32(20.0 + 11*r), float32(200.0 + 11*r)}}
-		row.Cols[12] = FieldConf[[]float64]{Value: []float64{float64(30 + 12*r), float64(300 + 12*r)}}
+		row.Cols[0] = FieldConf[string]{Value: fmt.Sprintf("OnlyStrNmbr%d", 100+r)}
+		row.Cols[1] = FieldConf[[]string]{Value: []string{fmt.Sprintf("StrNmbr%d", 0+r), fmt.Sprintf("StrNmbr%d", 1000+r)}}
+		row.Cols[2] = FieldConf[[]int]{Value: []int{10 + r, 100 + r}}
+		row.Cols[3] = FieldConf[[]int8]{Value: []int8{int8(10 + 2*r), int8(100 + 2*r)}}
+		row.Cols[4] = FieldConf[[]int16]{Value: []int16{int16(10 + 3*r), int16(100 + 3*r)}}
+		row.Cols[5] = FieldConf[[]int32]{Value: []int32{int32(10 + 4*r), int32(100 + 4*r)}}
+		row.Cols[6] = FieldConf[[]int64]{Value: []int64{int64(10 + 5*r), int64(100 + 5*r)}}
+		row.Cols[7] = FieldConf[[]uint]{Value: []uint{uint(10 + 6*r), uint(100 + 6*r)}}
+		row.Cols[8] = FieldConf[[]uint8]{Value: []uint8{uint8(10 + 7*r), uint8(100 + 7*r)}}
+		row.Cols[9] = FieldConf[[]uint16]{Value: []uint16{uint16(10 + 8*r), uint16(100 + 8*r)}}
+		row.Cols[10] = FieldConf[[]uint32]{Value: []uint32{uint32(10 + 9*r), uint32(100 + 9*r)}}
+		row.Cols[11] = FieldConf[[]uint64]{Value: []uint64{uint64(10 + 10*r), uint64(100 + 10*r)}}
+		row.Cols[12] = FieldConf[[]float32]{Value: []float32{float32(20.0 + 11*r), float32(200.0 + 11*r)}}
+		row.Cols[13] = FieldConf[[]float64]{Value: []float64{float64(30 + 12*r), float64(300 + 12*r)}}
 		out[r-4] = row
 	}
 	return out
@@ -1485,6 +1500,231 @@ func fillFullmatch(rmc *RamCollection) []RecordConf {
 		out[r-4] = row
 	}
 	return out
+}
+
+func getOut(prefixI bool, rmc *RamCollection) ([]RecordConf, error) {
+	if prefixI {
+		query := QueryOrConf{
+			QueryContextConf{
+				Context: []QueryConf{
+					QueryAtomConf{
+						Name:      "col0",
+						Value:     "OnlyStrNmbr105",
+						MatchType: PrefixIndexConf[string]{},
+					},
+					QueryAtomConf{
+						Name:      "col1",
+						Value:     []string{"StrNmbr4"},
+						MatchType: PrefixIndexConf[[]string]{},
+					},
+					QueryAtomConf{
+						Name:      "col2",
+						Value:     []int{15},
+						MatchType: PrefixIndexConf[[]int]{},
+					},
+					QueryAtomConf{
+						Name:      "col3",
+						Value:     []int8{20},
+						MatchType: PrefixIndexConf[[]int8]{},
+					},
+					QueryAtomConf{
+						Name:      "col4",
+						Value:     []int16{22},
+						MatchType: PrefixIndexConf[[]int16]{},
+					},
+					QueryAtomConf{
+						Name:      "col5",
+						Value:     []int32{30},
+						MatchType: PrefixIndexConf[[]int32]{},
+					},
+					QueryAtomConf{
+						Name:      "col6",
+						Value:     []int64{30},
+						MatchType: PrefixIndexConf[[]int64]{},
+					},
+					QueryAtomConf{
+						Name:      "col7",
+						Value:     []uint{40},
+						MatchType: PrefixIndexConf[[]uint]{},
+					},
+					QueryAtomConf{
+						Name:      "col8",
+						Value:     []uint8{38},
+						MatchType: PrefixIndexConf[[]uint8]{},
+					},
+					QueryAtomConf{
+						Name:      "col9",
+						Value:     []uint16{50},
+						MatchType: PrefixIndexConf[[]uint16]{},
+					},
+					QueryAtomConf{
+						Name:      "col10",
+						Value:     []uint32{46},
+						MatchType: PrefixIndexConf[[]uint32]{},
+					},
+					QueryAtomConf{
+						Name:      "col11",
+						Value:     []uint64{60},
+						MatchType: PrefixIndexConf[[]uint64]{},
+					},
+					QueryAtomConf{
+						Name:      "col12",
+						Value:     []float32{float32(64)},
+						MatchType: PrefixIndexConf[[]float32]{},
+					},
+					QueryAtomConf{
+						Name:      "col13",
+						Value:     []float64{float64(90)},
+						MatchType: PrefixIndexConf[[]float64]{},
+					},
+				},
+			},
+		}
+		return filterCollect(rmc, query)
+	}
+	timeT := time.Time{}
+	query := QueryOrConf{
+		QueryContextConf{
+			Context: []QueryConf{
+				QueryAtomConf{
+					Name:      "col0",
+					Value:     "str4",
+					MatchType: FullmatchIndexConf[string]{},
+				},
+				QueryAtomConf{
+					Name:      "col1",
+					Value:     15,
+					MatchType: FullmatchIndexConf[int]{},
+				},
+				QueryAtomConf{
+					Name:      "col2",
+					Value:     int8(15),
+					MatchType: FullmatchIndexConf[int8]{},
+				},
+				QueryAtomConf{
+					Name:      "col3",
+					Value:     int16(16),
+					MatchType: FullmatchIndexConf[int16]{},
+				},
+				QueryAtomConf{
+					Name:      "col4",
+					Value:     int32(17),
+					MatchType: FullmatchIndexConf[int32]{},
+				},
+				QueryAtomConf{
+					Name:      "col5",
+					Value:     int64(18),
+					MatchType: FullmatchIndexConf[int64]{},
+				},
+				QueryAtomConf{
+					Name:      "col6",
+					Value:     uint(24),
+					MatchType: FullmatchIndexConf[uint]{},
+				},
+				QueryAtomConf{
+					Name:      "col7",
+					Value:     uint8(25),
+					MatchType: FullmatchIndexConf[uint8]{},
+				},
+				QueryAtomConf{
+					Name:      "col8",
+					Value:     uint16(26),
+					MatchType: FullmatchIndexConf[uint16]{},
+				},
+				QueryAtomConf{
+					Name:      "col9",
+					Value:     uint32(27),
+					MatchType: FullmatchIndexConf[uint32]{},
+				},
+				QueryAtomConf{
+					Name:      "col10",
+					Value:     uint64(28),
+					MatchType: FullmatchIndexConf[uint64]{},
+				},
+				QueryAtomConf{
+					Name:      "col11",
+					Value:     float32(34),
+					MatchType: FullmatchIndexConf[float32]{},
+				},
+				QueryAtomConf{
+					Name:      "col12",
+					Value:     float64(35),
+					MatchType: FullmatchIndexConf[float64]{},
+				},
+				QueryAtomConf{
+					Name:      "col13",
+					Value:     timeT.Add(time.Duration(5)),
+					MatchType: FullmatchIndexConf[time.Time]{},
+				},
+				QueryAtomConf{
+					Name:      "col14",
+					Value:     []string{"strA4"},
+					MatchType: FullmatchIndexConf[[]string]{},
+				},
+				QueryAtomConf{
+					Name:      "col15",
+					Value:     []int{14},
+					MatchType: FullmatchIndexConf[[]int]{},
+				},
+				QueryAtomConf{
+					Name:      "col16",
+					Value:     []int8{int8(15)},
+					MatchType: FullmatchIndexConf[[]int8]{},
+				},
+				QueryAtomConf{
+					Name:      "col17",
+					Value:     []int16{int16(16)},
+					MatchType: FullmatchIndexConf[[]int16]{},
+				},
+				QueryAtomConf{
+					Name:      "col18",
+					Value:     []int32{int32(17)},
+					MatchType: FullmatchIndexConf[[]int32]{},
+				},
+				QueryAtomConf{
+					Name:      "col19",
+					Value:     []int64{int64(18)},
+					MatchType: FullmatchIndexConf[[]int64]{},
+				},
+				QueryAtomConf{
+					Name:      "col20",
+					Value:     []uint{uint(24)},
+					MatchType: FullmatchIndexConf[[]uint]{},
+				},
+				QueryAtomConf{
+					Name:      "col21",
+					Value:     []uint8{uint8(25)},
+					MatchType: FullmatchIndexConf[[]uint8]{},
+				},
+				QueryAtomConf{
+					Name:      "col22",
+					Value:     []uint16{uint16(26)},
+					MatchType: FullmatchIndexConf[[]uint16]{},
+				},
+				QueryAtomConf{
+					Name:      "col23",
+					Value:     []uint32{uint32(27)},
+					MatchType: FullmatchIndexConf[[]uint32]{},
+				},
+				QueryAtomConf{
+					Name:      "col24",
+					Value:     []uint64{uint64(28)},
+					MatchType: FullmatchIndexConf[[]uint64]{},
+				},
+				QueryAtomConf{
+					Name:      "col25",
+					Value:     []float32{float32(34)},
+					MatchType: FullmatchIndexConf[[]float32]{},
+				},
+				QueryAtomConf{
+					Name:      "col26",
+					Value:     []float64{float64(35)},
+					MatchType: FullmatchIndexConf[[]float64]{},
+				},
+			},
+		},
+	}
+	return filterCollect(rmc, query)
 }
 
 // func consumeGPfxOutput(rcrds []RecordConf) error {
