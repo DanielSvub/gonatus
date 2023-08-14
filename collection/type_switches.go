@@ -1048,7 +1048,10 @@ func cmpFullmatchValues(tableValue any, queryValue any) bool {
 	case float64:
 		return tableValue == queryValue
 	case time.Time:
-		return tableValue == queryValue
+		if qValue, isMatch := queryValue.(time.Time); isMatch {
+			return tValue.Equal(qValue)
+		}
+		return false
 	case []string:
 		if qValue, isMatch := queryValue.([]string); isMatch && (len(qValue) == len(tValue)) {
 			for i, elem := range tValue {
