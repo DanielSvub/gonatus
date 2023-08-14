@@ -6,7 +6,7 @@ import (
 
 	"github.com/SpongeData-cz/gonatus"
 	"github.com/SpongeData-cz/gonatus/errors"
-	"github.com/SpongeData-cz/gonatus/streams"
+	"github.com/SpongeData-cz/stream"
 )
 
 /*
@@ -276,7 +276,7 @@ func (ego *file) MkDir() error {
 	return ego.Storage().driver().MkDir(ego.path, ego.stat.OrigTime)
 }
 
-func (ego *file) Tree(depth Depth) (streams.ReadableOutputStreamer[File], error) {
+func (ego *file) Tree(depth Depth) (stream.Producer[File], error) {
 	if ego.Storage() == nil {
 		return nil, errors.NewNilError(ego, errors.LevelError, "Storage not set.")
 	}

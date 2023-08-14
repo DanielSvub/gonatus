@@ -10,9 +10,9 @@ import (
 	"github.com/SpongeData-cz/gonatus/collection"
 	"github.com/SpongeData-cz/gonatus/errors"
 	"github.com/SpongeData-cz/gonatus/fs"
+	"github.com/SpongeData-cz/stream"
 
 	"github.com/SpongeData-cz/gonatus"
-	"github.com/SpongeData-cz/gonatus/streams"
 )
 
 /*
@@ -60,10 +60,6 @@ func (ego *record) conf() collection.RecordConf {
 	return collection.RecordConf(*ego)
 }
 
-func (ego *record) parent() collection.CId {
-	return collection.CId(ego.Cols[fieldParent].(collection.FieldConf[uint64]).Value)
-}
-
 func (ego *record) path() fs.Path {
 	return fs.Path(ego.Cols[fieldPath].(collection.FieldConf[[]string]).Value)
 }
@@ -78,10 +74,6 @@ func (ego *record) location() string {
 
 func (ego *record) origTime() time.Time {
 	return ego.Cols[fieldOrigTime].(collection.FieldConf[time.Time]).Value
-}
-
-func (ego *record) modifTime() time.Time {
-	return ego.Cols[fieldModifTime].(collection.FieldConf[time.Time]).Value
 }
 
 const rootId collection.CId = 1
@@ -199,31 +191,6 @@ func (ego *localCountedStorageDriver) findFile(absPath fs.Path) (*record, error)
 }
 
 /*
-Executes the given function over records in the given stream.
-
-Parameters:
-  - stream - stream to process,
-  - fn - function to execute.
-
-Returns:
-  - error if any occurred.
-*/
-func (ego *localCountedStorageDriver) forEach(stream streams.ReadableOutputStreamer[collection.RecordConf], fn func(record) error) error {
-	for !stream.Closed() {
-		s := make([]collection.RecordConf, 1)
-		if n, err := stream.Read(s); err != nil {
-			return err
-		} else if n != 1 {
-			return nil
-		}
-		if err := fn(record(s[0])); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-/*
 Executes the given function over records of all files in the given path (unlimited recurse).
 
 Parameters:
@@ -234,14 +201,16 @@ Returns:
   - error if any occurred.
 */
 func (ego *localCountedStorageDriver) forFilesWithPrefix(prefix fs.Path, fn func(record) error) error {
-	if stream, err := ego.files.Filter(collection.QueryAtomConf{
+	if s, err := ego.files.Filter(collection.QueryAtomConf{
 		Name:      "path",
 		Value:     []string(prefix),
 		MatchType: collection.PrefixIndexConf[[]string]{},
 	}); err != nil {
 		return err
 	} else {
-		return ego.forEach(stream, fn)
+		ts := stream.NewTransformer(func(conf collection.RecordConf) record { return record(conf) })
+		s.Pipe(ts)
+		return ts.ForEach(fn)
 	}
 }
 
@@ -256,14 +225,16 @@ Returns:
   - error if any occurred.
 */
 func (ego *localCountedStorageDriver) forFilesWithParent(parent collection.CId, fn func(record) error) error {
-	if stream, err := ego.files.Filter(collection.QueryAtomConf{
+	if s, err := ego.files.Filter(collection.QueryAtomConf{
 		Name:      "parent",
 		Value:     uint64(parent),
 		MatchType: collection.FullmatchIndexConf[uint64]{},
 	}); err != nil {
 		return err
 	} else {
-		return ego.forEach(stream, fn)
+		ts := stream.NewTransformer(func(conf collection.RecordConf) record { return record(conf) })
+		s.Pipe(ts)
+		return ts.ForEach(fn)
 	}
 }
 
@@ -560,7 +531,7 @@ Returns:
   - the readable stream with result,
   - error if any occurred.
 */
-func (ego *localCountedStorageDriver) exportToStream(absPath fs.Path, depth fs.Depth) (streams.ReadableOutputStreamer[fs.File], error) {
+func (ego *localCountedStorageDriver) exportToStream(absPath fs.Path, depth fs.Depth) (stream.Producer[fs.File], error) {
 
 	if rec, err := ego.findFile(absPath); err != nil {
 		return nil, err
@@ -570,23 +541,25 @@ func (ego *localCountedStorageDriver) exportToStream(absPath fs.Path, depth fs.D
 
 	pathLen := len(absPath)
 
-	inputStream := streams.NewBufferInputStream[fs.File](1)
-	outputStream := streams.NewReadableOutputStream[fs.File]()
-	inputStream.Pipe(outputStream)
+	if s, err := ego.files.Filter(collection.QueryAtomConf{
+		Name:      "path",
+		Value:     []string(absPath),
+		MatchType: collection.PrefixIndexConf[[]string]{},
+	}); err != nil {
 
-	// Parallelly write files satisfying the depth constraint to output pipe
-	// TODO: naive and uneffective
-	go func() {
-		ego.forFilesWithPrefix(absPath, func(rec record) error {
-			if fs.Depth(len(rec.path())-pathLen) <= depth {
-				inputStream.Write(ego.newFile(rec))
-			}
-			return nil
-		})
-		inputStream.Close()
-	}()
+		return nil, err
 
-	return outputStream, nil
+	} else {
+
+		toRecord := stream.NewTransformer(func(conf collection.RecordConf) record { return record(conf) })
+		filter := stream.NewFilter(func(rec record) bool { return fs.Depth(len(rec.path())-pathLen) <= depth })
+		toFile := stream.NewTransformer(func(rec record) fs.File { return ego.newFile(rec) })
+
+		s.Pipe(toRecord).(stream.Producer[record]).Pipe(filter).(stream.Producer[record]).Pipe(toFile)
+
+		return toFile, nil
+
+	}
 
 }
 
@@ -693,6 +666,9 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 		// Creating a new file and opening it
 		var err error
 		fullpath, err := ego.newLocation()
+		if err != nil {
+			return nil, err
+		}
 		fd, err = os.OpenFile(fullpath, modeFlags, 0664)
 		if err != nil {
 			return nil, err
@@ -738,7 +714,7 @@ func (ego *localCountedStorageDriver) Delete(path fs.Path) error {
 	return ego.deleteFile(ego.absPath(path))
 }
 
-func (ego *localCountedStorageDriver) Tree(path fs.Path, depth fs.Depth) (streams.ReadableOutputStreamer[fs.File], error) {
+func (ego *localCountedStorageDriver) Tree(path fs.Path, depth fs.Depth) (stream.Producer[fs.File], error) {
 	return ego.exportToStream(ego.absPath(path), depth)
 }
 

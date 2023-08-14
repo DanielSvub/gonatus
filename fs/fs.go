@@ -8,7 +8,7 @@ import (
 
 	"github.com/SpongeData-cz/gonatus"
 	"github.com/SpongeData-cz/gonatus/errors"
-	"github.com/SpongeData-cz/gonatus/streams"
+	"github.com/SpongeData-cz/stream"
 )
 
 /*
@@ -338,7 +338,7 @@ type File interface {
 		  - stream of the files,
 		  - error if any occurred.
 	*/
-	Tree(depth Depth) (streams.ReadableOutputStreamer[File], error)
+	Tree(depth Depth) (stream.Producer[File], error)
 
 	/*
 		Acquires a current status of the file.
@@ -398,7 +398,7 @@ type Storage interface {
 		  - stream of the files,
 		  - error if any occurred.
 	*/
-	Tree(depth Depth) (streams.ReadableOutputStreamer[File], error)
+	Tree(depth Depth) (stream.Producer[File], error)
 
 	/*
 		Changes the current working directory to the given path.
@@ -531,7 +531,7 @@ type StorageDriver interface {
 		  - stream of the files,
 		  - error if any occurred.
 	*/
-	Tree(path Path, depth Depth) (streams.ReadableOutputStreamer[File], error)
+	Tree(path Path, depth Depth) (stream.Producer[File], error)
 
 	/*
 		Changes the current working directory to the given path.

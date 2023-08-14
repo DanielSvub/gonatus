@@ -10,9 +10,9 @@ import (
 
 	"github.com/SpongeData-cz/gonatus/errors"
 	"github.com/SpongeData-cz/gonatus/fs"
+	"github.com/SpongeData-cz/stream"
 
 	"github.com/SpongeData-cz/gonatus"
-	"github.com/SpongeData-cz/gonatus/streams"
 )
 
 type NativeStorageConf struct {
@@ -116,18 +116,6 @@ type nativeRecord struct {
 	size  uint64
 }
 
-func (ego *nativeStorageDriver) toFileConf(record nativeRecord) fs.FileConf {
-	flags := fs.FileContent
-	if record.isDir {
-		flags = fs.FileTopology
-	}
-	return fs.FileConf{
-		StorageId: ego.id,
-		Path:      ego.storagePath(record.path),
-		Flags:     flags,
-	}
-}
-
 func nativeStat(path string) (bool, nativeRecord, error) {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -172,33 +160,31 @@ func filterImpl(pfx string, depth fs.Depth) (accum []nativeRecord, err error) {
 	return
 }
 
-func (ego *nativeStorageDriver) exportToStream(files []nativeRecord) (streams.ReadableOutputStreamer[fs.File], error) {
-	export := func(stream streams.BufferInputStreamer[fs.File]) {
+func (ego *nativeStorageDriver) exportToStream(files []nativeRecord) (stream.Producer[fs.File], error) {
+	export := func(s stream.ChanneledInput[fs.File]) {
+		defer s.Close()
 		for _, f := range files {
 			flags := fs.FileContent
 			if f.isDir {
 				flags = fs.FileTopology
 			}
 
-			stream.Write(fs.NewFile(fs.FileConf{
+			s.Write(fs.NewFile(fs.FileConf{
 				StorageId: ego.id,
 				Path:      ego.storagePath(f.path),
 				Flags:     flags,
 			}))
 		}
-		stream.Close()
 	}
 
-	inputStream := streams.NewBufferInputStream[fs.File](1)
-	outputStream := streams.NewReadableOutputStream[fs.File]()
+	s := stream.NewChanneledInput[fs.File](1)
 
-	inputStream.Pipe(outputStream)
-	go export(inputStream)
+	go export(s)
 
-	return outputStream, nil
+	return s, nil
 }
 
-func (ego *nativeStorageDriver) Tree(path fs.Path, depth fs.Depth) (streams.ReadableOutputStreamer[fs.File], error) {
+func (ego *nativeStorageDriver) Tree(path fs.Path, depth fs.Depth) (stream.Producer[fs.File], error) {
 	lst, err := filterImpl(ego.nativePath(path), depth)
 
 	if err != nil {

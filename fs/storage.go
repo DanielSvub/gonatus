@@ -4,7 +4,7 @@ import (
 	"math"
 
 	"github.com/SpongeData-cz/gonatus"
-	"github.com/SpongeData-cz/gonatus/streams"
+	"github.com/SpongeData-cz/stream"
 )
 
 /*
@@ -52,20 +52,12 @@ func (ego *storage) driver() StorageDriver {
 
 func (ego *storage) Merge(source Storage) error {
 
-	stream, err := source.driver().Tree(Path{}, DepthUnlimited)
+	s, err := source.Tree(DepthUnlimited)
 	if err != nil {
 		return err
 	}
-	slice := make([]File, 1)
 
-	for !stream.Closed() {
-
-		if n, err := stream.Read(slice); err != nil {
-			return err
-		} else if n < 1 {
-			continue
-		}
-		srcFile := slice[0]
+	s.ForEach(func(srcFile File) error {
 
 		if stat, err := srcFile.Stat(); err != nil {
 			return err
@@ -73,7 +65,7 @@ func (ego *storage) Merge(source Storage) error {
 			if err := ego.drv.MkDir(srcFile.Path(), stat.OrigTime); err != nil {
 				return err
 			}
-			continue
+			return nil
 		}
 
 		err := srcFile.Open(ModeRead)
@@ -104,17 +96,16 @@ func (ego *storage) Merge(source Storage) error {
 		if err := srcFile.Close(); err != nil {
 			return err
 		}
-		if err := ego.drv.Close(dstFile.Path()); err != nil {
-			return err
-		}
 
-	}
+		return ego.drv.Close(dstFile.Path())
+
+	})
 
 	return nil
 
 }
 
-func (ego *storage) Tree(depth Depth) (streams.ReadableOutputStreamer[File], error) {
+func (ego *storage) Tree(depth Depth) (stream.Producer[File], error) {
 	return ego.drv.Tree(Path{}, depth)
 }
 
