@@ -2,7 +2,7 @@ package collection
 
 import (
 	"github.com/SpongeData-cz/gonatus"
-	"github.com/SpongeData-cz/gonatus/streams"
+	"github.com/SpongeData-cz/stream"
 )
 
 /* Collection ID */
@@ -92,7 +92,7 @@ type QueryRange[T any] struct {
 
 type Collection interface {
 	gonatus.Gobjecter
-	Filter(QueryConf) (streams.ReadableOutputStreamer[RecordConf], error)
+	Filter(QueryConf) (stream.Producer[RecordConf], error)
 	// Group(QueryConf, GroupQueryConf) (streams.ReadableOutputStreamer[GroupRecordConf], error) // TODO: define grouping
 	AddRecord(RecordConf) (CId, error)
 	DeleteRecord(RecordConf) error

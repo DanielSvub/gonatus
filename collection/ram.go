@@ -6,7 +6,7 @@ import (
 
 	"github.com/SpongeData-cz/gonatus"
 	"github.com/SpongeData-cz/gonatus/errors"
-	"github.com/SpongeData-cz/gonatus/streams"
+	"github.com/SpongeData-cz/stream"
 	"golang.org/x/exp/slices"
 )
 
@@ -570,7 +570,7 @@ Returns:
   - Readable Output Streamer,
   - error, if any.
 */
-func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[RecordConf], error) {
+func (ego *RamCollection) Filter(q QueryConf) (stream.Producer[RecordConf], error) {
 	ego.mutex.RLock()
 
 	ret, err := ego.filterQueryEval(q)
@@ -580,7 +580,7 @@ func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[Re
 		return nil, err
 	}
 
-	sbuf := streams.NewBufferInputStream[RecordConf](100)
+	sbuf := stream.NewChanneledInput[RecordConf](100)
 
 	fetchRows := func() {
 		defer ego.mutex.RUnlock()
@@ -600,11 +600,8 @@ func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[Re
 		sbuf.Close()
 	}
 
-	outs := streams.NewReadableOutputStream[RecordConf]()
-	sbuf.Pipe(outs)
-
 	go fetchRows()
-	return outs, nil
+	return sbuf, nil
 }
 
 // Mapping columns names to a structure containing fielders and indexers.
