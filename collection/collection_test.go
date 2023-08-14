@@ -36,11 +36,7 @@ func TestCollection(t *testing.T) {
 			},
 		}
 
-		smc, err := rmc.Filter(query)
-		if err != nil {
-			t.Error(err.Error())
-		}
-		output, err := smc.Collect()
+		output, err := filterCollect(rmc, query)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -66,14 +62,11 @@ func TestCollection(t *testing.T) {
 
 		// rmc.Inspect()
 
-		smc, err = rmc.Filter(query)
+		output, err = filterCollect(rmc, query)
 		if err != nil {
 			t.Error(err.Error())
 		}
-		output, err = smc.Collect()
-		if err != nil {
-			t.Error(err.Error())
-		}
+
 		if len(output) != 1 {
 			t.Error("Found more or less results, than 1.")
 		}
@@ -106,11 +99,7 @@ func TestCollection(t *testing.T) {
 			},
 		}
 
-		smc, err = rmc.Filter(query1)
-		if err != nil {
-			t.Error(err.Error())
-		}
-		output, err = smc.Collect()
+		output, err = filterCollect(rmc, query1)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -140,11 +129,7 @@ func TestCollection(t *testing.T) {
 
 		// rmc.Inspect()
 
-		smc, err = rmc.Filter(query1)
-		if err != nil {
-			t.Error(err.Error())
-		}
-		output, err = smc.Collect()
+		output, err = filterCollect(rmc, query1)
 		if err != nil {
 			t.Error(err.Error())
 		}
