@@ -445,18 +445,31 @@ func TestCollection(t *testing.T) {
 			t.Error(err.Error())
 		}
 
-		// rmc.Inspect()
+		rmc.Inspect()
 
-		err = rmc.EditRecord(RecordConf{Id: 1}, 0, "imChanged@text.me")
+		rc := RecordConf{Id: 1, Cols: make([]FielderConf, 2)}
+		rc.Cols[0] = FieldConf[string]{Value: "imChanged@text.me"}
+		rc.Cols[1] = FieldConf[string]{Value: "row0_str345"}
+
+		err = rmc.EditRecord(rc)
 		if err != nil {
 			t.Error(err.Error())
 		}
 
-		// rmc.Inspect()
-
-		err = rmc.EditRecord(RecordConf{Id: 42}, 0, "imNotValid@text.me")
+		rmc.Inspect()
+		rcN := RecordConf{Id: 42, Cols: make([]FielderConf, 3)}
+		rcN.Cols[0] = FieldConf[string]{Value: "imChanged@text.me"}
+		rcN.Cols[1] = FieldConf[string]{Value: "nowhereToSee@msg.me"}
+		rcN.Cols[2] = FieldConf[string]{Value: "ImDolphin@eueu.me"}
+		err = rmc.EditRecord(rcN)
 		if err == nil {
 			t.Error("No record with id 42 shoud be found.")
+		}
+
+		rcN.Id = 2
+		err = rmc.EditRecord(rcN)
+		if err == nil {
+			t.Error("Should throw an error \"wrong number of columns.\"")
 		}
 
 	})

@@ -284,14 +284,12 @@ Edits the RamCollection record whose configuration is passed by the parameter
 and modifies it in the lookup indexes.
 
 Parameters:
-  - rc - Configuration of Record,
-  - col - the index of the column in the row to be overwriten,
-  - newValue - new value to overwrite the old one.
+  - rc - Configuration of Record.
 
 Returns:
   - Error, if any.
 */
-func (ego *RamCollection) EditRecord(rc RecordConf, col int, newValue any) error {
+func (ego *RamCollection) EditRecord(rc RecordConf) error {
 	cid := rc.Id
 
 	if !cid.ValidP() {
@@ -302,26 +300,39 @@ func (ego *RamCollection) EditRecord(rc RecordConf, col int, newValue any) error
 	defer ego.mutex.Unlock()
 
 	record, found := ego.rows[cid]
-
 	if !found {
 		return errors.NewNotFoundError(ego, errors.LevelWarning, fmt.Sprintf("Record with id %d not found.", cid))
 	}
 
-	name := ego.param.FieldsNaming[col]
-
-	// Modify lookup indexes
-	if colidx, found := ego.indexes[name]; found {
-		for _, idx := range colidx {
-			if err := idx.Del(record[col], cid); err != nil {
-				return err //FIXME: inconsitent state if any call of Del fails
-			}
-			if err := idx.Add(record[col], cid); err != nil {
-				return err //FIXME: inconsitent state if any call of Del fails
-			}
-		}
+	if len(rc.Cols) != len(record) {
+		return errors.NewNotFoundError(ego, errors.LevelWarning, "Wrong number of columns")
 	}
 
-	ego.rows[cid][col] = newValue
+	for col, fc := range rc.Cols {
+
+		val, err := ego.InterpretField(fc)
+		if err != nil {
+			return err
+		}
+		if cmpFullmatchValues(val, record[col]) {
+			continue
+		}
+
+		name := ego.param.FieldsNaming[col]
+		// Modify lookup indexes
+		if colidx, found := ego.indexes[name]; found {
+			for _, idx := range colidx {
+				if err = idx.Del(record[col], cid); err != nil {
+					return err //FIXME: inconsitent state if any call of Del fails
+				}
+				if err = idx.Add(record[col], cid); err != nil {
+					return err //FIXME: inconsitent state if any call of Del fails
+				}
+			}
+
+		}
+		ego.rows[cid][col] = val
+	}
 
 	return nil
 }

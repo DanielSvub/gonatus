@@ -344,6 +344,7 @@ func (ego *localCountedStorageDriver) createDir(absPath fs.Path, origTime time.T
 
 	if rec != nil {
 		if rec.flags()&fs.FileTopology == 0 {
+			// TODO: Need to fix recordConf due to EditRecord changes
 			return rec.Id, ego.files.EditRecord(rec.conf(), fieldFlags, uint8(rec.flags()|fs.FileTopology))
 		}
 		return rec.Id, nil
@@ -612,6 +613,7 @@ func (ego *localCountedStorageDriver) closeFile(path fs.Path) error {
 
 	ego.openFiles[rec.Id].Close()
 	delete(ego.openFiles, rec.Id)
+	// TODO: Need to fix recordConf due to EditRecord changes
 	if err := ego.files.EditRecord(rec.conf(), fieldModifTime, time.Now()); err != nil {
 		return err
 	}
@@ -656,9 +658,11 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 			if err != nil {
 				return nil, err
 			}
+			// TODO: Need to fix recordConf due to EditRecord changes
 			if err := ego.files.EditRecord(rec.conf(), fieldFlags, uint8(rec.flags()|fs.FileContent)); err != nil {
 				return nil, err
 			}
+			// TODO: Need to fix recordConf due to EditRecord changes
 			if err := ego.files.EditRecord(rec.conf(), fieldLocation, location); err != nil {
 				return nil, err
 			}
