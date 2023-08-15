@@ -168,23 +168,21 @@ Returns:
 */
 func (ego *localCountedStorageDriver) findFile(absPath fs.Path) (*record, error) {
 
-	if stream, err := ego.files.Filter(collection.QueryAtomConf{
+	if s, err := ego.files.Filter(collection.QueryAtomConf{
 		Name:      "path",
 		Value:     []string(absPath),
 		MatchType: collection.FullmatchIndexConf[[]string]{},
 	}); err != nil {
 		return nil, err
 	} else {
-		s := make([]collection.RecordConf, 1)
-		if n, err := stream.Read(s); err != nil {
+		if value, valid, err := s.Get(); err != nil || !valid {
 			return nil, err
-		} else if n == 0 {
-			return nil, nil
-		} else if stream.Closed() {
-			rec := record(s[0])
-			return &rec, nil
 		} else {
-			return nil, errors.NewStateError(ego, errors.LevelError, "Multiple records found for a single path.")
+			if _, valid, _ := s.Get(); valid {
+				return nil, errors.NewStateError(ego, errors.LevelError, "Multiple records found for a single path.")
+			}
+			rec := record(value)
+			return &rec, nil
 		}
 	}
 

@@ -57,7 +57,7 @@ func (ego *storage) Merge(source Storage) error {
 		return err
 	}
 
-	s.ForEach(func(srcFile File) error {
+	return s.ForEach(func(srcFile File) error {
 
 		if stat, err := srcFile.Stat(); err != nil {
 			return err
@@ -100,8 +100,6 @@ func (ego *storage) Merge(source Storage) error {
 		return ego.drv.Close(dstFile.Path())
 
 	})
-
-	return nil
 
 }
 
