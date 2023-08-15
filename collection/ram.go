@@ -250,8 +250,8 @@ Parameters:
 Returns:
   - Error, if any.
 */
-func (ego *RamCollection) DeleteByFilter(q QueryConf) error {
-	if qq, ok := q.(QueryAndConf); ok && len(qq.Context) == 0 {
+func (ego *RamCollection) DeleteByFilter(fa FilterArgument) error {
+	if qq, ok := fa.QueryConf.(QueryAndConf); ok && len(qq.Context) == 0 {
 		ego.rows = make(map[CId][]any)
 		ego.indexes = make(map[string][]ramCollectionIndexer)
 		ego.registerIndexes()
@@ -259,7 +259,7 @@ func (ego *RamCollection) DeleteByFilter(q QueryConf) error {
 		return nil
 	}
 
-	if stream, err := ego.Filter(q); err != nil {
+	if stream, err := ego.Filter(fa); err != nil {
 		return err
 	} else {
 		for !stream.Closed() {
@@ -581,10 +581,10 @@ Returns:
   - Readable Output Streamer,
   - error, if any.
 */
-func (ego *RamCollection) Filter(q QueryConf) (stream.Producer[RecordConf], error) {
+func (ego *RamCollection) Filter(fa FilterArgument) (stream.Producer[RecordConf], error) {
 	ego.mutex.RLock()
 
-	ret, err := ego.filterQueryEval(q)
+	ret, err := ego.filterQueryEval(fa.QueryConf)
 
 	if err != nil {
 		ego.mutex.RUnlock()

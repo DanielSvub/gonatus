@@ -50,6 +50,19 @@ type RecordConf struct {
 type QueryConf interface {
 }
 
+const (
+	ASC = iota
+	DESC
+)
+
+type FilterArgument struct {
+	QueryConf
+	Sort      string
+	SortOrder int
+	Skip      int
+	Limit     int
+}
+
 type QueryAtomConf struct {
 	QueryConf
 	MatchType IndexerConf
@@ -92,11 +105,11 @@ type QueryRange[T any] struct {
 
 type Collection interface {
 	gonatus.Gobjecter
-	Filter(QueryConf) (stream.Producer[RecordConf], error)
+	Filter(FilterArgument) (stream.Producer[RecordConf], error)
 	// Group(QueryConf, GroupQueryConf) (streams.ReadableOutputStreamer[GroupRecordConf], error) // TODO: define grouping
 	AddRecord(RecordConf) (CId, error)
 	DeleteRecord(RecordConf) error
-	DeleteByFilter(QueryConf) error
+	DeleteByFilter(FilterArgument) error
 	EditRecord(RecordConf) error
 	Commit() error
 }

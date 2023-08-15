@@ -19,7 +19,8 @@ func TestCollection(t *testing.T) {
 
 		// rmc.Inspect()
 
-		query := QueryAndConf{
+		query := FilterArgument{}
+		query.QueryConf = QueryAndConf{
 			QueryContextConf{
 				Context: []QueryConf{
 					QueryAtomConf{
@@ -82,7 +83,7 @@ func TestCollection(t *testing.T) {
 
 		// rmc.Inspect()
 
-		query1 := QueryOrConf{
+		query.QueryConf = QueryOrConf{
 			QueryContextConf{
 				Context: []QueryConf{
 					QueryAtomConf{
@@ -99,7 +100,7 @@ func TestCollection(t *testing.T) {
 			},
 		}
 
-		output, err = filterCollect(rmc, query1)
+		output, err = filterCollect(rmc, query)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -129,7 +130,7 @@ func TestCollection(t *testing.T) {
 
 		// rmc.Inspect()
 
-		output, err = filterCollect(rmc, query1)
+		output, err = filterCollect(rmc, query)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -198,7 +199,7 @@ func TestCollection(t *testing.T) {
 		// rmc.Inspect()
 
 		// Query to return all results
-		query := new(QueryConf)
+		query := FilterArgument{QueryConf: new(QueryConf)}
 		output, err := filterCollect(rmc, query)
 		if err != nil {
 			t.Error(err.Error())
@@ -239,11 +240,12 @@ func TestCollection(t *testing.T) {
 		// rmc.Inspect()
 
 		// Query to return one row
-		query := QueryAtomConf{
-			Name:      "who",
-			Value:     "row0_str110",
-			MatchType: FullmatchIndexConf[string]{},
-		}
+		query := FilterArgument{
+			QueryConf: QueryAtomConf{
+				Name:      "who",
+				Value:     "row0_str110",
+				MatchType: FullmatchIndexConf[string]{},
+			}}
 
 		output, err := filterCollect(rmc, query)
 		if err != nil {
@@ -274,11 +276,12 @@ func TestCollection(t *testing.T) {
 		// rmc.Inspect()
 
 		// Query to return all results
-		query := QueryAtomConf{
-			Name:      "who",
-			Value:     []string{},
-			MatchType: PrefixIndexConf[[]string]{},
-		}
+		query := FilterArgument{
+			QueryConf: QueryAtomConf{
+				Name:      "who",
+				Value:     []string{},
+				MatchType: PrefixIndexConf[[]string]{},
+			}}
 
 		output, err := filterCollect(rmc, query)
 		if err != nil {
@@ -322,11 +325,12 @@ func TestCollection(t *testing.T) {
 
 		// rmc.Inspect()
 
-		query := QueryAtomConf{
-			Name:      "who",
-			Value:     "row1",
-			MatchType: PrefixIndexConf[string]{},
-		}
+		query := FilterArgument{
+			QueryConf: QueryAtomConf{
+				Name:      "who",
+				Value:     "row1",
+				MatchType: PrefixIndexConf[string]{},
+			}}
 
 		output, err := filterCollect(rmc, query)
 		if err != nil {
@@ -344,7 +348,7 @@ func TestCollection(t *testing.T) {
 
 		// rmc.Inspect()
 
-		query = QueryAtomConf{
+		query.QueryConf = QueryAtomConf{
 			Name:      "who",
 			Value:     "row",
 			MatchType: PrefixIndexConf[string]{},
@@ -389,12 +393,12 @@ func TestCollection(t *testing.T) {
 		}
 
 		// rmc.Inspect()
-
-		query := QueryAtomConf{
-			Name:      "who",
-			Value:     []string{"row5_str165", "row5_str312"},
-			MatchType: PrefixIndexConf[[]string]{},
-		}
+		query := FilterArgument{
+			QueryConf: QueryAtomConf{
+				Name:      "who",
+				Value:     []string{"row5_str165", "row5_str312"},
+				MatchType: PrefixIndexConf[[]string]{},
+			}}
 
 		output, err := filterCollect(rmc, query)
 		if err != nil {
@@ -405,7 +409,7 @@ func TestCollection(t *testing.T) {
 			t.Errorf("Expect 1 result, got: %d", len(output))
 		}
 
-		query = QueryAtomConf{
+		query.QueryConf = QueryAtomConf{
 			Name:      "who",
 			Value:     []string{"row5_str165", "row15_str312"},
 			MatchType: PrefixIndexConf[[]string]{},
@@ -896,12 +900,12 @@ func TestCollection(t *testing.T) {
 		}
 
 		// rmc.Inspect()
-
-		query := QueryAtomConf{
-			Name:      "who",
-			Value:     "row1_str121",
-			MatchType: FullmatchIndexConf[string]{},
-		}
+		query := FilterArgument{
+			QueryConf: QueryAtomConf{
+				Name:      "who",
+				Value:     "row1_str121",
+				MatchType: FullmatchIndexConf[string]{},
+			}}
 
 		err = rmc.DeleteByFilter(query)
 		if err != nil {
@@ -915,7 +919,7 @@ func TestCollection(t *testing.T) {
 		}
 
 		// Non-valid
-		query = QueryAtomConf{
+		query.QueryConf = QueryAtomConf{
 			Name:      "nonexisting",
 			Value:     "row1_str121",
 			MatchType: FullmatchIndexConf[string]{},
@@ -933,7 +937,8 @@ func TestCollection(t *testing.T) {
 		}
 
 		// Valid and-conf
-		queryAnd := QueryAndConf{
+
+		query.QueryConf = QueryAndConf{
 			QueryContextConf{
 				Context: []QueryConf{
 					QueryAtomConf{
@@ -950,7 +955,7 @@ func TestCollection(t *testing.T) {
 			},
 		}
 
-		err = rmc.DeleteByFilter(queryAnd)
+		err = rmc.DeleteByFilter(query)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -960,9 +965,9 @@ func TestCollection(t *testing.T) {
 		}
 
 		// Valid and-conf
-		queryAnd = QueryAndConf{QueryContextConf{Context: []QueryConf{}}}
+		query.QueryConf = QueryAndConf{QueryContextConf{Context: []QueryConf{}}}
 
-		err = rmc.DeleteByFilter(queryAnd)
+		err = rmc.DeleteByFilter(query)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -1160,17 +1165,17 @@ func TestCollection(t *testing.T) {
 		if err != nil {
 			t.Error(err.Error())
 		}
-
-		query := QueryAtomConf{
-			Name:  "noExisting",
-			Value: "string",
-		}
+		query := FilterArgument{
+			QueryConf: QueryAtomConf{
+				Name:  "noExisting",
+				Value: "string",
+			}}
 		_, err = rmc.Filter(query)
 		if err == nil {
 			t.Error("Should throw en error column not found.")
 		}
 
-		query = QueryAtomConf{Name: "who", Value: "row0_str110"}
+		query.QueryConf = QueryAtomConf{Name: "who", Value: "row0_str110"}
 
 		_, err = rmc.Filter(query)
 		if err == nil {
@@ -1178,17 +1183,17 @@ func TestCollection(t *testing.T) {
 		}
 
 		// Returns all rows
-		queryA := QueryAndConf{QueryContextConf{}}
+		query.QueryConf = QueryAndConf{QueryContextConf{}}
 
-		output, _ := filterCollect(rmc, queryA)
+		output, _ := filterCollect(rmc, query)
 		if len(output) != 2 {
 			t.Error("Should return 2 rows.")
 		}
 
 		// Returns empty rows
-		queryO := QueryOrConf{QueryContextConf{}}
+		query.QueryConf = QueryOrConf{QueryContextConf{}}
 
-		output, _ = filterCollect(rmc, queryO)
+		output, _ = filterCollect(rmc, query)
 		if len(output) != 0 {
 			t.Error("Should return 0 rows.")
 		}
@@ -1324,8 +1329,8 @@ func testFilling(rmc *RamCollection, iteration int, prefixI bool) error {
 	return nil
 }
 
-func filterCollect(rmc *RamCollection, query QueryConf) ([]RecordConf, error) {
-	smc, err := rmc.Filter(query)
+func filterCollect(rmc *RamCollection, fa FilterArgument) ([]RecordConf, error) {
+	smc, err := rmc.Filter(fa)
 	if err != nil {
 		return nil, err
 	}
@@ -1367,10 +1372,10 @@ func testLogical(t *testing.T, op string) []RecordConf {
 
 	// rmc.Inspect()
 
-	var query QueryConf
+	query := FilterArgument{}
 
 	if op == "or" {
-		query = QueryOrConf{
+		query.QueryConf = QueryOrConf{
 			QueryContextConf{
 				Context: []QueryConf{
 					QueryAtomConf{
@@ -1387,7 +1392,7 @@ func testLogical(t *testing.T, op string) []RecordConf {
 			},
 		}
 	} else if op == "and" {
-		query = QueryAndConf{
+		query.QueryConf = QueryAndConf{
 			QueryContextConf{
 				Context: []QueryConf{
 					QueryAtomConf{
@@ -1404,7 +1409,7 @@ func testLogical(t *testing.T, op string) []RecordConf {
 			},
 		}
 	} else if op == "implies" {
-		query = QueryImplicationConf{
+		query.QueryConf = QueryImplicationConf{
 			Left: QueryAtomConf{
 				Name:      "who",
 				Value:     "row0_str110",
@@ -1501,8 +1506,9 @@ func fillFullmatch(rmc *RamCollection) []RecordConf {
 }
 
 func getOut(prefixI bool, rmc *RamCollection) ([]RecordConf, error) {
+	query := FilterArgument{}
 	if prefixI {
-		query := QueryOrConf{
+		query.QueryConf = QueryOrConf{
 			QueryContextConf{
 				Context: []QueryConf{
 					QueryAtomConf{
@@ -1581,7 +1587,7 @@ func getOut(prefixI bool, rmc *RamCollection) ([]RecordConf, error) {
 		return filterCollect(rmc, query)
 	}
 	timeT := time.Time{}
-	query := QueryOrConf{
+	query.QueryConf = QueryOrConf{
 		QueryContextConf{
 			Context: []QueryConf{
 				QueryAtomConf{

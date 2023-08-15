@@ -168,11 +168,12 @@ Returns:
 */
 func (ego *localCountedStorageDriver) findFile(absPath fs.Path) (*record, error) {
 
-	if s, err := ego.files.Filter(collection.QueryAtomConf{
-		Name:      "path",
-		Value:     []string(absPath),
-		MatchType: collection.FullmatchIndexConf[[]string]{},
-	}); err != nil {
+	if s, err := ego.files.Filter(collection.FilterArgument{
+		QueryConf: collection.QueryAtomConf{
+			Name:      "path",
+			Value:     []string(absPath),
+			MatchType: collection.FullmatchIndexConf[[]string]{},
+		}}); err != nil {
 		return nil, err
 	} else {
 		if value, valid, err := s.Get(); err != nil || !valid {
@@ -199,11 +200,12 @@ Returns:
   - error if any occurred.
 */
 func (ego *localCountedStorageDriver) forFilesWithPrefix(prefix fs.Path, fn func(record) error) error {
-	if s, err := ego.files.Filter(collection.QueryAtomConf{
-		Name:      "path",
-		Value:     []string(prefix),
-		MatchType: collection.PrefixIndexConf[[]string]{},
-	}); err != nil {
+	if s, err := ego.files.Filter(collection.FilterArgument{
+		QueryConf: collection.QueryAtomConf{
+			Name:      "path",
+			Value:     []string(prefix),
+			MatchType: collection.PrefixIndexConf[[]string]{},
+		}}); err != nil {
 		return err
 	} else {
 		ts := stream.NewTransformer(func(conf collection.RecordConf) record { return record(conf) })
@@ -223,11 +225,12 @@ Returns:
   - error if any occurred.
 */
 func (ego *localCountedStorageDriver) forFilesWithParent(parent collection.CId, fn func(record) error) error {
-	if s, err := ego.files.Filter(collection.QueryAtomConf{
-		Name:      "parent",
-		Value:     uint64(parent),
-		MatchType: collection.FullmatchIndexConf[uint64]{},
-	}); err != nil {
+	if s, err := ego.files.Filter(collection.FilterArgument{
+		QueryConf: collection.QueryAtomConf{
+			Name:      "parent",
+			Value:     uint64(parent),
+			MatchType: collection.FullmatchIndexConf[uint64]{},
+		}}); err != nil {
 		return err
 	} else {
 		ts := stream.NewTransformer(func(conf collection.RecordConf) record { return record(conf) })
@@ -539,11 +542,12 @@ func (ego *localCountedStorageDriver) exportToStream(absPath fs.Path, depth fs.D
 
 	pathLen := len(absPath)
 
-	if s, err := ego.files.Filter(collection.QueryAtomConf{
-		Name:      "path",
-		Value:     []string(absPath),
-		MatchType: collection.PrefixIndexConf[[]string]{},
-	}); err != nil {
+	if s, err := ego.files.Filter(collection.FilterArgument{
+		QueryConf: collection.QueryAtomConf{
+			Name:      "path",
+			Value:     []string(absPath),
+			MatchType: collection.PrefixIndexConf[[]string]{},
+		}}); err != nil {
 
 		return nil, err
 
@@ -790,9 +794,10 @@ func (ego *localCountedStorageDriver) Commit() error {
 
 func (ego *localCountedStorageDriver) Clear() error {
 
-	if err := ego.files.DeleteByFilter(collection.QueryAndConf{
-		QueryContextConf: collection.QueryContextConf{Context: []collection.QueryConf{}},
-	}); err != nil {
+	if err := ego.files.DeleteByFilter(collection.FilterArgument{
+		QueryConf: collection.QueryAndConf{
+			QueryContextConf: collection.QueryContextConf{Context: []collection.QueryConf{}},
+		}}); err != nil {
 		return err
 	}
 
