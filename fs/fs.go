@@ -122,11 +122,6 @@ func (ego Path) String() string {
 }
 
 /*
-Identification of the storage.
-*/
-type StorageId uint64
-
-/*
 A service which keeps track of the storages.
 
 Extends:
@@ -137,12 +132,12 @@ Implements:
 */
 type StorageManager struct {
 	gonatus.Gobject
-	counter            StorageId
-	registeredStorages map[StorageId]Storage
+	counter            gonatus.GId
+	registeredStorages map[gonatus.GId]Storage
 }
 
 // Default storage manager
-var GStorageManager StorageManager = StorageManager{registeredStorages: make(map[StorageId]Storage)}
+var GStorageManager StorageManager = StorageManager{registeredStorages: make(map[gonatus.GId]Storage)}
 
 /*
 Registers a new storage to the manager.
@@ -185,7 +180,7 @@ Returns:
   - the storage (nil if not found),
   - error if not found.
 */
-func (ego *StorageManager) Fetch(e StorageId) (Storage, error) {
+func (ego *StorageManager) Fetch(e gonatus.GId) (Storage, error) {
 	if ego.registeredStorages[e] == nil {
 		return nil, errors.NewNotFoundError(ego, errors.LevelError, "No storage with index "+fmt.Sprint(e)+".")
 	}
@@ -202,13 +197,13 @@ Returns:
   - ID of the storage (0 if not found),
   - error if not found.
 */
-func (ego *StorageManager) GetId(s Storage) (StorageId, error) {
+func (ego *StorageManager) GetId(s Storage) (gonatus.GId, error) {
 	for id, ss := range ego.registeredStorages {
 		if s.driver() == ss.driver() {
 			return id, nil
 		}
 	}
-	return *new(StorageId), errors.NewNotFoundError(ego, errors.LevelError, "Storage not found.")
+	return *new(gonatus.GId), errors.NewNotFoundError(ego, errors.LevelError, "Storage not found.")
 }
 
 func (ego *StorageManager) Serialize() gonatus.Conf {
@@ -434,7 +429,7 @@ type Storage interface {
 		Returns:
 		  - ID of the storage.
 	*/
-	Id() StorageId
+	Id() gonatus.GId
 }
 
 /*
@@ -611,7 +606,7 @@ type StorageDriver interface {
 		Returns:
 		  - ID of the storage.
 	*/
-	Id() StorageId
+	Id() gonatus.GId
 
 	/*
 		Sets the storage ID.
@@ -619,5 +614,5 @@ type StorageDriver interface {
 		Parameters:
 		  - ID to set.
 	*/
-	SetId(id StorageId)
+	SetId(id gonatus.GId)
 }

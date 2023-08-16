@@ -84,7 +84,7 @@ type LocalCountedStorageConf struct {
 
 type localCountedStorageDriver struct {
 	gonatus.Gobject
-	id            fs.StorageId
+	id            gonatus.GId
 	prefix        string
 	cwd           fs.Path
 	files         collection.Collection
@@ -817,11 +817,11 @@ func (ego *localCountedStorageDriver) Features() fs.StorageFeatures {
 	return fs.FeatureRead | fs.FeatureWrite | fs.FeatureLocation
 }
 
-func (ego *localCountedStorageDriver) Id() fs.StorageId {
+func (ego *localCountedStorageDriver) Id() gonatus.GId {
 	return ego.id
 }
 
-func (ego *localCountedStorageDriver) SetId(id fs.StorageId) {
+func (ego *localCountedStorageDriver) SetId(id gonatus.GId) {
 	ego.id = id
 }
 

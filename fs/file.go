@@ -25,7 +25,7 @@ Configuration structure for the file.
 */
 type FileConf struct {
 	Path      Path
-	StorageId StorageId
+	StorageId gonatus.GId
 	Flags     FileFlags
 	OrigTime  time.Time
 }

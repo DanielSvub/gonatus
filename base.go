@@ -5,6 +5,8 @@ import (
 	slog "golang.org/x/exp/slog"
 )
 
+type GId uint64
+
 type Conf any
 
 type Gobjecter interface {

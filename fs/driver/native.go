@@ -21,7 +21,7 @@ type NativeStorageConf struct {
 
 type nativeStorageDriver struct {
 	gonatus.Gobject
-	id      fs.StorageId
+	id      gonatus.GId
 	prefix  string
 	cwd     fs.Path
 	opened  map[*os.File]fs.FileConf
@@ -249,11 +249,11 @@ func (ego *nativeStorageDriver) Features() fs.StorageFeatures {
 	return fs.FeatureRead | fs.FeatureLocation
 }
 
-func (ego *nativeStorageDriver) Id() fs.StorageId {
+func (ego *nativeStorageDriver) Id() gonatus.GId {
 	return ego.id
 }
 
-func (ego *nativeStorageDriver) SetId(id fs.StorageId) {
+func (ego *nativeStorageDriver) SetId(id gonatus.GId) {
 	ego.id = id
 }
 

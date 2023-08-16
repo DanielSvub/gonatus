@@ -119,7 +119,7 @@ func (ego *storage) Clear() error {
 	return ego.drv.Clear()
 }
 
-func (ego *storage) Id() StorageId {
+func (ego *storage) Id() gonatus.GId {
 	return ego.drv.Id()
 }
 

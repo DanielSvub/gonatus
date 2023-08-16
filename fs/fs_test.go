@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/SpongeData-cz/gonatus"
 	. "github.com/SpongeData-cz/gonatus/fs"
 	. "github.com/SpongeData-cz/gonatus/fs/driver"
 )
@@ -49,7 +50,7 @@ func TestPath(t *testing.T) {
 func TestStorage(t *testing.T) {
 
 	var storage Storage
-	var sid StorageId
+	var sid gonatus.GId
 
 	setup := func() {
 
@@ -191,10 +192,10 @@ func TestStorage(t *testing.T) {
 func TestFile(t *testing.T) {
 
 	var storage1 Storage
-	var sid1 StorageId
+	var sid1 gonatus.GId
 
 	var storage2 Storage
-	var sid2 StorageId
+	var sid2 gonatus.GId
 
 	setup := func() {
 

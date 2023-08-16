@@ -3,6 +3,7 @@ package fs_test
 import (
 	"testing"
 
+	"github.com/SpongeData-cz/gonatus"
 	"github.com/SpongeData-cz/gonatus/errors"
 	. "github.com/SpongeData-cz/gonatus/fs"
 	. "github.com/SpongeData-cz/gonatus/fs/driver"
@@ -11,7 +12,7 @@ import (
 func TestROStorage(t *testing.T) {
 
 	var storage Storage
-	var sid StorageId
+	var sid gonatus.GId
 
 	setup := func() {
 
