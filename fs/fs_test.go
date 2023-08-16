@@ -5,8 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/SpongeData-cz/gonatus"
 	. "github.com/SpongeData-cz/gonatus/fs"
 	. "github.com/SpongeData-cz/gonatus/fs/driver"
+	. "github.com/SpongeData-cz/gonatus/fs/service"
 )
 
 func containsPath(slice []File, path Path) bool {
@@ -48,14 +50,16 @@ func TestPath(t *testing.T) {
 
 func TestStorage(t *testing.T) {
 
-	var storage Storage
-	var sid StorageId
+	var service StorageService
+	var sid gonatus.GId
 
 	setup := func() {
 
-		storage = NewLocalCountedStorage(LocalCountedStorageConf{Prefix: "/tmp/storage"})
-		GStorageManager.RegisterStorage(storage)
-		sid, _ = GStorageManager.GetId(storage)
+		service = NewStorageService(StorageServiceConf{})
+		sid, err := service.New(LocalCountedStorageConf{Prefix: "/tmp/storage"})
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		// /a/
 		NewFile(FileConf{Path: Path{"a"}, StorageId: sid}).MkDir()
@@ -91,16 +95,16 @@ func TestStorage(t *testing.T) {
 	}
 
 	cleanup := func() {
-		GStorageManager.UnregisterStorage(storage)
-		storage.Commit()
-		storage.Clear()
+		service.Commit(sid)
+		service.Clear(sid)
+		service.Remove(sid)
 	}
 
 	t.Run("tree", func(t *testing.T) {
 
 		setup()
 
-		unlimited, err := storage.Tree(DepthUnlimited)
+		unlimited, err := service.Tree(sid, DepthUnlimited)
 		if err != nil {
 			t.Error(err)
 		}
@@ -117,7 +121,7 @@ func TestStorage(t *testing.T) {
 			t.Error("Missing file(s) in the unlimited tree.")
 		}
 
-		ls, err := storage.Tree(DepthLs)
+		ls, err := service.Tree(sid, DepthLs)
 		if err != nil {
 			t.Error(err)
 		}
@@ -131,7 +135,7 @@ func TestStorage(t *testing.T) {
 			t.Error("Missing file in LS.")
 		}
 
-		limit, err := storage.Tree(2)
+		limit, err := service.Tree(sid, 2)
 		if err != nil {
 			t.Error(err)
 		}
@@ -154,35 +158,39 @@ func TestStorage(t *testing.T) {
 
 		setup()
 
-		copy := NewLocalCountedStorage(LocalCountedStorageConf{Prefix: "/tmp/storage2"})
-		GStorageManager.RegisterStorage(copy)
+		if copyId, err := service.New(LocalCountedStorageConf{Prefix: "/tmp/storage2"}); err != nil {
 
-		if err := copy.Merge(storage); err != nil {
-			t.Error(err)
+			t.Fatal(err)
+
+		} else {
+
+			if err := service.Merge(sid, copyId); err != nil {
+				t.Error(err)
+			}
+
+			unlimited, err := service.Tree(copyId, DepthUnlimited)
+			if err != nil {
+				t.Error(err)
+			}
+			if res, err := unlimited.Collect(); err != nil {
+				t.Error(err)
+			} else if len(res) != 6 {
+				t.Error("Wrong number of files in the destination storage.")
+			} else if !(containsPath(res, Path{}) &&
+				containsPath(res, Path{"a"}) &&
+				containsPath(res, Path{"b"}) &&
+				containsPath(res, Path{"a", "c"}) &&
+				containsPath(res, Path{"a", "c", "d"}) &&
+				containsPath(res, Path{"a", "c", "d", "file"})) {
+				t.Error("Missing file(s) in the destination storage.")
+			}
+
+			service.Commit(copyId)
+			service.Clear(copyId)
+			service.Remove(copyId)
+
+			cleanup()
 		}
-
-		unlimited, err := copy.Tree(DepthUnlimited)
-		if err != nil {
-			t.Error(err)
-		}
-		if res, err := unlimited.Collect(); err != nil {
-			t.Error(err)
-		} else if len(res) != 6 {
-			t.Error("Wrong number of files in the destination storage.")
-		} else if !(containsPath(res, Path{}) &&
-			containsPath(res, Path{"a"}) &&
-			containsPath(res, Path{"b"}) &&
-			containsPath(res, Path{"a", "c"}) &&
-			containsPath(res, Path{"a", "c", "d"}) &&
-			containsPath(res, Path{"a", "c", "d", "file"})) {
-			t.Error("Missing file(s) in the destination storage.")
-		}
-
-		GStorageManager.UnregisterStorage(copy)
-		copy.Commit()
-		copy.Clear()
-
-		cleanup()
 
 	})
 
@@ -190,21 +198,24 @@ func TestStorage(t *testing.T) {
 
 func TestFile(t *testing.T) {
 
-	var storage1 Storage
-	var sid1 StorageId
+	var service StorageService
 
-	var storage2 Storage
-	var sid2 StorageId
+	var sid1 gonatus.GId
+	var sid2 gonatus.GId
 
 	setup := func() {
 
-		storage1 = NewLocalCountedStorage(LocalCountedStorageConf{Prefix: "/tmp/storage"})
-		GStorageManager.RegisterStorage(storage1)
-		sid1, _ = GStorageManager.GetId(storage1)
+		service = NewStorageService(StorageServiceConf{})
 
-		storage2 = NewLocalCountedStorage(LocalCountedStorageConf{Prefix: "/tmp/storage2"})
-		GStorageManager.RegisterStorage(storage2)
-		sid2, _ = GStorageManager.GetId(storage2)
+		sid1, err := service.New(LocalCountedStorageConf{Prefix: "/tmp/storage"})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		sid2, err = service.New(LocalCountedStorageConf{Prefix: "/tmp/storage2"})
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		// /a/
 		NewFile(FileConf{Path: Path{"a"}, StorageId: sid1}).MkDir()
@@ -236,13 +247,13 @@ func TestFile(t *testing.T) {
 
 	cleanup := func() {
 
-		storage1.Commit()
-		storage1.Clear()
-		GStorageManager.UnregisterStorage(storage1)
+		service.Commit(sid1)
+		service.Clear(sid2)
 
-		storage2.Commit()
-		storage2.Clear()
-		GStorageManager.UnregisterStorage(storage2)
+		service.Commit(sid2)
+		service.Clear(sid2)
+
+		service.Remove(sid1, sid2)
 
 	}
 
@@ -261,7 +272,7 @@ func TestFile(t *testing.T) {
 			t.Error(err)
 		}
 
-		s1Tree, err := storage1.Tree(DepthUnlimited)
+		s1Tree, err := service.Tree(sid1, DepthUnlimited)
 		if err != nil {
 			t.Error(err)
 		}
@@ -278,7 +289,7 @@ func TestFile(t *testing.T) {
 			t.Error("Missing file(s) in the original storage.")
 		}
 
-		s2Tree, err := storage2.Tree(DepthUnlimited)
+		s2Tree, err := service.Tree(sid2, DepthUnlimited)
 		if err != nil {
 			t.Error(err)
 		}
@@ -307,7 +318,7 @@ func TestFile(t *testing.T) {
 			t.Error(err)
 		}
 
-		s1Tree, err := storage1.Tree(DepthUnlimited)
+		s1Tree, err := service.Tree(sid1, DepthUnlimited)
 		if err != nil {
 			t.Error(err)
 		}
@@ -323,7 +334,7 @@ func TestFile(t *testing.T) {
 			t.Error("Missing file(s) in the original storage.")
 		}
 
-		s2Tree, err := storage2.Tree(DepthUnlimited)
+		s2Tree, err := service.Tree(sid2, DepthUnlimited)
 		if err != nil {
 			t.Error(err)
 		}
@@ -358,7 +369,7 @@ func TestFile(t *testing.T) {
 			t.Error(err)
 		}
 
-		s1Tree, err := storage1.Tree(DepthUnlimited)
+		s1Tree, err := service.Tree(sid1, DepthUnlimited)
 		if err != nil {
 			t.Error(err)
 		}
@@ -373,7 +384,7 @@ func TestFile(t *testing.T) {
 			t.Error("Missing file(s) in the original storage.")
 		}
 
-		s2Tree, err := storage2.Tree(DepthUnlimited)
+		s2Tree, err := service.Tree(sid2, DepthUnlimited)
 		if err != nil {
 			t.Error(err)
 		}

@@ -1,13 +1,11 @@
 package fs
 
 import (
-	"fmt"
 	"io"
 	"strings"
 	"time"
 
 	"github.com/SpongeData-cz/gonatus"
-	"github.com/SpongeData-cz/gonatus/errors"
 	"github.com/SpongeData-cz/stream"
 )
 
@@ -119,100 +117,6 @@ Returns:
 */
 func (ego Path) String() string {
 	return "/" + strings.Join(ego, "/")
-}
-
-/*
-Identification of the storage.
-*/
-type StorageId uint64
-
-/*
-A service which keeps track of the storages.
-
-Extends:
-  - gonatus.Gobject.
-
-Implements:
-  - gonatus.Gobjecter.
-*/
-type StorageManager struct {
-	gonatus.Gobject
-	counter            StorageId
-	registeredStorages map[StorageId]Storage
-}
-
-// Default storage manager
-var GStorageManager StorageManager = StorageManager{registeredStorages: make(map[StorageId]Storage)}
-
-/*
-Registers a new storage to the manager.
-
-Parameters:
-  - s - storage to register.
-*/
-func (ego *StorageManager) RegisterStorage(s Storage) {
-	ego.counter++
-	ego.registeredStorages[ego.counter] = s
-	s.driver().SetId(ego.counter)
-}
-
-/*
-Unregisters a storage from the manager.
-
-Parameters:
-  - s - storage to unregister.
-
-Returns:
-  - error if any occurred.
-*/
-func (ego *StorageManager) UnregisterStorage(s Storage) error {
-	index, err := ego.GetId(s)
-	if err != nil {
-		return err
-	}
-	delete(ego.registeredStorages, index)
-	s.driver().SetId(0)
-	return nil
-}
-
-/*
-Fetches a storage with the given ID.
-
-Parameters:
-  - e - ID of the storage.
-
-Returns:
-  - the storage (nil if not found),
-  - error if not found.
-*/
-func (ego *StorageManager) Fetch(e StorageId) (Storage, error) {
-	if ego.registeredStorages[e] == nil {
-		return nil, errors.NewNotFoundError(ego, errors.LevelError, "No storage with index "+fmt.Sprint(e)+".")
-	}
-	return ego.registeredStorages[e], nil
-}
-
-/*
-Acquires an ID of the given storage.
-
-Parameters:
-  - s - the storage.
-
-Returns:
-  - ID of the storage (0 if not found),
-  - error if not found.
-*/
-func (ego *StorageManager) GetId(s Storage) (StorageId, error) {
-	for id, ss := range ego.registeredStorages {
-		if s.driver() == ss.driver() {
-			return id, nil
-		}
-	}
-	return *new(StorageId), errors.NewNotFoundError(ego, errors.LevelError, "Storage not found.")
-}
-
-func (ego *StorageManager) Serialize() gonatus.Conf {
-	return nil
 }
 
 /*
@@ -434,7 +338,7 @@ type Storage interface {
 		Returns:
 		  - ID of the storage.
 	*/
-	Id() StorageId
+	Id() gonatus.GId
 }
 
 /*
@@ -611,7 +515,7 @@ type StorageDriver interface {
 		Returns:
 		  - ID of the storage.
 	*/
-	Id() StorageId
+	Id() gonatus.GId
 
 	/*
 		Sets the storage ID.
@@ -619,5 +523,5 @@ type StorageDriver interface {
 		Parameters:
 		  - ID to set.
 	*/
-	SetId(id StorageId)
+	SetId(id gonatus.GId)
 }

@@ -25,7 +25,7 @@ Configuration structure for the file.
 */
 type FileConf struct {
 	Path      Path
-	StorageId StorageId
+	StorageId gonatus.GId
 	Flags     FileFlags
 	OrigTime  time.Time
 }
@@ -68,7 +68,18 @@ func NewFile(conf FileConf) File {
 
 	ego := new(file)
 
-	ego.storage, _ = GStorageManager.Fetch(conf.StorageId)
+	if srv := gonatus.GKeeper.Fetch(1); srv == nil {
+		return nil
+	} else {
+		// TODO: Circular dependency of files and storage services
+		// Get service ID from keeper, keep all storages local or merge whole FS into one package
+		srv.(service.StorageService).Fetch()
+		storage, ok := srv.(Storage)
+		if !ok {
+			return nil
+		}
+		ego.storage = storage
+	}
 
 	if conf.Path == nil {
 		ego.path = Path{}

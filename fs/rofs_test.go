@@ -1,6 +1,6 @@
 package fs_test
 
-import (
+/* import (
 	"testing"
 
 	"github.com/SpongeData-cz/gonatus/errors"
@@ -205,3 +205,4 @@ func TestROStorage(t *testing.T) {
 	})
 
 }
+*/

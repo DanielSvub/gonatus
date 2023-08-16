@@ -7,14 +7,27 @@ import (
 
 type Conf any
 
+type GId uint64
+
 type Gobjecter interface {
+	Id() GId
+	SetId(id GId)
 	Serialize() Conf
 	SetLog(*slog.Logger)
 	Log() *slog.Logger
 }
 
 type Gobject struct {
+	id  GId
 	log *slog.Logger
+}
+
+func (ego *Gobject) Id() GId {
+	return ego.id
+}
+
+func (ego *Gobject) SetId(id GId) {
+	ego.id = id
 }
 
 /*

@@ -7,4 +7,4 @@ require (
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1
 )
 
-require github.com/SpongeData-cz/stream v0.0.0-20230814133646-0f6dc5ee0744
+require github.com/SpongeData-cz/stream v0.0.0-20230815105157-1dcf1af49632
