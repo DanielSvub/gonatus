@@ -145,10 +145,11 @@ Registers a new storage to the manager.
 Parameters:
   - s - storage to register.
 */
-func (ego *StorageManager) RegisterStorage(s Storage) {
+func (ego *StorageManager) RegisterStorage(s Storage) error {
 	ego.counter++
 	ego.registeredStorages[ego.counter] = s
 	s.driver().SetId(ego.counter)
+	return nil
 }
 
 /*

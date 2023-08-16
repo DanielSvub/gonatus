@@ -3,7 +3,6 @@ package fs_test
 import (
 	"testing"
 
-	"github.com/SpongeData-cz/gonatus"
 	"github.com/SpongeData-cz/gonatus/errors"
 	. "github.com/SpongeData-cz/gonatus/fs"
 	. "github.com/SpongeData-cz/gonatus/fs/driver"
@@ -12,14 +11,10 @@ import (
 func TestROStorage(t *testing.T) {
 
 	var storage Storage
-	var sid gonatus.GId
 
 	setup := func() {
-
 		storage = NewNativeStorage(NativeStorageConf{Prefix: "./fixtures"})
 		GStorageManager.RegisterStorage(storage)
-		sid, _ = GStorageManager.GetId(storage)
-
 	}
 
 	cleanup := func() {
@@ -120,15 +115,14 @@ func TestROStorage(t *testing.T) {
 
 		storage2 := NewLocalCountedStorage(LocalCountedStorageConf{Prefix: "/tmp/storage2"})
 		GStorageManager.RegisterStorage(storage2)
-		sid2, _ := GStorageManager.GetId(storage2)
 
 		file := NewFile(FileConf{
-			StorageId: sid,
+			StorageId: storage.Id(),
 			Path:      Path{"a", "c", "file"},
 		})
 
 		copy := NewFile(FileConf{
-			StorageId: sid2,
+			StorageId: storage2.Id(),
 			Path:      Path{"copy"},
 		})
 
@@ -181,15 +175,14 @@ func TestROStorage(t *testing.T) {
 
 		storage2 := NewLocalCountedStorage(LocalCountedStorageConf{Prefix: "/tmp/storage2"})
 		GStorageManager.RegisterStorage(storage2)
-		sid2, _ := GStorageManager.GetId(storage2)
 
 		file := NewFile(FileConf{
-			StorageId: sid,
+			StorageId: storage.Id(),
 			Path:      Path{"a", "c", "file"},
 		})
 
 		moved := NewFile(FileConf{
-			StorageId: sid2,
+			StorageId: storage2.Id(),
 			Path:      Path{"moved"},
 		})
 
