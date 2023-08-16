@@ -1,5 +1,5 @@
-github.com/SpongeData-cz/stream v0.0.0-20230815105157-1dcf1af49632 h1:cHHmKL0ZV8oE4kVu6tHTaoV9uM+iantH70JwKHr1UeY=
-github.com/SpongeData-cz/stream v0.0.0-20230815105157-1dcf1af49632/go.mod h1:GWwh/zENcFUDzyJ4+l5cyA6BWE2VIkPBBAWYfMOdxfQ=
+github.com/SpongeData-cz/stream v0.0.0-20230816143559-9f202362acf9 h1:Br59tmL7+U71ccvBNL004mzOLaKzITwfK/kADsxGCQg=
+github.com/SpongeData-cz/stream v0.0.0-20230816143559-9f202362acf9/go.mod h1:GWwh/zENcFUDzyJ4+l5cyA6BWE2VIkPBBAWYfMOdxfQ=
 github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyuac5Z2hdY=
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1 h1:k/i9J1pBpvlfR+9QsetwPyERsqu1GIbi967PQMq3Ivc=
