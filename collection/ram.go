@@ -1,13 +1,14 @@
 package collection
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/SpongeData-cz/gonatus"
 	"github.com/SpongeData-cz/gonatus/errors"
 	"github.com/SpongeData-cz/stream"
-	"golang.org/x/exp/slices"
 )
 
 const MaxUint = ^uint64(0)
@@ -314,7 +315,7 @@ func (ego *RamCollection) EditRecord(rc RecordConf) error {
 		if err != nil {
 			return err
 		}
-		if cmpFullmatchValues(val, record[col]) {
+		if cmpFullmatchValues(val, record[col]) == 0 {
 			continue
 		}
 
@@ -452,19 +453,19 @@ func (ego *RamCollection) getIndex(q QueryAtomConf) ramCollectionIndexer {
 }
 
 /*
-Returns the index of the column with the name specified in the query.
+Returns the index of the column with the name specified in parameter.
 If such a column does not exist, returns -1.
 
 Parameters:
-  - q - Query.
+  - name - Name of the searched column.
 
 Returns:
   - Column index, if it doesn't exist, returns -1.
 */
-func (ego *RamCollection) getFieldIndex(q QueryAtomConf) int {
+func (ego *RamCollection) getFieldIndex(name string) int {
 
 	for i, n := range ego.param.SchemaConf.FieldsNaming {
-		if n == q.Name {
+		if n == name {
 			return i
 		}
 	}
@@ -575,7 +576,7 @@ Filters rows based on the type and content of the query
 and writes them to the stream.
 
 Parameters:
-  - q - Query.
+  - fa - Filter argument.
 
 Returns:
   - Readable Output Streamer,
@@ -584,8 +585,13 @@ Returns:
 func (ego *RamCollection) Filter(fa FilterArgument) (stream.Producer[RecordConf], error) {
 	ego.mutex.RLock()
 
-	ret, err := ego.filterQueryEval(fa.QueryConf)
+	retFilter, err := ego.filterQueryEval(fa.QueryConf)
+	if err != nil {
+		ego.mutex.RUnlock()
+		return nil, err
+	}
 
+	ret, err := ego.makeItSorted(retFilter, fa)
 	if err != nil {
 		ego.mutex.RUnlock()
 		return nil, err
@@ -595,9 +601,9 @@ func (ego *RamCollection) Filter(fa FilterArgument) (stream.Producer[RecordConf]
 
 	fetchRows := func() {
 		defer ego.mutex.RUnlock()
-		for i := range ret {
-			rec, err := ego.DeinterpretRecord(ego.rows[i])
-			rec.Id = i
+		for _, i := range ret { // i == CId
+			rec, err := ego.DeinterpretRecord(ego.rows[i.Id])
+			rec.Id = i.Id
 
 			if err != nil {
 				// FIXME: sbuf.SetError() pass error! return nil, err
@@ -613,6 +619,64 @@ func (ego *RamCollection) Filter(fa FilterArgument) (stream.Producer[RecordConf]
 
 	go fetchRows()
 	return sbuf, nil
+}
+
+/*
+Sorts the results according to the specifications given in FilterArgument.
+If it is not specified which column to sort by, the results are sorted by CId.
+Unless otherwise stated, results will be listed in ascending order.
+
+Parameters:
+  - retFilter - Results to sort,
+  - fa - filter arguments.
+
+Returns:
+  - Sorted results,
+  - error, if any.
+*/
+func (ego *RamCollection) makeItSorted(retFilter CIdSet, fa FilterArgument) ([]RecordConf, error) {
+
+	ret := []RecordConf{}
+
+	if len(retFilter) == 0 {
+		return ret, nil
+	}
+
+	for i := range retFilter {
+		rec, err := ego.DeinterpretRecord(ego.rows[i])
+		if err != nil {
+			return ret, err
+		}
+		rec.Id = i
+		ret = append(ret, rec)
+	}
+
+	if len(fa.Sort) == 0 {
+		slices.SortStableFunc(ret, func(a, b RecordConf) int {
+			if fa.SortOrder == DESC {
+				return cmp.Compare(b.Id, a.Id)
+			}
+			return cmp.Compare(a.Id, b.Id)
+		})
+	} else {
+		idx := ego.getFieldIndex(fa.Sort[0])
+		slices.SortStableFunc(ret, func(a, b RecordConf) int {
+			fieldA, _ := ego.InterpretField(a.Cols[idx])
+			fieldB, _ := ego.InterpretField(b.Cols[idx])
+			if fa.SortOrder == DESC {
+				return cmpFullmatchValues(fieldB, fieldA)
+			}
+			return cmpFullmatchValues(fieldA, fieldB)
+		})
+	}
+
+	start := fa.Skip
+	end := len(ret)
+	if (fa.Limit != -1) && (fa.Skip+fa.Limit) < len(ret) {
+		end = fa.Skip + fa.Limit
+	}
+
+	return ret[start:end], nil
 }
 
 // Mapping columns names to a structure containing fielders and indexers.

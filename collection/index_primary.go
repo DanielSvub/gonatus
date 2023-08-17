@@ -43,7 +43,7 @@ func (ego *primaryIndexer) Get(arg []any) ([]CId, error) {
 				continue
 			}
 
-			if cmpFullmatchValues(col, v[j]) {
+			if cmpFullmatchValues(col, v[j]) == 0 {
 				continue
 			}
 

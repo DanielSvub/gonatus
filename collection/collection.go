@@ -55,9 +55,11 @@ const (
 	DESC
 )
 
+const NO_LIMIT = -1
+
 type FilterArgument struct {
 	QueryConf
-	Sort      string
+	Sort      []string
 	SortOrder int
 	Skip      int
 	Limit     int

@@ -10,6 +10,106 @@ import (
 
 func TestCollection(t *testing.T) {
 
+	inspectOutput := func(output []RecordConf) {
+		fmt.Print("\nID   who        whom")
+		for _, o := range output {
+			fmt.Printf("\n%d", o.Id)
+			for _, j := range o.Cols {
+				fmt.Printf(", %s", j.(FieldConf[string]).Value)
+			}
+		}
+		println()
+		println()
+	}
+
+	t.Run("filterArgument", func(t *testing.T) {
+
+		rmc := prepareTable(false, false, false)
+		err := testFilling(rmc, 15, false)
+		if err != nil {
+			t.Error(err.Error())
+		}
+
+		for i := 0; i < 3; i++ {
+			row := RecordConf{Cols: make([]FielderConf, 2)}
+			row.Cols[0] = FieldConf[string]{Value: fmt.Sprintf("bah%dlol%d", i, (i+10)*11)}
+			row.Cols[1] = FieldConf[string]{Value: fmt.Sprintf("ah%dnechapute%d", i, (i+15)*23)}
+
+			rmc.AddRecord(row)
+		}
+
+		rmc.Inspect()
+
+		// Sort by CId, without Limit and Skip
+		query := FilterArgument{
+			Limit:     NO_LIMIT,
+			QueryConf: new(QueryConf),
+		}
+
+		output, err := filterCollect(rmc, query)
+		if err != nil {
+			t.Error(err.Error())
+		}
+
+		fmt.Print("Only query")
+		inspectOutput(output)
+
+		if len(output) != 18 {
+			t.Errorf("Expected 18 rows, got %d.", len(output))
+		}
+
+		// Sort by CId, with Limit and Skip
+		query.Skip = 4
+		query.Limit = 6
+
+		output, err = filterCollect(rmc, query)
+		if err != nil {
+			t.Error(err.Error())
+		}
+
+		fmt.Print("Skip: 4 and Limit: 6")
+		inspectOutput(output)
+
+		if len(output) != 6 {
+			t.Errorf("Expected 6 rows, got: %d", len(output))
+		}
+		if output[0].Id != 5 || output[len(output)-1].Id != 10 {
+			t.Error("Wrong order of output.")
+		}
+
+		// Sort by "who", without Limit and Skip
+		query.Sort = []string{"who"}
+		query.Skip = 0
+		query.Limit = NO_LIMIT
+		output, err = filterCollect(rmc, query)
+		if err != nil {
+			t.Error(err.Error())
+		}
+
+		fmt.Printf("Sorted by \"who\"")
+		inspectOutput(output)
+
+		if output[0].Id != 16 || output[len(output)-1].Id != 10 {
+			t.Error("Wrong order of output.")
+		}
+
+		// Sort by "who" DESC, with Limit and Skip
+		query.SortOrder = DESC
+		query.Skip = 4
+		query.Limit = 6
+		output, err = filterCollect(rmc, query)
+		if err != nil {
+			t.Error(err.Error())
+		}
+
+		fmt.Print("Sorted by \"who\" DESC with Limit and Skip")
+		inspectOutput(output)
+
+		if output[0].Id != 6 || output[len(output)-1].Id != 15 {
+			t.Error("Wrong order of output.")
+		}
+	})
+
 	t.Run("usage", func(t *testing.T) {
 		rmc := prepareTable(false, false, false)
 		err := testFilling(rmc, 2, false)
@@ -19,7 +119,7 @@ func TestCollection(t *testing.T) {
 
 		// rmc.Inspect()
 
-		query := FilterArgument{}
+		query := FilterArgument{Limit: NO_LIMIT}
 		query.QueryConf = QueryAndConf{
 			QueryContextConf{
 				Context: []QueryConf{
@@ -199,7 +299,7 @@ func TestCollection(t *testing.T) {
 		// rmc.Inspect()
 
 		// Query to return all results
-		query := FilterArgument{QueryConf: new(QueryConf)}
+		query := FilterArgument{Limit: NO_LIMIT, QueryConf: new(QueryConf)}
 		output, err := filterCollect(rmc, query)
 		if err != nil {
 			t.Error(err.Error())
@@ -241,6 +341,7 @@ func TestCollection(t *testing.T) {
 
 		// Query to return one row
 		query := FilterArgument{
+			Limit: NO_LIMIT,
 			QueryConf: QueryAtomConf{
 				Name:      "who",
 				Value:     "row0_str110",
@@ -277,6 +378,7 @@ func TestCollection(t *testing.T) {
 
 		// Query to return all results
 		query := FilterArgument{
+			Limit: NO_LIMIT,
 			QueryConf: QueryAtomConf{
 				Name:      "who",
 				Value:     []string{},
@@ -326,6 +428,7 @@ func TestCollection(t *testing.T) {
 		// rmc.Inspect()
 
 		query := FilterArgument{
+			Limit: NO_LIMIT,
 			QueryConf: QueryAtomConf{
 				Name:      "who",
 				Value:     "row1",
@@ -362,15 +465,6 @@ func TestCollection(t *testing.T) {
 			t.Errorf("Expecting 5 result, got: %d", len(output))
 		}
 
-		// fmt.Printf("\nID   who        whom")
-		// for _, o := range output {
-		// 	fmt.Printf("\n%d", o.Id)
-		// 	for _, j := range o.Cols {
-		// 		fmt.Printf(", %s", j.(FieldConf[string]).Value)
-		// 	}
-		// }
-		// println()
-
 	})
 	t.Run("basicPrefixLookupWithoutIndexer", func(t *testing.T) {
 		rmC := RamCollectionConf{
@@ -394,6 +488,7 @@ func TestCollection(t *testing.T) {
 
 		// rmc.Inspect()
 		query := FilterArgument{
+			Limit: NO_LIMIT,
 			QueryConf: QueryAtomConf{
 				Name:      "who",
 				Value:     []string{"row5_str165", "row5_str312"},
@@ -901,6 +996,7 @@ func TestCollection(t *testing.T) {
 
 		// rmc.Inspect()
 		query := FilterArgument{
+			Limit: NO_LIMIT,
 			QueryConf: QueryAtomConf{
 				Name:      "who",
 				Value:     "row1_str121",
@@ -1166,6 +1262,7 @@ func TestCollection(t *testing.T) {
 			t.Error(err.Error())
 		}
 		query := FilterArgument{
+			Limit: NO_LIMIT,
 			QueryConf: QueryAtomConf{
 				Name:  "noExisting",
 				Value: "string",
@@ -1372,7 +1469,7 @@ func testLogical(t *testing.T, op string) []RecordConf {
 
 	// rmc.Inspect()
 
-	query := FilterArgument{}
+	query := FilterArgument{Limit: NO_LIMIT}
 
 	if op == "or" {
 		query.QueryConf = QueryOrConf{
@@ -1506,7 +1603,7 @@ func fillFullmatch(rmc *RamCollection) []RecordConf {
 }
 
 func getOut(prefixI bool, rmc *RamCollection) ([]RecordConf, error) {
-	query := FilterArgument{}
+	query := FilterArgument{Limit: NO_LIMIT}
 	if prefixI {
 		query.QueryConf = QueryOrConf{
 			QueryContextConf{

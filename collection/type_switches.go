@@ -3,6 +3,8 @@
 package collection
 
 import (
+	"cmp"
+	"strings"
 	"time"
 
 	"github.com/SpongeData-cz/gonatus/errors"
@@ -1018,170 +1020,185 @@ Parameters:
 Returns:
   - True, if the values match, false otherwise.
 */
-func cmpFullmatchValues(tableValue any, queryValue any) bool {
+func cmpFullmatchValues(tableValue any, queryValue any) int {
 
 	switch tValue := tableValue.(type) {
 	case string:
-		return tableValue == queryValue
+		if qValue, isMatch := queryValue.(string); isMatch {
+			return strings.Compare(tValue, qValue)
+		}
 	case int:
-		return tableValue == queryValue
+		if qValue, isMatch := queryValue.(int); isMatch {
+			return cmp.Compare(tValue, qValue)
+		}
 	case int8:
-		return tableValue == queryValue
+		if qValue, isMatch := queryValue.(int8); isMatch {
+			return cmp.Compare(tValue, qValue)
+		}
 	case int16:
-		return tableValue == queryValue
+		if qValue, isMatch := queryValue.(int16); isMatch {
+			return cmp.Compare(tValue, qValue)
+		}
 	case int32:
-		return tableValue == queryValue
+		if qValue, isMatch := queryValue.(int32); isMatch {
+			return cmp.Compare(tValue, qValue)
+		}
 	case int64:
-		return tableValue == queryValue
+		if qValue, isMatch := queryValue.(int64); isMatch {
+			return cmp.Compare(tValue, qValue)
+		}
 	case uint:
-		return tableValue == queryValue
+		if qValue, isMatch := queryValue.(uint); isMatch {
+			return cmp.Compare(tValue, qValue)
+		}
 	case uint8:
-		return tableValue == queryValue
+		if qValue, isMatch := queryValue.(uint8); isMatch {
+			return cmp.Compare(tValue, qValue)
+		}
 	case uint16:
-		return tableValue == queryValue
+		if qValue, isMatch := queryValue.(uint16); isMatch {
+			return cmp.Compare(tValue, qValue)
+		}
 	case uint32:
-		return tableValue == queryValue
+		if qValue, isMatch := queryValue.(uint32); isMatch {
+			return cmp.Compare(tValue, qValue)
+		}
 	case uint64:
-		return tableValue == queryValue
+		if qValue, isMatch := queryValue.(uint64); isMatch {
+			return cmp.Compare(tValue, qValue)
+		}
 	case float32:
-		return tableValue == queryValue
+		if qValue, isMatch := queryValue.(float32); isMatch {
+			return cmp.Compare(tValue, qValue)
+		}
 	case float64:
-		return tableValue == queryValue
+		if qValue, isMatch := queryValue.(float64); isMatch {
+			return cmp.Compare(tValue, qValue)
+		}
+	// TODO: How to do compaarasion with type below?
 	case time.Time:
 		if qValue, isMatch := queryValue.(time.Time); isMatch {
-			return tValue.Equal(qValue)
+			if tValue.Equal(qValue) {
+				return 0
+			}
 		}
-		return false
 	case []string:
 		if qValue, isMatch := queryValue.([]string); isMatch && (len(qValue) == len(tValue)) {
 			for i, elem := range tValue {
 				if elem != qValue[i] {
-					return false
+					return -1
 				}
 			}
-			return true
+			return 0
 		}
-		return false
 	case []int:
 		if qValue, isMatch := queryValue.([]int); isMatch && (len(qValue) == len(tValue)) && (len(qValue) == len(tValue)) {
 			for i, elem := range tValue {
 				if elem != qValue[i] {
-					return false
+					return -1
 				}
 			}
-			return true
+			return 0
 		}
-		return false
 	case []int8:
 		if qValue, isMatch := queryValue.([]int8); isMatch && (len(qValue) == len(tValue)) {
 			for i, elem := range tValue {
 				if elem != qValue[i] {
-					return false
+					return -1
 				}
 			}
-			return true
+			return 0
 		}
-		return false
 	case []int16:
 		if qValue, isMatch := queryValue.([]int16); isMatch && (len(qValue) == len(tValue)) {
 			for i, elem := range tValue {
 				if elem != qValue[i] {
-					return false
+					return -1
 				}
 			}
-			return true
+			return 0
 		}
-		return false
 	case []int32:
 		if qValue, isMatch := queryValue.([]int32); isMatch && (len(qValue) == len(tValue)) {
 			for i, elem := range tValue {
 				if elem != qValue[i] {
-					return false
+					return -1
 				}
 			}
-			return true
+			return 0
 		}
-		return false
 	case []int64:
 		if qValue, isMatch := queryValue.([]int64); isMatch && (len(qValue) == len(tValue)) {
 			for i, elem := range tValue {
 				if elem != qValue[i] {
-					return false
+					return -1
 				}
 			}
-			return true
+			return 0
 		}
-		return false
 	case []uint:
 		if qValue, isMatch := queryValue.([]uint); isMatch && (len(qValue) == len(tValue)) {
 			for i, elem := range tValue {
 				if elem != qValue[i] {
-					return false
+					return -1
 				}
 			}
-			return true
+			return 0
 		}
-		return false
 	case []uint8:
 		if qValue, isMatch := queryValue.([]uint8); isMatch && (len(qValue) == len(tValue)) {
 			for i, elem := range tValue {
 				if elem != qValue[i] {
-					return false
+					return -1
 				}
 			}
-			return true
+			return 0
 		}
-		return false
 	case []uint16:
 		if qValue, isMatch := queryValue.([]uint16); isMatch && (len(qValue) == len(tValue)) {
 			for i, elem := range tValue {
 				if elem != qValue[i] {
-					return false
+					return -1
 				}
 			}
-			return true
+			return 0
 		}
-		return false
 	case []uint32:
 		if qValue, isMatch := queryValue.([]uint32); isMatch && (len(qValue) == len(tValue)) {
 			for i, elem := range tValue {
 				if elem != qValue[i] {
-					return false
+					return -1
 				}
 			}
-			return true
+			return 0
 		}
-		return false
 	case []uint64:
 		if qValue, isMatch := queryValue.([]uint64); isMatch && (len(qValue) == len(tValue)) {
 			for i, elem := range tValue {
 				if elem != qValue[i] {
-					return false
+					return -1
 				}
 			}
-			return true
+			return 0
 		}
-		return false
 	case []float32:
 		if qValue, isMatch := queryValue.([]float32); isMatch && (len(qValue) == len(tValue)) {
 			for i, elem := range tValue {
 				if elem != qValue[i] {
-					return false
+					return -1
 				}
 			}
-			return true
+			return 0
 		}
-		return false
 	case []float64:
 		if qValue, isMatch := queryValue.([]float64); isMatch && (len(qValue) == len(tValue)) {
 			for i, elem := range tValue {
 				if elem != qValue[i] {
-					return false
+					return -1
 				}
 			}
-			return true
+			return 0
 		}
-		return false
 	}
-	return false
+	return -1
 }
