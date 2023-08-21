@@ -6,7 +6,7 @@ import (
 	"time"
 
 	. "github.com/SpongeData-cz/gonatus/fs"
-	. "github.com/SpongeData-cz/gonatus/fs/drivers"
+	. "github.com/SpongeData-cz/gonatus/fs/driver"
 )
 
 func containsPath(slice []File, path Path) bool {
@@ -49,36 +49,34 @@ func TestPath(t *testing.T) {
 func TestStorage(t *testing.T) {
 
 	var storage Storage
-	var sid StorageId
 
 	setup := func() {
 
 		storage = NewLocalCountedStorage(LocalCountedStorageConf{Prefix: "/tmp/storage"})
 		GStorageManager.RegisterStorage(storage)
-		sid, _ = GStorageManager.GetId(storage)
 
 		// /a/
-		NewFile(FileConf{Path: Path{"a"}, StorageId: sid}).MkDir()
+		NewFile(FileConf{Path: Path{"a"}, StorageId: storage.Id()}).MkDir()
 
 		// /b/
-		NewFile(FileConf{Path: Path{"b"}, StorageId: sid}).MkDir()
+		NewFile(FileConf{Path: Path{"b"}, StorageId: storage.Id()}).MkDir()
 
 		// /a/c/
 		NewFile(FileConf{
 			Path:      Path{"a", "c"},
-			StorageId: sid,
+			StorageId: storage.Id(),
 		}).MkDir()
 
 		// /a/c/d/
 		NewFile(FileConf{
 			Path:      Path{"a", "c", "d"},
-			StorageId: sid,
+			StorageId: storage.Id(),
 		}).MkDir()
 
 		// /a/c/d/file
 		file := NewFile(FileConf{
 			Path:      Path{"a", "c", "d", "file"},
-			StorageId: sid,
+			StorageId: storage.Id(),
 		})
 
 		if err := file.Open(ModeWrite); err != nil {
@@ -178,7 +176,7 @@ func TestStorage(t *testing.T) {
 			t.Error("Missing file(s) in the destination storage.")
 		}
 
-		GStorageManager.UnregisterStorage(copy)
+		GStorageManager.UnregisterStorage(storage)
 		copy.Commit()
 		copy.Clear()
 
@@ -191,37 +189,32 @@ func TestStorage(t *testing.T) {
 func TestFile(t *testing.T) {
 
 	var storage1 Storage
-	var sid1 StorageId
-
 	var storage2 Storage
-	var sid2 StorageId
 
 	setup := func() {
 
 		storage1 = NewLocalCountedStorage(LocalCountedStorageConf{Prefix: "/tmp/storage"})
 		GStorageManager.RegisterStorage(storage1)
-		sid1, _ = GStorageManager.GetId(storage1)
 
 		storage2 = NewLocalCountedStorage(LocalCountedStorageConf{Prefix: "/tmp/storage2"})
 		GStorageManager.RegisterStorage(storage2)
-		sid2, _ = GStorageManager.GetId(storage2)
 
 		// /a/
-		NewFile(FileConf{Path: Path{"a"}, StorageId: sid1}).MkDir()
+		NewFile(FileConf{Path: Path{"a"}, StorageId: storage1.Id()}).MkDir()
 
 		// /b/
-		NewFile(FileConf{Path: Path{"b"}, StorageId: sid1}).MkDir()
+		NewFile(FileConf{Path: Path{"b"}, StorageId: storage1.Id()}).MkDir()
 
 		// /a/c/
 		NewFile(FileConf{
 			Path:      Path{"a", "c"},
-			StorageId: sid1,
+			StorageId: storage1.Id(),
 		}).MkDir()
 
 		// /a/c/file
 		file := NewFile(FileConf{
 			Path:      Path{"a", "c", "file"},
-			StorageId: sid1,
+			StorageId: storage1.Id(),
 		})
 
 		if err := file.Open(ModeWrite); err != nil {
@@ -250,13 +243,13 @@ func TestFile(t *testing.T) {
 
 		setup()
 
-		file := NewFile(FileConf{Path: Path{"a", "c", "file"}, StorageId: sid1})
-		copy := NewFile(FileConf{Path: Path{"b", "copy"}, StorageId: sid1})
+		file := NewFile(FileConf{Path: Path{"a", "c", "file"}, StorageId: storage1.Id()})
+		copy := NewFile(FileConf{Path: Path{"b", "copy"}, StorageId: storage1.Id()})
 		if err := file.Copy(copy); err != nil {
 			t.Error(err)
 		}
 
-		interStorageCopy := NewFile(FileConf{Path: Path{"d", "copy"}, StorageId: sid2})
+		interStorageCopy := NewFile(FileConf{Path: Path{"d", "copy"}, StorageId: storage2.Id()})
 		if err := file.Copy(interStorageCopy); err != nil {
 			t.Error(err)
 		}
@@ -300,9 +293,9 @@ func TestFile(t *testing.T) {
 
 		setup()
 
-		dir := NewFile(FileConf{Path: Path{"a"}, StorageId: sid1})
+		dir := NewFile(FileConf{Path: Path{"a"}, StorageId: storage1.Id()})
 
-		interStorageCopy := NewFile(FileConf{Path: Path{"b", "copy"}, StorageId: sid2})
+		interStorageCopy := NewFile(FileConf{Path: Path{"b", "copy"}, StorageId: storage2.Id()})
 		if err := dir.Copy(interStorageCopy); err != nil {
 			t.Error(err)
 		}
@@ -347,13 +340,13 @@ func TestFile(t *testing.T) {
 
 		setup()
 
-		file := NewFile(FileConf{Path: Path{"a", "c", "file"}, StorageId: sid1})
-		moved := NewFile(FileConf{Path: Path{"b", "moved"}, StorageId: sid1})
+		file := NewFile(FileConf{Path: Path{"a", "c", "file"}, StorageId: storage1.Id()})
+		moved := NewFile(FileConf{Path: Path{"b", "moved"}, StorageId: storage1.Id()})
 		if err := file.Move(moved); err != nil {
 			t.Error(err)
 		}
 
-		interStorageMove := NewFile(FileConf{Path: Path{"d", "moved"}, StorageId: sid2})
+		interStorageMove := NewFile(FileConf{Path: Path{"d", "moved"}, StorageId: storage2.Id()})
 		if err := file.Move(interStorageMove); err != nil {
 			t.Error(err)
 		}
@@ -393,7 +386,7 @@ func TestFile(t *testing.T) {
 
 		setup()
 
-		file := NewFile(FileConf{Path: Path{"a"}, StorageId: sid1})
+		file := NewFile(FileConf{Path: Path{"a"}, StorageId: storage1.Id()})
 
 		unlimited, err := file.Tree(DepthUnlimited)
 		if err != nil {
@@ -432,7 +425,7 @@ func TestFile(t *testing.T) {
 
 		file := NewFile(FileConf{
 			Path:      Path{"a", "c", "file"},
-			StorageId: sid1,
+			StorageId: storage1.Id(),
 		})
 
 		time := time.Unix(0, 0)
@@ -457,7 +450,7 @@ func TestFile(t *testing.T) {
 
 		file := NewFile(FileConf{
 			Path:      Path{"a", "c", "file"},
-			StorageId: sid1,
+			StorageId: storage1.Id(),
 		})
 
 		if err := file.Open(ModeRW); err != nil {
@@ -496,7 +489,7 @@ func TestFile(t *testing.T) {
 
 		conf := FileConf{
 			Path:      Path{"a", "c", "file"},
-			StorageId: sid1,
+			StorageId: storage1.Id(),
 			Flags:     FileContent | FileTopology,
 		}
 		file := NewFile(conf)

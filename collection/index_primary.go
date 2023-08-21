@@ -43,7 +43,7 @@ func (ego *primaryIndexer) Get(arg []any) ([]CId, error) {
 				continue
 			}
 
-			if v[j] == col {
+			if cmpFullmatchValues(col, v[j]) == 0 {
 				continue
 			}
 
@@ -82,13 +82,13 @@ func (ego *primaryIndexer) getPrefix(arg []any) ([]CId, error) {
 				continue
 			}
 			// In case this is the column, where we findin
-			if isMatch, length := cmpValues(0, col, arg[j]); !isMatch {
+			if isMatch, length := cmpPrefixValues(0, col, arg[j]); !isMatch {
 				found = false
 				break
 			} else {
 				for i := 1; i < length; i++ {
 					// findin remaining matches
-					if isMatch, _ := cmpValues(i, col, arg[j]); !isMatch {
+					if isMatch, _ := cmpPrefixValues(i, col, arg[j]); !isMatch {
 						found = false
 						break
 					}

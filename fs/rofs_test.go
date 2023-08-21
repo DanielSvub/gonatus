@@ -5,20 +5,16 @@ import (
 
 	"github.com/SpongeData-cz/gonatus/errors"
 	. "github.com/SpongeData-cz/gonatus/fs"
-	. "github.com/SpongeData-cz/gonatus/fs/drivers"
+	. "github.com/SpongeData-cz/gonatus/fs/driver"
 )
 
 func TestROStorage(t *testing.T) {
 
 	var storage Storage
-	var sid StorageId
 
 	setup := func() {
-
 		storage = NewNativeStorage(NativeStorageConf{Prefix: "./fixtures"})
 		GStorageManager.RegisterStorage(storage)
-		sid, _ = GStorageManager.GetId(storage)
-
 	}
 
 	cleanup := func() {
@@ -52,7 +48,6 @@ func TestROStorage(t *testing.T) {
 		if res, err := ls.Collect(); err != nil {
 			t.Error(err)
 		} else if len(res) != 3 {
-			println(len(res))
 			t.Error("Wrong number of files in LS.")
 		} else if !(containsPath(res, Path{}) &&
 			containsPath(res, Path{"a"}) &&
@@ -120,15 +115,14 @@ func TestROStorage(t *testing.T) {
 
 		storage2 := NewLocalCountedStorage(LocalCountedStorageConf{Prefix: "/tmp/storage2"})
 		GStorageManager.RegisterStorage(storage2)
-		sid2, _ := GStorageManager.GetId(storage2)
 
 		file := NewFile(FileConf{
-			StorageId: sid,
+			StorageId: storage.Id(),
 			Path:      Path{"a", "c", "file"},
 		})
 
 		copy := NewFile(FileConf{
-			StorageId: sid2,
+			StorageId: storage2.Id(),
 			Path:      Path{"copy"},
 		})
 
@@ -181,15 +175,14 @@ func TestROStorage(t *testing.T) {
 
 		storage2 := NewLocalCountedStorage(LocalCountedStorageConf{Prefix: "/tmp/storage2"})
 		GStorageManager.RegisterStorage(storage2)
-		sid2, _ := GStorageManager.GetId(storage2)
 
 		file := NewFile(FileConf{
-			StorageId: sid,
+			StorageId: storage.Id(),
 			Path:      Path{"a", "c", "file"},
 		})
 
 		moved := NewFile(FileConf{
-			StorageId: sid2,
+			StorageId: storage2.Id(),
 			Path:      Path{"moved"},
 		})
 

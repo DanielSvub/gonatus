@@ -8,7 +8,7 @@ import (
 
 	"github.com/SpongeData-cz/gonatus"
 	"github.com/SpongeData-cz/gonatus/errors"
-	"github.com/SpongeData-cz/gonatus/streams"
+	"github.com/SpongeData-cz/stream"
 )
 
 /*
@@ -31,6 +31,7 @@ type StorageFeatures uint8
 const (
 	FeatureRead StorageFeatures = 1 << iota
 	FeatureWrite
+	FeatureLocation
 )
 
 /*
@@ -121,11 +122,6 @@ func (ego Path) String() string {
 }
 
 /*
-Identification of the storage.
-*/
-type StorageId uint64
-
-/*
 A service which keeps track of the storages.
 
 Extends:
@@ -136,12 +132,12 @@ Implements:
 */
 type StorageManager struct {
 	gonatus.Gobject
-	counter            StorageId
-	registeredStorages map[StorageId]Storage
+	counter            gonatus.GId
+	registeredStorages map[gonatus.GId]Storage
 }
 
 // Default storage manager
-var GStorageManager StorageManager = StorageManager{registeredStorages: make(map[StorageId]Storage)}
+var GStorageManager StorageManager = StorageManager{registeredStorages: make(map[gonatus.GId]Storage)}
 
 /*
 Registers a new storage to the manager.
@@ -149,10 +145,11 @@ Registers a new storage to the manager.
 Parameters:
   - s - storage to register.
 */
-func (ego *StorageManager) RegisterStorage(s Storage) {
+func (ego *StorageManager) RegisterStorage(s Storage) error {
 	ego.counter++
 	ego.registeredStorages[ego.counter] = s
 	s.driver().SetId(ego.counter)
+	return nil
 }
 
 /*
@@ -184,7 +181,7 @@ Returns:
   - the storage (nil if not found),
   - error if not found.
 */
-func (ego *StorageManager) Fetch(e StorageId) (Storage, error) {
+func (ego *StorageManager) Fetch(e gonatus.GId) (Storage, error) {
 	if ego.registeredStorages[e] == nil {
 		return nil, errors.NewNotFoundError(ego, errors.LevelError, "No storage with index "+fmt.Sprint(e)+".")
 	}
@@ -201,13 +198,13 @@ Returns:
   - ID of the storage (0 if not found),
   - error if not found.
 */
-func (ego *StorageManager) GetId(s Storage) (StorageId, error) {
+func (ego *StorageManager) GetId(s Storage) (gonatus.GId, error) {
 	for id, ss := range ego.registeredStorages {
 		if s.driver() == ss.driver() {
 			return id, nil
 		}
 	}
-	return *new(StorageId), errors.NewNotFoundError(ego, errors.LevelError, "Storage not found.")
+	return *new(gonatus.GId), errors.NewNotFoundError(ego, errors.LevelError, "Storage not found.")
 }
 
 func (ego *StorageManager) Serialize() gonatus.Conf {
@@ -259,6 +256,15 @@ type File interface {
 		  - path as a slice of strings.
 	*/
 	Path() Path
+
+	/*
+		Acquires the real location (native path) of the file.
+
+		Returns:
+		  - native path,
+		  - error if any occurred.
+	*/
+	Location() (string, error)
 
 	/*
 		Acquires the name of the file (last element of the path).
@@ -328,7 +334,7 @@ type File interface {
 		  - stream of the files,
 		  - error if any occurred.
 	*/
-	Tree(depth Depth) (streams.ReadableOutputStreamer[File], error)
+	Tree(depth Depth) (stream.Producer[File], error)
 
 	/*
 		Acquires a current status of the file.
@@ -388,7 +394,18 @@ type Storage interface {
 		  - stream of the files,
 		  - error if any occurred.
 	*/
-	Tree(depth Depth) (streams.ReadableOutputStreamer[File], error)
+	Tree(depth Depth) (stream.Producer[File], error)
+
+	/*
+		Changes the current working directory to the given path.
+
+		Parameters:
+		  - path - the path to set.
+
+		Returns:
+		  - error if any occurred.
+	*/
+	ChDir(path Path) error
 
 	/*
 		Commits the changes.
@@ -413,7 +430,7 @@ type Storage interface {
 		Returns:
 		  - ID of the storage.
 	*/
-	Id() StorageId
+	Id() gonatus.GId
 }
 
 /*
@@ -510,7 +527,18 @@ type StorageDriver interface {
 		  - stream of the files,
 		  - error if any occurred.
 	*/
-	Tree(path Path, depth Depth) (streams.ReadableOutputStreamer[File], error)
+	Tree(path Path, depth Depth) (stream.Producer[File], error)
+
+	/*
+		Changes the current working directory to the given path.
+
+		Parameters:
+		  - path - the path to set.
+
+		Returns:
+		  - error if any occurred.
+	*/
+	SetCwd(path Path) error
 
 	/*
 		Acquires a size of a file with the given path.
@@ -535,6 +563,18 @@ type StorageDriver interface {
 		  - error if any occurred.
 	*/
 	Flags(path Path) (FileFlags, error)
+
+	/*
+		Acquires real location (native path) of a file with the given path.
+
+		Parameters:
+		  - path - path to the file.
+
+		Returns:
+		  - native path,
+		  - error if any occurred.
+	*/
+	Location(path Path) (string, error)
 
 	/*
 		Commits the changes.
@@ -567,7 +607,7 @@ type StorageDriver interface {
 		Returns:
 		  - ID of the storage.
 	*/
-	Id() StorageId
+	Id() gonatus.GId
 
 	/*
 		Sets the storage ID.
@@ -575,5 +615,5 @@ type StorageDriver interface {
 		Parameters:
 		  - ID to set.
 	*/
-	SetId(id StorageId)
+	SetId(id gonatus.GId)
 }

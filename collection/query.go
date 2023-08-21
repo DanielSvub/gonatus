@@ -16,7 +16,7 @@ Returns:
 */
 func (ego *QueryAtomConf) eval(rc *RamCollection) (CIdSet, error) {
 
-	idx := rc.getFieldIndex(*ego)
+	idx := rc.getFieldIndex(ego.Name)
 	if idx == -1 {
 		return nil, errors.New("column not found")
 	}

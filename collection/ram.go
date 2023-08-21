@@ -1,13 +1,14 @@
 package collection
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/SpongeData-cz/gonatus"
 	"github.com/SpongeData-cz/gonatus/errors"
-	"github.com/SpongeData-cz/gonatus/streams"
-	"golang.org/x/exp/slices"
+	"github.com/SpongeData-cz/stream"
 )
 
 const MaxUint = ^uint64(0)
@@ -49,8 +50,7 @@ Returns:
 */
 func NewRamCollection(rc RamCollectionConf) *RamCollection {
 	if len(rc.SchemaConf.FieldsNaming) != len(rc.SchemaConf.Fields) {
-		// TODO: Fatal log || panic?
-		return nil
+		return nil // Fatal log || panic?
 	}
 
 	ego := new(RamCollection)
@@ -68,8 +68,7 @@ func NewRamCollection(rc RamCollectionConf) *RamCollection {
 	// TODO: implement id index as default one ego.indexes["id"] = idIndexerNew() // must be present in every collection
 
 	if err := ego.registerIndexes(); err != nil {
-		// TODO: Fatal log || panic?
-		panic(err)
+		return nil // Fatal log || panic?
 	}
 	return ego
 }
@@ -252,8 +251,8 @@ Parameters:
 Returns:
   - Error, if any.
 */
-func (ego *RamCollection) DeleteByFilter(q QueryConf) error {
-	if qq, ok := q.(QueryAndConf); ok && len(qq.Context) == 0 {
+func (ego *RamCollection) DeleteByFilter(fa FilterArgument) error {
+	if qq, ok := fa.QueryConf.(QueryAndConf); ok && len(qq.Context) == 0 {
 		ego.rows = make(map[CId][]any)
 		ego.indexes = make(map[string][]ramCollectionIndexer)
 		ego.registerIndexes()
@@ -261,7 +260,7 @@ func (ego *RamCollection) DeleteByFilter(q QueryConf) error {
 		return nil
 	}
 
-	if stream, err := ego.Filter(q); err != nil {
+	if stream, err := ego.Filter(fa); err != nil {
 		return err
 	} else {
 		for !stream.Closed() {
@@ -270,7 +269,12 @@ func (ego *RamCollection) DeleteByFilter(q QueryConf) error {
 				return err
 			}
 			rec := s[0]
-			ego.DeleteRecord(RecordConf{Id: rec.Id})
+
+			err = ego.DeleteRecord(RecordConf{Id: rec.Id})
+			if err != nil {
+				return err
+			}
+
 		}
 	}
 	return nil
@@ -281,14 +285,12 @@ Edits the RamCollection record whose configuration is passed by the parameter
 and modifies it in the lookup indexes.
 
 Parameters:
-  - rc - Configuration of Record,
-  - col - the index of the column in the row to be overwriten,
-  - newValue - new value to overwrite the old one.
+  - rc - Configuration of Record.
 
 Returns:
   - Error, if any.
 */
-func (ego *RamCollection) EditRecord(rc RecordConf, col int, newValue any) error {
+func (ego *RamCollection) EditRecord(rc RecordConf) error {
 	cid := rc.Id
 
 	if !cid.ValidP() {
@@ -299,26 +301,39 @@ func (ego *RamCollection) EditRecord(rc RecordConf, col int, newValue any) error
 	defer ego.mutex.Unlock()
 
 	record, found := ego.rows[cid]
-
 	if !found {
 		return errors.NewNotFoundError(ego, errors.LevelWarning, fmt.Sprintf("Record with id %d not found.", cid))
 	}
 
-	name := ego.param.FieldsNaming[col]
-
-	// Modify lookup indexes
-	if colidx, found := ego.indexes[name]; found {
-		for _, idx := range colidx {
-			if err := idx.Del(record[col], cid); err != nil {
-				return err //FIXME: inconsitent state if any call of Del fails
-			}
-			if err := idx.Add(record[col], cid); err != nil {
-				return err //FIXME: inconsitent state if any call of Del fails
-			}
-		}
+	if len(rc.Cols) != len(record) {
+		return errors.NewNotFoundError(ego, errors.LevelWarning, "Wrong number of columns")
 	}
 
-	ego.rows[cid][col] = newValue
+	for col, fc := range rc.Cols {
+
+		val, err := ego.InterpretField(fc)
+		if err != nil {
+			return err
+		}
+		if cmpFullmatchValues(val, record[col]) == 0 {
+			continue
+		}
+
+		name := ego.param.FieldsNaming[col]
+		// Modify lookup indexes
+		if colidx, found := ego.indexes[name]; found {
+			for _, idx := range colidx {
+				if err = idx.Del(record[col], cid); err != nil {
+					return err //FIXME: inconsitent state if any call of Del fails
+				}
+				if err = idx.Add(record[col], cid); err != nil {
+					return err //FIXME: inconsitent state if any call of Del fails
+				}
+			}
+
+		}
+		ego.rows[cid][col] = val
+	}
 
 	return nil
 }
@@ -438,19 +453,19 @@ func (ego *RamCollection) getIndex(q QueryAtomConf) ramCollectionIndexer {
 }
 
 /*
-Returns the index of the column with the name specified in the query.
+Returns the index of the column with the name specified in parameter.
 If such a column does not exist, returns -1.
 
 Parameters:
-  - q - Query.
+  - name - Name of the searched column.
 
 Returns:
   - Column index, if it doesn't exist, returns -1.
 */
-func (ego *RamCollection) getFieldIndex(q QueryAtomConf) int {
+func (ego *RamCollection) getFieldIndex(name string) int {
 
 	for i, n := range ego.param.SchemaConf.FieldsNaming {
-		if n == q.Name {
+		if n == name {
 			return i
 		}
 	}
@@ -472,7 +487,7 @@ Returns:
 */
 func (ego *RamCollection) primaryValue(q QueryAtomConf, index int) []any {
 	anys := make([]any, len(ego.param.SchemaConf.FieldsNaming))
-	anys[index] = q.Value // FIXME: Design hack
+	anys[index] = q.Value
 	return anys
 }
 
@@ -561,44 +576,107 @@ Filters rows based on the type and content of the query
 and writes them to the stream.
 
 Parameters:
-  - q - Query.
+  - fa - Filter argument.
 
 Returns:
   - Readable Output Streamer,
   - error, if any.
 */
-func (ego *RamCollection) Filter(q QueryConf) (streams.ReadableOutputStreamer[RecordConf], error) {
+func (ego *RamCollection) Filter(fa FilterArgument) (stream.Producer[RecordConf], error) {
 	ego.mutex.RLock()
 
-	ret, err := ego.filterQueryEval(q)
-
+	retFilter, err := ego.filterQueryEval(fa.QueryConf)
 	if err != nil {
+		ego.mutex.RUnlock()
 		return nil, err
 	}
 
-	sbuf := streams.NewBufferInputStream[RecordConf](100)
+	ret, err := ego.makeItSorted(retFilter, fa)
+	if err != nil {
+		ego.mutex.RUnlock()
+		return nil, err
+	}
+
+	sbuf := stream.NewChanneledInput[RecordConf](100)
 
 	fetchRows := func() {
 		defer ego.mutex.RUnlock()
-		for i := range ret {
-			rec, err := ego.DeinterpretRecord(ego.rows[i])
-			rec.Id = i
+		for _, i := range ret { // i == CId
+			rec, err := ego.DeinterpretRecord(ego.rows[i.Id])
+			rec.Id = i.Id
 
 			if err != nil {
 				// FIXME: sbuf.SetError() pass error! return nil, err
 				panic(err)
 			}
 
-			sbuf.Write(rec)
+			if _, err := sbuf.Write(rec); err != nil {
+				panic(err)
+			}
 		}
 		sbuf.Close()
 	}
 
-	outs := streams.NewReadableOutputStream[RecordConf]()
-	sbuf.Pipe(outs)
-
 	go fetchRows()
-	return outs, nil
+	return sbuf, nil
+}
+
+/*
+Sorts the results according to the specifications given in FilterArgument.
+If it is not specified which column to sort by, the results are sorted by CId.
+Unless otherwise stated, results will be listed in ascending order.
+
+Parameters:
+  - retFilter - Results to sort,
+  - fa - filter arguments.
+
+Returns:
+  - Sorted results,
+  - error, if any.
+*/
+func (ego *RamCollection) makeItSorted(retFilter CIdSet, fa FilterArgument) ([]RecordConf, error) {
+
+	ret := []RecordConf{}
+
+	if len(retFilter) == 0 {
+		return ret, nil
+	}
+
+	for i := range retFilter {
+		rec, err := ego.DeinterpretRecord(ego.rows[i])
+		if err != nil {
+			return ret, err
+		}
+		rec.Id = i
+		ret = append(ret, rec)
+	}
+
+	if len(fa.Sort) == 0 {
+		slices.SortStableFunc(ret, func(a, b RecordConf) int {
+			if fa.SortOrder == DESC {
+				return cmp.Compare(b.Id, a.Id)
+			}
+			return cmp.Compare(a.Id, b.Id)
+		})
+	} else {
+		idx := ego.getFieldIndex(fa.Sort[0])
+		slices.SortStableFunc(ret, func(a, b RecordConf) int {
+			fieldA, _ := ego.InterpretField(a.Cols[idx])
+			fieldB, _ := ego.InterpretField(b.Cols[idx])
+			if fa.SortOrder == DESC {
+				return cmpFullmatchValues(fieldB, fieldA)
+			}
+			return cmpFullmatchValues(fieldA, fieldB)
+		})
+	}
+
+	start := fa.Skip
+	end := len(ret)
+	if (fa.Limit != -1) && (fa.Skip+fa.Limit) < len(ret) {
+		end = fa.Skip + fa.Limit
+	}
+
+	return ret[start:end], nil
 }
 
 // Mapping columns names to a structure containing fielders and indexers.

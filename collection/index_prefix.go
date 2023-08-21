@@ -57,9 +57,14 @@ func prefixIndexerNewIgnore[T comparable](c FullmatchIndexConf[[]T]) *prefixInde
 }
 
 /*
-TODO
+Merge the CIds of the children of a given node.
+If ignoreChildren is set, this is done only up to the first level.
+
 Parameters:
+  - n - current node.
+
 Returns:
+  - CId set.
 */
 func (ego *prefixIndexer[T]) accumulateSubtree(n *trieNode[T]) CIdSet {
 	out := make(CIdSet, 0)
@@ -78,9 +83,15 @@ func (ego *prefixIndexer[T]) accumulateSubtree(n *trieNode[T]) CIdSet {
 }
 
 /*
-TODO
+Searches the tree <<n>> to see if it matches accumpath.
+
 Parameters:
+  - n - Tree,
+  - accumpath - path to be searched.
+
 Returns:
+  - A node that fully matches the accumpath,
+  - error, if any.
 */
 func (ego *prefixIndexer[T]) getImpl(n *trieNode[T], accumpath []T) (*trieNode[T], error) {
 	if len(accumpath) <= 0 {
@@ -125,12 +136,14 @@ func (ego *prefixIndexer[T]) Get(v any) ([]CId, error) {
 }
 
 /*
-TODO
+Adds the <<accumpath>> to the tree <<n>>.
+
 Parameters:
-Returns:
+  - n - Tree,
+  - accumpath - path to add,
+  - cid - CId of accumpath.
 */
 func (ego *prefixIndexer[T]) addImpl(n *trieNode[T], accumpath []T, cid CId) {
-
 	if len(accumpath) == 0 {
 		// add id here
 		n.cids = sliceAddUnique(n.cids, cid)
@@ -168,16 +181,23 @@ func (ego *prefixIndexer[T]) Add(v any, id CId) error {
 }
 
 /*
-TODO
+Removes the <<accumpath>> from the tree <<n>>.
+
 Parameters:
+  - n - Tree,
+  - accumpath - path to remove,
+  - cid - CId of accumpath.
+
 Returns:
+  - True, if <<accumpath>> has been successfully removed,
+  - error, if any.
 */
-func (ego *prefixIndexer[T]) delImpl(n *trieNode[T], accumpath []T, id CId) (deleteP bool, err error) {
+func (ego *prefixIndexer[T]) delImpl(n *trieNode[T], accumpath []T, cid CId) (deleteP bool, err error) {
 
 	if len(accumpath) == 0 {
 		// we are in the leaf
 		// remove id here
-		idx, found := sliceFind(n.cids, id)
+		idx, found := sliceFind(n.cids, cid)
 
 		if !found {
 			msg := fmt.Sprintf("Index trouble - row %d not found within index record", idx)
@@ -198,7 +218,7 @@ func (ego *prefixIndexer[T]) delImpl(n *trieNode[T], accumpath []T, id CId) (del
 	first := accumpath[0]
 
 	if ch, found := n.children[first]; found {
-		toRemove, err := ego.delImpl(ch, accumpath[1:], id)
+		toRemove, err := ego.delImpl(ch, accumpath[1:], cid)
 		if err != nil {
 			return false, err
 		}

@@ -1,34 +1,39 @@
-package streams_test
+package streamutil_test
 
 import (
+	. "github.com/SpongeData-cz/gonatus/streamutil"
+	"github.com/SpongeData-cz/stream"
+
 	"bufio"
+	"encoding/json"
 	"math/rand"
 	"os"
 	"testing"
-
-	"github.com/SpongeData-cz/gonatus"
-	. "github.com/SpongeData-cz/gonatus/streams"
 )
 
 func TestNdjson(t *testing.T) {
 
+	type data struct {
+		Name string
+		Id   int
+	}
+
+	type person struct {
+		Data data
+		Type string
+	}
+
 	t.Run("ndjsonInput", func(t *testing.T) {
 
-		nds := NewNdjsonInputStream("fixtures/example.ndjson")
-		ts := NewTransformStream(func(x gonatus.DynamicConf) gonatus.DynamicConf {
-			return x
-		})
-		os := NewReadableOutputStream[gonatus.DynamicConf]()
+		nds := NewNdjsonInput[person]("fixtures/example.ndjson")
 
-		nds.Pipe(ts).Pipe(os)
-
-		result, err := os.Collect()
+		result, err := nds.Collect()
 		if err != nil || len(result) != 6 {
+			println(err.Error())
 			t.Error("Collecting the results was unsuccessful.")
 		}
 
-		val := result[2]["data"].(gonatus.DynamicConf)["name"]
-		if val != "Arnold" {
+		if result[2].Data.Name != "Arnold" {
 			t.Error("Name is not matching.")
 		}
 
@@ -36,8 +41,8 @@ func TestNdjson(t *testing.T) {
 
 	t.Run("ndjsonOutputWrite", func(t *testing.T) {
 
-		ndi := NewNdjsonInputStream("fixtures/example.ndjson")
-		ndo := NewNdjsonOutputStream("fixtures/exampleCopy.ndjson", FileWrite)
+		ndi := NewNdjsonInput[person]("fixtures/example.ndjson")
+		ndo := NewNdjsonOutput[person]("fixtures/exampleCopy.ndjson", FileWrite)
 
 		ndi.Pipe(ndo)
 		if ndo.Run() != nil {
@@ -57,18 +62,18 @@ func TestNdjson(t *testing.T) {
 		origFScanner := bufio.NewScanner(origF)
 		copyFScanner := bufio.NewScanner(copyF)
 
-		origFConfs := make([]gonatus.DynamicConf, 0)
+		origFConfs := make([]person, 0)
 		for origFScanner.Scan() {
-			newConf := gonatus.NewConf("")
-			newConf.Unmarshal([]byte(origFScanner.Text()))
-			origFConfs = append(origFConfs, newConf)
+			var new person
+			json.Unmarshal([]byte(origFScanner.Text()), &new)
+			origFConfs = append(origFConfs, new)
 		}
 
-		copyFConfs := make([]gonatus.DynamicConf, 0)
+		copyFConfs := make([]person, 0)
 		for copyFScanner.Scan() {
-			newConf := gonatus.NewConf("")
-			newConf.Unmarshal([]byte(copyFScanner.Text()))
-			copyFConfs = append(copyFConfs, newConf)
+			var new person
+			json.Unmarshal([]byte(copyFScanner.Text()), &new)
+			copyFConfs = append(copyFConfs, new)
 		}
 
 		if len(origFConfs) != len(copyFConfs) {
@@ -77,7 +82,7 @@ func TestNdjson(t *testing.T) {
 
 		i := rand.Intn(len(origFConfs))
 
-		if origFConfs[i]["type"].(string) != copyFConfs[i]["type"].(string) {
+		if origFConfs[i].Type != copyFConfs[i].Type {
 			t.Error("The value doesn't match.")
 		}
 
@@ -93,15 +98,14 @@ func TestNdjson(t *testing.T) {
 
 	t.Run("ndjsonOutputTransform", func(t *testing.T) {
 
-		ndi := NewNdjsonInputStream("fixtures/example.ndjson")
-		ts := NewTransformStream(func(x gonatus.DynamicConf) gonatus.DynamicConf {
-			id := x["data"].(gonatus.DynamicConf)["id"].(float64)
-			x["data"].(gonatus.DynamicConf)["id"] = id + 1
+		ndi := NewNdjsonInput[person]("fixtures/example.ndjson")
+		ts := stream.NewTransformer(func(x person) person {
+			x.Data.Id++
 			return x
 		})
-		ndo := NewNdjsonOutputStream("fixtures/exampleModified.ndjson", FileWrite)
+		ndo := NewNdjsonOutput[person]("fixtures/exampleModified.ndjson", FileWrite)
 
-		ndi.Pipe(ts).Pipe(ndo)
+		ndi.Pipe(ts).(stream.Producer[person]).Pipe(ndo)
 		if ndo.Run() != nil {
 			t.Error("Problem with exporting to file.")
 		}
@@ -119,18 +123,18 @@ func TestNdjson(t *testing.T) {
 		origFScanner := bufio.NewScanner(origF)
 		modFScanner := bufio.NewScanner(modF)
 
-		origFConfs := make([]gonatus.DynamicConf, 0)
+		origFConfs := make([]person, 0)
 		for origFScanner.Scan() {
-			newConf := gonatus.NewConf("")
-			newConf.Unmarshal([]byte(origFScanner.Text()))
-			origFConfs = append(origFConfs, newConf)
+			var new person
+			json.Unmarshal([]byte(origFScanner.Text()), &new)
+			origFConfs = append(origFConfs, new)
 		}
 
-		modFConfs := make([]gonatus.DynamicConf, 0)
+		modFConfs := make([]person, 0)
 		for modFScanner.Scan() {
-			newConf := gonatus.NewConf("")
-			newConf.Unmarshal([]byte(modFScanner.Text()))
-			modFConfs = append(modFConfs, newConf)
+			var new person
+			json.Unmarshal([]byte(modFScanner.Text()), &new)
+			modFConfs = append(modFConfs, new)
 		}
 
 		if len(origFConfs) != len(modFConfs) {
@@ -139,8 +143,8 @@ func TestNdjson(t *testing.T) {
 
 		i := rand.Intn(len(origFConfs))
 
-		val1 := origFConfs[i]["data"].(gonatus.DynamicConf)["id"].(float64)
-		val2 := modFConfs[i]["data"].(gonatus.DynamicConf)["id"].(float64)
+		val1 := origFConfs[i].Data.Id
+		val2 := modFConfs[i].Data.Id
 
 		if (val1 + 1) != val2 {
 			t.Error("The value doesn't match.")
@@ -165,8 +169,8 @@ func TestNdjson(t *testing.T) {
 		s := "{\"data\":{\"name\":\"Bob\", \"id\": 420}, \"type\":\"weirdo\"}\n"
 		appendF.WriteString(s)
 
-		ndi := NewNdjsonInputStream("fixtures/example.ndjson")
-		ndo := NewNdjsonOutputStream("fixtures/append.ndjson", FileAppend)
+		ndi := NewNdjsonInput[person]("fixtures/example.ndjson")
+		ndo := NewNdjsonOutput[person]("fixtures/append.ndjson", FileAppend)
 
 		ndi.Pipe(ndo)
 		if ndo.Run() != nil {
@@ -186,18 +190,22 @@ func TestNdjson(t *testing.T) {
 		origFScanner := bufio.NewScanner(origF)
 		copyFScanner := bufio.NewScanner(copyF)
 
-		origFConfs := make([]gonatus.DynamicConf, 0)
+		origFConfs := make([]person, 0)
 		for origFScanner.Scan() {
-			newConf := gonatus.NewConf("")
-			newConf.Unmarshal([]byte(origFScanner.Text()))
-			origFConfs = append(origFConfs, newConf)
+			var new person
+			if err := json.Unmarshal([]byte(origFScanner.Text()), &new); err != nil {
+				t.Error(err)
+			}
+			origFConfs = append(origFConfs, new)
 		}
 
-		copyFConfs := make([]gonatus.DynamicConf, 0)
+		copyFConfs := make([]person, 0)
 		for copyFScanner.Scan() {
-			newConf := gonatus.NewConf("")
-			newConf.Unmarshal([]byte(copyFScanner.Text()))
-			copyFConfs = append(copyFConfs, newConf)
+			var new person
+			if err := json.Unmarshal([]byte(copyFScanner.Text()), &new); err != nil {
+				t.Error(err)
+			}
+			copyFConfs = append(copyFConfs, new)
 		}
 
 		if len(origFConfs)+1 != len(copyFConfs) {
@@ -206,7 +214,7 @@ func TestNdjson(t *testing.T) {
 
 		i := rand.Intn(len(origFConfs))
 
-		if origFConfs[i]["type"].(string) != copyFConfs[i+1]["type"].(string) {
+		if origFConfs[i].Type != copyFConfs[i+1].Type {
 			t.Error("The value doesn't match.")
 		}
 
@@ -222,12 +230,9 @@ func TestNdjson(t *testing.T) {
 
 	t.Run("ndjsonEmpty", func(t *testing.T) {
 
-		nds := NewNdjsonInputStream("fixtures/empty.ndjson")
-		os := NewReadableOutputStream[gonatus.DynamicConf]()
+		nds := NewNdjsonInput[person]("fixtures/empty.ndjson")
 
-		nds.Pipe(os)
-
-		result, err := os.Collect()
+		result, err := nds.Collect()
 		if err != nil || len(result) != 0 {
 			t.Error("Collecting the results was unsuccessful.")
 		}
@@ -236,20 +241,17 @@ func TestNdjson(t *testing.T) {
 
 	t.Run("errNdjsonNonExistFile", func(t *testing.T) {
 
-		nds := NewNdjsonInputStream("fixtures/nonExist.ndjson")
-		os := NewReadableOutputStream[gonatus.DynamicConf]()
+		nds := NewNdjsonInput[person]("fixtures/nonExist.ndjson")
 
-		nds.Pipe(os)
-
-		res, err := os.Collect()
+		res, err := nds.Collect()
 		if err == nil || len(res) != 0 {
 			t.Error("This stream is reading my hand.")
 		}
 
 	})
 	t.Run("errNdjsonClosed", func(t *testing.T) {
-		ndi := NewNdjsonInputStream("fixtures/example.ndjson")
-		ndo := NewNdjsonOutputStream("fixtures/exampleCopy.ndjson", FileWrite)
+		ndi := NewNdjsonInput[person]("fixtures/example.ndjson")
+		ndo := NewNdjsonOutput[person]("fixtures/exampleCopy.ndjson", FileWrite)
 
 		ndi.Pipe(ndo)
 		if ndo.Run() != nil {
@@ -267,7 +269,7 @@ func TestNdjson(t *testing.T) {
 	})
 
 	t.Run("errNdjsonWrongPath", func(t *testing.T) {
-		ndo := NewNdjsonOutputStream("wrong\\path/nonExist.ndjson", FileAppend)
+		ndo := NewNdjsonOutput[person]("wrong\\path/nonExist.ndjson", FileAppend)
 
 		if ndo.Run() == nil {
 			t.Error("Path magically deciphered and alien file created")
@@ -278,12 +280,17 @@ func TestNdjson(t *testing.T) {
 	t.Run("panicNdjson", func(t *testing.T) {
 
 		testWrongMode := func() {
-			ndo := NewNdjsonOutputStream("fixtures/example.ndjson", 4)
-			ndo.Closed()
+			NewNdjsonOutput[person]("fixtures/example.ndjson", 4)
 		}
 
 		shouldPanic(t, testWrongMode)
 
 	})
 
+}
+
+func shouldPanic(t *testing.T, f func()) {
+	defer func() { recover() }()
+	f()
+	t.Error("Should have paniced")
 }

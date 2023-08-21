@@ -6,7 +6,7 @@ import (
 
 	"github.com/SpongeData-cz/gonatus"
 	"github.com/SpongeData-cz/gonatus/errors"
-	"github.com/SpongeData-cz/gonatus/streams"
+	"github.com/SpongeData-cz/stream"
 )
 
 /*
@@ -25,7 +25,7 @@ Configuration structure for the file.
 */
 type FileConf struct {
 	Path      Path
-	StorageId StorageId
+	StorageId gonatus.GId
 	Flags     FileFlags
 	OrigTime  time.Time
 }
@@ -167,6 +167,10 @@ func (ego *file) Path() Path {
 	return ego.path
 }
 
+func (ego *file) Location() (string, error) {
+	return ego.storage.driver().Location(ego.path)
+}
+
 func (ego *file) Name() string {
 	length := len(ego.path)
 	if length == 0 {
@@ -272,7 +276,7 @@ func (ego *file) MkDir() error {
 	return ego.Storage().driver().MkDir(ego.path, ego.stat.OrigTime)
 }
 
-func (ego *file) Tree(depth Depth) (streams.ReadableOutputStreamer[File], error) {
+func (ego *file) Tree(depth Depth) (stream.Producer[File], error) {
 	if ego.Storage() == nil {
 		return nil, errors.NewNilError(ego, errors.LevelError, "Storage not set.")
 	}

@@ -2,7 +2,7 @@ package collection
 
 import (
 	"github.com/SpongeData-cz/gonatus"
-	"github.com/SpongeData-cz/gonatus/streams"
+	"github.com/SpongeData-cz/stream"
 )
 
 /* Collection ID */
@@ -50,6 +50,21 @@ type RecordConf struct {
 type QueryConf interface {
 }
 
+const (
+	ASC = iota
+	DESC
+)
+
+const NO_LIMIT = -1
+
+type FilterArgument struct {
+	QueryConf
+	Sort      []string
+	SortOrder int
+	Skip      int
+	Limit     int
+}
+
 type QueryAtomConf struct {
 	QueryConf
 	MatchType IndexerConf
@@ -92,11 +107,11 @@ type QueryRange[T any] struct {
 
 type Collection interface {
 	gonatus.Gobjecter
-	Filter(QueryConf) (streams.ReadableOutputStreamer[RecordConf], error)
+	Filter(FilterArgument) (stream.Producer[RecordConf], error)
 	// Group(QueryConf, GroupQueryConf) (streams.ReadableOutputStreamer[GroupRecordConf], error) // TODO: define grouping
 	AddRecord(RecordConf) (CId, error)
 	DeleteRecord(RecordConf) error
-	DeleteByFilter(QueryConf) error
-	EditRecord(RecordConf, int, any) error
+	DeleteByFilter(FilterArgument) error
+	EditRecord(RecordConf) error
 	Commit() error
 }
