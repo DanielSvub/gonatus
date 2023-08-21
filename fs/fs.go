@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/SpongeData-cz/gonatus"
@@ -133,11 +134,15 @@ Implements:
 type StorageManager struct {
 	gonatus.Gobject
 	counter            gonatus.GId
+	mutex              *sync.Mutex
 	registeredStorages map[gonatus.GId]Storage
 }
 
 // Default storage manager
-var GStorageManager StorageManager = StorageManager{registeredStorages: make(map[gonatus.GId]Storage)}
+var GStorageManager StorageManager = StorageManager{
+	mutex:              new(sync.Mutex),
+	registeredStorages: make(map[gonatus.GId]Storage),
+}
 
 /*
 Registers a new storage to the manager.
@@ -146,6 +151,8 @@ Parameters:
   - s - storage to register.
 */
 func (ego *StorageManager) RegisterStorage(s Storage) error {
+	ego.mutex.Lock()
+	defer ego.mutex.Unlock()
 	ego.counter++
 	ego.registeredStorages[ego.counter] = s
 	s.driver().SetId(ego.counter)
@@ -166,8 +173,11 @@ func (ego *StorageManager) UnregisterStorage(s Storage) error {
 	if err != nil {
 		return err
 	}
+	ego.mutex.Lock()
+	defer ego.mutex.Unlock()
 	delete(ego.registeredStorages, index)
 	s.driver().SetId(0)
+	println()
 	return nil
 }
 
@@ -182,6 +192,8 @@ Returns:
   - error if not found.
 */
 func (ego *StorageManager) Fetch(e gonatus.GId) (Storage, error) {
+	ego.mutex.Lock()
+	defer ego.mutex.Unlock()
 	if ego.registeredStorages[e] == nil {
 		return nil, errors.NewNotFoundError(ego, errors.LevelError, "No storage with index "+fmt.Sprint(e)+".")
 	}
@@ -199,6 +211,8 @@ Returns:
   - error if not found.
 */
 func (ego *StorageManager) GetId(s Storage) (gonatus.GId, error) {
+	ego.mutex.Lock()
+	defer ego.mutex.Unlock()
 	for id, ss := range ego.registeredStorages {
 		if s.driver() == ss.driver() {
 			return id, nil
