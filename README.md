@@ -98,6 +98,12 @@ Lazy streams are implemented for ability of perfomance management during the str
 For more information, check `streams/README.md`.
 
 ## Reinvented File System
-Due to limitations of traditional file systems (max path legth, max name size, unicode problems, reserved characters, inode count, ...), we redefined the the architecture of a file system. The term "directory" does not exist, all records in the FS are called files. Each file may have content, topology (child records) or both (so files can also behave as directories). This way we can extract archives into the original file topology.
+Due to limitations of traditional file systems (max path length, max name size, unicode problems, reserved characters, inode count, ...), we redefined the the architecture of a file system. The term "directory" does not exist, all records in the FS are called files. Each file may have content, topology (child records) or both (so files can also behave as directories). This way we can extract archives into the original file topology.
 
 For more information, check `fs/README.md`.
+
+
+## Logging
+We use slog loggers. Each Gobject `gobj` may have an associated logger `gobj.Log()` settable by `gobj.SetLog()`. If this logger is not set (or is set to nil) then each call to `gobj.Log()` return `logging.DeafultLogger()` - it is settable by `logging.SetDefaultLogger()` and can not be set to `nil`. `logging.DefaultLogger()` defaults to logging to stdout with debug level and source line.
+
+This way we may specify separate logs for various Gonatus parts while keeping single global log for everything else in the gonatus system.

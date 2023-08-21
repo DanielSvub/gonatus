@@ -14,7 +14,7 @@ type Gobjecter interface {
 }
 
 type Gobject struct {
-	log *slog.Logger
+	log *slog.Logger // associated logger, always access it through Log() method, as it returns valid logger even for noninitialized gobjects
 }
 
 /*
