@@ -4,9 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"os"
-
-	"golang.org/x/exp/slog"
 )
 
 // defaultLogger holds logger to which every gobject with unset logger fallbacks
