@@ -169,6 +169,7 @@ Returns:
 func (ego *localCountedStorageDriver) findFile(absPath fs.Path) (*record, error) {
 
 	if s, err := ego.files.Filter(collection.FilterArgument{
+		Limit: collection.NO_LIMIT,
 		QueryConf: collection.QueryAtomConf{
 			Name:      "path",
 			Value:     []string(absPath),
@@ -201,6 +202,7 @@ Returns:
 */
 func (ego *localCountedStorageDriver) forFilesWithPrefix(prefix fs.Path, fn func(record) error) error {
 	if s, err := ego.files.Filter(collection.FilterArgument{
+		Limit: collection.NO_LIMIT,
 		QueryConf: collection.QueryAtomConf{
 			Name:      "path",
 			Value:     []string(prefix),
@@ -226,6 +228,7 @@ Returns:
 */
 func (ego *localCountedStorageDriver) forFilesWithParent(parent collection.CId, fn func(record) error) error {
 	if s, err := ego.files.Filter(collection.FilterArgument{
+		Limit: collection.NO_LIMIT,
 		QueryConf: collection.QueryAtomConf{
 			Name:      "parent",
 			Value:     uint64(parent),
@@ -543,6 +546,7 @@ func (ego *localCountedStorageDriver) exportToStream(absPath fs.Path, depth fs.D
 	pathLen := len(absPath)
 
 	if s, err := ego.files.Filter(collection.FilterArgument{
+		Limit: collection.NO_LIMIT,
 		QueryConf: collection.QueryAtomConf{
 			Name:      "path",
 			Value:     []string(absPath),
@@ -795,6 +799,7 @@ func (ego *localCountedStorageDriver) Commit() error {
 func (ego *localCountedStorageDriver) Clear() error {
 
 	if err := ego.files.DeleteByFilter(collection.FilterArgument{
+		Limit: collection.NO_LIMIT,
 		QueryConf: collection.QueryAndConf{
 			QueryContextConf: collection.QueryContextConf{Context: []collection.QueryConf{}},
 		}}); err != nil {
