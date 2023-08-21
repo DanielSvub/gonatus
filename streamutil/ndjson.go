@@ -33,7 +33,7 @@ type ndjsonInput[T any] struct {
 	scanner *bufio.Scanner
 }
 
-func NewNdjsonInput[T any](path string) stream.NdjsonInput[T] {
+func NewNdjsonInput[T any](path string) NdjsonInput[T] {
 	ego := &ndjsonInput[T]{path: path}
 	ego.DefaultProducer = *stream.NewDefaultProducer[T](ego)
 	return ego
@@ -74,7 +74,7 @@ type ndjsonOutput[T any] struct {
 	file *os.File
 }
 
-func NewNdjsonOutput[T any](path string, mode FileMode) stream.NdjsonOutput[T] {
+func NewNdjsonOutput[T any](path string, mode FileMode) NdjsonOutput[T] {
 
 	if mode != FileAppend && mode != FileWrite {
 		panic("unknown mode")
