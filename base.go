@@ -16,12 +16,12 @@ type Gobjecter interface {
 }
 
 type Gobject struct {
-	log *slog.Logger // associated logger, always access it through Log() method, as it returns valid logger even for noninitialized gobjects
+	log *slog.Logger // Associated logger. Always access it through Log() method as it returns valid logger even for noninitialized gobjects
 }
 
 /*
 Log returns associated slog.Logger.
-If the logger is not initialized (nil), a DefaultLogger() is used instead
+If the logger is not initialized (nil) a logging.DefaultLogger() is used instead
 
 Returns:
   - logger.
