@@ -6,8 +6,9 @@ import (
 	"github.com/SpongeData-cz/gonatus/logging"
 )
 
-type GId uint64
+const ConfSuffix = "Conf" // Suffix of all configuration structures.
 
+type GId uint64
 type Conf any
 
 type Gobjecter interface {
