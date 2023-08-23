@@ -37,10 +37,7 @@ const (
 	TypeNotImpl  ErrorType = "NotImplementedError"  // The function is not implemented by this object.
 )
 
-const (
-	confSuffix     = "Conf"     // Suffix of all configuration structures.
-	thresholdLevel = LevelError // Error level under which the traceback is created and source serialization is performed.
-)
+const thresholdLevel = LevelError // Error level under which the traceback is created and source serialization is performed.
 
 /*
 Serializes the source Gobject into a JSON string.
@@ -55,7 +52,7 @@ func serializeSource(object gonatus.Gobjecter) (msg string) {
 	conf := object.Serialize()
 	if conf != nil {
 		confName := reflect.TypeOf(conf).Name()
-		className := confName[:len(confName)-len(confSuffix)]
+		className := confName[:len(confName)-len(gonatus.ConfSuffix)]
 		if json, err := json.Marshal(conf); err == nil {
 			msg = className + string(json)
 		}

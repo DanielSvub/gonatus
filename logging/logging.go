@@ -4,9 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
-	"os"
-
 	"log/slog"
+	"os"
 )
 
 // defaultLogger holds logger to which every gobject with unset logger fallbacks
