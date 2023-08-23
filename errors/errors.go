@@ -92,14 +92,9 @@ Returns:
 */
 func New(conf ErrorConf) error {
 
-	fullMsg := string(conf.ErrType)
-	if len(conf.Msg) > 0 {
-		fullMsg += ": " + conf.Msg
-	}
-
 	ego := gonatusError{
 		errType: conf.ErrType,
-		msg:     fullMsg,
+		msg:     conf.Msg,
 		level:   conf.Level,
 	}
 
@@ -294,9 +289,19 @@ Returns:
   - the text of the error.
 */
 func (ego gonatusError) Error() (msg string) {
-	msg = ego.msg
+	if ego.wrapped == nil {
+		msg += string(ego.errType)
+		if len(ego.msg) > 0 {
+			msg += ": "
+		}
+	}
+	msg += ego.msg
 	if ego.wrapped != nil {
-		msg += ": " + ego.wrapped.Error()
+		wrappedMsg := ego.wrapped.Error()
+		if len(ego.msg) > 0 && len(wrappedMsg) > 0 {
+			msg += ": "
+		}
+		msg += wrappedMsg
 	}
 	return
 }
