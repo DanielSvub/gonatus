@@ -1,8 +1,9 @@
 package gonatus
 
 import (
+	"log/slog"
+
 	"github.com/SpongeData-cz/gonatus/logging"
-	slog "golang.org/x/exp/slog"
 )
 
 type GId uint64

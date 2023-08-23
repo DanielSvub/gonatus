@@ -1,12 +1,12 @@
 package logging_test
 
 import (
+	"log/slog"
 	"strings"
 	"testing"
 
 	"github.com/SpongeData-cz/gonatus"
 	"github.com/SpongeData-cz/gonatus/logging"
-	"golang.org/x/exp/slog"
 )
 
 //INFO: purpose is just to test correctness of work (setup, switch, ...)  with loggers, not correctnes of logging facility - this has already been done by slog developers

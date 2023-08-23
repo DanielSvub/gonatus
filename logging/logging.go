@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 // defaultLogger holds logger to which every gobject with unset logger fallbacks
@@ -27,6 +27,7 @@ func SetDefaultLogger(logger *slog.Logger) error {
 	}
 	defaultLogger = *logger
 	return nil
+
 }
 
 /*
