@@ -100,7 +100,8 @@ type QuerySpatialConf interface {
 }
 
 type QueryRange[T any] struct {
-	QuerySpatialConf
+	QueryConf
+	Name   string
 	Lower  T
 	Higher T
 }
