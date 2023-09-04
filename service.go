@@ -1,5 +1,7 @@
 package gonatus
 
+import "reflect"
+
 type RemoteObject interface {
 	Id() GId
 	SetId(id GId)
@@ -9,6 +11,20 @@ type Service interface {
 	RemoteObject
 	New(Conf) (GId, error)
 	Remove(ids ...GId) error
+}
+
+type ConfWrapper struct {
+	Class string
+	Conf  Conf
+}
+
+func WrapConf(conf Conf) ConfWrapper {
+	confName := reflect.TypeOf(conf).Name()
+	className := confName[:len(confName)-len(ConfSuffix)]
+	return ConfWrapper{
+		Class: className,
+		Conf:  conf,
+	}
 }
 
 type DefaultService[T RemoteObject] struct {
