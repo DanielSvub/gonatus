@@ -213,6 +213,20 @@ func Unwrap(err error) error {
 }
 
 /*
+Checks if the given error is a Gonatus error.
+
+Parameters:
+  - err - error to check.
+
+Returns:
+  - true if the error is a Gonatus error, false otherwise.
+*/
+func IsGonatusError(err error) bool {
+	_, ok := err.(gonatusError)
+	return ok
+}
+
+/*
 Acquires a traceback of the given error.
 If no traceback was created, message "No traceback." is returned.
 
