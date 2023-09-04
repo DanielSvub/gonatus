@@ -22,7 +22,7 @@ type NdjsonInput[T any] interface {
 
 type NdjsonOutput[T any] interface {
 	stream.Consumer[T]
-	Run() error
+	Run(func(T)) error
 }
 
 type ndjsonInput[T any] struct {
@@ -89,7 +89,7 @@ func NewNdjsonOutput[T any](path string, mode FileMode) NdjsonOutput[T] {
 
 }
 
-func (ego *ndjsonOutput[T]) Run() error {
+func (ego *ndjsonOutput[T]) Run(callback func(T)) error {
 
 	if ego.file != nil {
 		return errors.New("the stream has been already run")
@@ -124,6 +124,9 @@ func (ego *ndjsonOutput[T]) Run() error {
 		_, err = ego.file.WriteString("\n")
 		if err != nil {
 			break
+		}
+		if callback != nil {
+			callback(value)
 		}
 	}
 

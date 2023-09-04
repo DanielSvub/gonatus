@@ -45,7 +45,7 @@ func TestNdjson(t *testing.T) {
 		ndo := NewNdjsonOutput[person]("fixtures/exampleCopy.ndjson", FileWrite)
 
 		ndi.Pipe(ndo)
-		if ndo.Run() != nil {
+		if ndo.Run(nil) != nil {
 			t.Error("Problem with exporting to file.")
 		}
 
@@ -106,7 +106,7 @@ func TestNdjson(t *testing.T) {
 		ndo := NewNdjsonOutput[person]("fixtures/exampleModified.ndjson", FileWrite)
 
 		ndi.Pipe(ts).(stream.Producer[person]).Pipe(ndo)
-		if ndo.Run() != nil {
+		if ndo.Run(nil) != nil {
 			t.Error("Problem with exporting to file.")
 		}
 
@@ -173,7 +173,7 @@ func TestNdjson(t *testing.T) {
 		ndo := NewNdjsonOutput[person]("fixtures/append.ndjson", FileAppend)
 
 		ndi.Pipe(ndo)
-		if ndo.Run() != nil {
+		if ndo.Run(nil) != nil {
 			t.Error("Problem with exporting to file.")
 		}
 
@@ -254,10 +254,10 @@ func TestNdjson(t *testing.T) {
 		ndo := NewNdjsonOutput[person]("fixtures/exampleCopy.ndjson", FileWrite)
 
 		ndi.Pipe(ndo)
-		if ndo.Run() != nil {
+		if ndo.Run(nil) != nil {
 			t.Error("Problem with exporting to file.")
 		}
-		if ndo.Run() == nil {
+		if ndo.Run(nil) == nil {
 			t.Error("The stream was not closed properly.")
 		}
 
@@ -271,7 +271,7 @@ func TestNdjson(t *testing.T) {
 	t.Run("errNdjsonWrongPath", func(t *testing.T) {
 		ndo := NewNdjsonOutput[person]("wrong\\path/nonExist.ndjson", FileAppend)
 
-		if ndo.Run() == nil {
+		if ndo.Run(nil) == nil {
 			t.Error("Path magically deciphered and alien file created")
 		}
 
