@@ -94,12 +94,15 @@ Returns:
 func New(conf ErrorConf) error {
 
 	ego := gonatusError{
-		errType: conf.ErrType,
-		msg:     conf.Msg,
-		level:   conf.Level,
+		errType:   conf.ErrType,
+		msg:       conf.Msg,
+		traceback: conf.Traceback,
+		level:     conf.Level,
 	}
 
-	if conf.Level >= thresholdLevel {
+	if ego.traceback != "" {
+		ego.traced = true
+	} else if conf.Level >= thresholdLevel {
 		ego.createTraceback()
 	}
 
@@ -253,8 +256,12 @@ func Serialize(err error) gonatus.Conf {
 
 	if ok {
 
-		var wrapped []ErrorConf
+		var traceback string
+		if gonatusErr.traced {
+			traceback = gonatusErr.traceback
+		}
 
+		var wrapped []ErrorConf
 		if gonatusErr.wrapped != nil {
 			conf := Serialize(gonatusErr.wrapped)
 			if conf != nil {
@@ -263,10 +270,11 @@ func Serialize(err error) gonatus.Conf {
 		}
 
 		return ErrorConf{
-			ErrType: gonatusErr.errType,
-			Level:   gonatusErr.level,
-			Msg:     gonatusErr.msg,
-			Wrapped: wrapped,
+			ErrType:   gonatusErr.errType,
+			Level:     gonatusErr.level,
+			Msg:       gonatusErr.msg,
+			Traceback: traceback,
+			Wrapped:   wrapped,
 		}
 
 	}
@@ -276,10 +284,11 @@ func Serialize(err error) gonatus.Conf {
 }
 
 type ErrorConf struct {
-	ErrType ErrorType
-	Level   ErrorLevel
-	Msg     string
-	Wrapped []ErrorConf
+	ErrType   ErrorType
+	Level     ErrorLevel
+	Msg       string
+	Traceback string
+	Wrapped   []ErrorConf
 }
 
 /*
@@ -353,7 +362,7 @@ Returns:
   - created error.
 */
 func NewUnknownError(src gonatus.Gobjecter) error {
-	return NewSrcWrapper(src, New(ErrorConf{TypeUnknown, LevelFatal, "", nil}))
+	return NewSrcWrapper(src, New(ErrorConf{TypeUnknown, LevelFatal, "", "", nil}))
 }
 
 /*
@@ -366,7 +375,7 @@ Returns:
   - created error.
 */
 func NewNilError(src gonatus.Gobjecter, level ErrorLevel, msg string) error {
-	return NewSrcWrapper(src, New(ErrorConf{TypeNil, level, msg, nil}))
+	return NewSrcWrapper(src, New(ErrorConf{TypeNil, level, msg, "", nil}))
 }
 
 /*
@@ -379,7 +388,7 @@ Returns:
   - created error.
 */
 func NewValueError(src gonatus.Gobjecter, level ErrorLevel, msg string) error {
-	return NewSrcWrapper(src, New(ErrorConf{TypeValue, level, msg, nil}))
+	return NewSrcWrapper(src, New(ErrorConf{TypeValue, level, msg, "", nil}))
 }
 
 /*
@@ -392,7 +401,7 @@ Returns:
   - created error.
 */
 func NewStateError(src gonatus.Gobjecter, level ErrorLevel, msg string) error {
-	return NewSrcWrapper(src, New(ErrorConf{TypeState, level, msg, nil}))
+	return NewSrcWrapper(src, New(ErrorConf{TypeState, level, msg, "", nil}))
 }
 
 /*
@@ -405,7 +414,7 @@ Returns:
   - created error.
 */
 func NewNotFoundError(src gonatus.Gobjecter, level ErrorLevel, msg string) error {
-	return NewSrcWrapper(src, New(ErrorConf{TypeNotFound, level, msg, nil}))
+	return NewSrcWrapper(src, New(ErrorConf{TypeNotFound, level, msg, "", nil}))
 }
 
 /*
@@ -418,7 +427,7 @@ Returns:
   - created error.
 */
 func NewMisappError(src gonatus.Gobjecter, msg string) error {
-	return NewSrcWrapper(src, New(ErrorConf{TypeMisapp, LevelError, msg, nil}))
+	return NewSrcWrapper(src, New(ErrorConf{TypeMisapp, LevelError, msg, "", nil}))
 }
 
 /*
@@ -431,5 +440,5 @@ Returns:
   - created error.
 */
 func NewNotImplError(src gonatus.Gobjecter) error {
-	return NewSrcWrapper(src, New(ErrorConf{TypeNotImpl, LevelFatal, "", nil}))
+	return NewSrcWrapper(src, New(ErrorConf{TypeNotImpl, LevelFatal, "", "", nil}))
 }
