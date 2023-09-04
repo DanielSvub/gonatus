@@ -12,14 +12,15 @@ import (
 
 /*
 Seriousness of the error.
+The values are synchronized with the Slog library.
 */
-type ErrorLevel uint8
+type ErrorLevel int
 
 const (
-	LevelFatal   ErrorLevel = iota // Most serious error, impossible to continue.
-	LevelError                     // Normal error level.
-	LevelWarning                   // Something did not work out, alternative approach used.
-	LevelWrapper                   // Not even an error, the actual one is wrapped inside.
+	LevelWrapper ErrorLevel = -8 // Not even an error, the actual one is wrapped inside.
+	LevelWarning ErrorLevel = 4  // Something did not work out, alternative approach used.
+	LevelError   ErrorLevel = 8  // Normal error level.
+	LevelFatal   ErrorLevel = 12 // Most serious error, impossible to continue.
 )
 
 /*
@@ -73,7 +74,7 @@ Returns:
 */
 func NewSrcWrapper(src gonatus.Gobjecter, err error) error {
 	var srcMsg string
-	if err.(gonatusError).level <= thresholdLevel {
+	if err.(gonatusError).level >= thresholdLevel {
 		srcMsg = serializeSource(src)
 	}
 	return Wrap(srcMsg, "SourceWrapper", err)
@@ -98,7 +99,7 @@ func New(conf ErrorConf) error {
 		level:   conf.Level,
 	}
 
-	if conf.Level <= thresholdLevel {
+	if conf.Level >= thresholdLevel {
 		ego.createTraceback()
 	}
 
