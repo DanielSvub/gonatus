@@ -583,26 +583,26 @@ Returns:
   - error, if any.
 */
 func (ego *RamCollection) Filter(fa FilterArgument) (stream.Producer[RecordConf], error) {
+	defer ego.mutex.RUnlock()
 	ego.mutex.RLock()
 
 	retFilter, err := ego.filterQueryEval(fa.QueryConf)
 	if err != nil {
-		ego.mutex.RUnlock()
 		return nil, err
 	}
 
 	ret, err := ego.makeItSorted(retFilter, fa)
 	if err != nil {
-		ego.mutex.RUnlock()
 		return nil, err
 	}
 
-	sbuf := stream.NewChanneledInput[RecordConf](100)
+	sbuf := stream.NewChanneledInput[RecordConf](0)
 
 	fetchRows := func() {
-		defer ego.mutex.RUnlock()
 		for _, i := range ret { // i == CId
+			ego.mutex.RLock()
 			rec, err := ego.DeinterpretRecord(ego.rows[i.Id])
+			ego.mutex.RUnlock()
 			rec.Id = i.Id
 
 			if err != nil {
