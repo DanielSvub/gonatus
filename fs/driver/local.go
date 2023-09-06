@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	pathlib "path"
+	"sync"
 	"time"
 
 	"github.com/SpongeData-cz/gonatus/collection"
@@ -89,6 +90,7 @@ type localCountedStorageDriver struct {
 	cwd           fs.Path
 	files         collection.Collection
 	openFiles     map[collection.CId]*os.File
+	mutex         sync.Mutex
 	fileCount     collection.CId
 	locationCount uint64
 }
@@ -590,8 +592,10 @@ func (ego *localCountedStorageDriver) closeFile(path fs.Path) error {
 		return errors.NewNotFoundError(ego, errors.LevelError, `The file "`+path.String()+`" does not exist.`)
 	}
 
+	ego.mutex.Lock()
 	ego.openFiles[rec.Id].Close()
 	delete(ego.openFiles, rec.Id)
+	ego.mutex.Unlock()
 	rec.Cols[fieldModifTime] = collection.FieldConf[time.Time]{Value: time.Now()}
 	if err := ego.files.EditRecord(rec.conf()); err != nil {
 		return err
@@ -685,7 +689,9 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 
 	}
 
+	ego.mutex.Lock()
 	ego.openFiles[fid] = fd
+	ego.mutex.Unlock()
 
 	return &localFileDescriptor{
 		fd: fd,
@@ -744,7 +750,9 @@ func (ego *localCountedStorageDriver) Size(path fs.Path) (uint64, error) {
 		return 0, err
 	}
 
+	ego.mutex.Lock()
 	if ofd, ok := ego.openFiles[rec.Id]; !ok {
+		ego.mutex.Unlock()
 		descriptor, err := ego.Open(absPath, fs.ModeRead, fs.FileUndetermined, *new(time.Time))
 		if err != nil {
 			return 0, err
@@ -752,6 +760,7 @@ func (ego *localCountedStorageDriver) Size(path fs.Path) (uint64, error) {
 		fd = descriptor.(*localFileDescriptor).fd
 		defer ego.Close(absPath)
 	} else {
+		ego.mutex.Unlock()
 		fd = ofd
 	}
 
@@ -806,10 +815,12 @@ func (ego *localCountedStorageDriver) Clear() error {
 		return err
 	}
 
+	ego.mutex.Lock()
 	for _, fd := range ego.openFiles {
 		fd.Close()
 	}
 	ego.openFiles = make(map[collection.CId]*os.File)
+	ego.mutex.Unlock()
 
 	ego.createRoot()
 	ego.locationCount = 0
