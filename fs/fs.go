@@ -135,13 +135,13 @@ type StorageManager struct {
 	gonatus.Gobject
 	counter            gonatus.GId
 	mutex              *sync.Mutex
-	registeredStorages map[gonatus.GId]Storage
+	registeredStorages map[gonatus.GId]*storage
 }
 
 // Default storage manager
 var GStorageManager StorageManager = StorageManager{
 	mutex:              new(sync.Mutex),
-	registeredStorages: make(map[gonatus.GId]Storage),
+	registeredStorages: make(map[gonatus.GId]*storage),
 }
 
 /*
@@ -154,7 +154,7 @@ func (ego *StorageManager) RegisterStorage(s Storage) error {
 	ego.mutex.Lock()
 	defer ego.mutex.Unlock()
 	ego.counter++
-	ego.registeredStorages[ego.counter] = s
+	ego.registeredStorages[ego.counter] = s.(*storageController).storage
 	s.driver().SetId(ego.counter)
 	return nil
 }
@@ -197,7 +197,7 @@ func (ego *StorageManager) Fetch(e gonatus.GId) (Storage, error) {
 	if ego.registeredStorages[e] == nil {
 		return nil, errors.NewNotFoundError(ego, errors.LevelError, "No storage with index "+fmt.Sprint(e)+".")
 	}
-	return ego.registeredStorages[e], nil
+	return &storageController{ego.registeredStorages[e], Path{}}, nil
 }
 
 /*
@@ -542,17 +542,6 @@ type StorageDriver interface {
 		  - error if any occurred.
 	*/
 	Tree(path Path, depth Depth) (stream.Producer[File], error)
-
-	/*
-		Changes the current working directory to the given path.
-
-		Parameters:
-		  - path - the path to set.
-
-		Returns:
-		  - error if any occurred.
-	*/
-	SetCwd(path Path) error
 
 	/*
 		Acquires a size of a file with the given path.

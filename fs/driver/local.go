@@ -87,7 +87,6 @@ type localCountedStorageDriver struct {
 	gonatus.Gobject
 	id            gonatus.GId
 	prefix        string
-	cwd           fs.Path
 	files         collection.Collection
 	openFiles     map[collection.CId]*os.File
 	globalLock    sync.Mutex
@@ -122,19 +121,6 @@ func NewLocalCountedStorage(conf LocalCountedStorageConf) fs.Storage {
 	ego.fileLocks = make(map[collection.CId]*sync.Mutex)
 	ego.createRoot()
 	return fs.NewStorage(ego)
-}
-
-/*
-Acquires absolute path for the given relative path (joins storage's CWD with the given path).
-
-Parameters:
-  - path - relative path.
-
-Returns:
-  - absolute path.
-*/
-func (ego *localCountedStorageDriver) absPath(path fs.Path) fs.Path {
-	return ego.cwd.Join(path)
 }
 
 /*
@@ -423,8 +409,6 @@ func (ego *localCountedStorageDriver) moveFile(source fs.Path, dest fs.Path) err
 	} else if rec == nil {
 		return errors.NewNotFoundError(ego, errors.LevelError, `The file "`+source.Base()+`" does not exist.`)
 	} else {
-		ego.fileLocks[rec.Id].Lock()
-		defer ego.fileLocks[rec.Id].Unlock()
 		if err := ego.files.DeleteRecord(collection.RecordConf{
 			Id: rec.Id,
 		}); err != nil {
@@ -482,9 +466,6 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 		return errors.NewNotFoundError(ego, errors.LevelError, `The file "`+source.Base()+`" does not exist.`)
 	}
 
-	ego.fileLocks[rec.Id].Lock()
-	defer ego.fileLocks[rec.Id].Unlock()
-
 	// Opening the old file
 	srcFd, err := ego.Open(source, fs.ModeRead, rec.flags(), rec.origTime())
 	if err != nil {
@@ -510,6 +491,7 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 
 	// A function for file creation
 	create := func(content bool, path fs.Path, parent collection.CId, id collection.CId, location string) error {
+		ego.fileLocks[id] = new(sync.Mutex)
 		ego.fileLocks[id].Lock()
 		defer ego.fileLocks[id].Unlock()
 		ego.files.AddRecord(collection.RecordConf{
@@ -634,8 +616,6 @@ func (ego *localCountedStorageDriver) closeFile(path fs.Path) error {
 
 func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, givenFlags fs.FileFlags, origTime time.Time) (fs.FileDescriptor, error) {
 
-	absPath := ego.absPath(path)
-
 	// Creating modeFlags
 	var modeFlags int
 	switch mode {
@@ -655,7 +635,7 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 	var fid collection.CId
 
 	// Checking if the file exists
-	if rec, err := ego.findFile(absPath); err != nil {
+	if rec, err := ego.findFile(path); err != nil {
 		return nil, err
 	} else if rec != nil {
 
@@ -692,12 +672,12 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 
 		// If in read mode, error (the file cannot be created without write permission)
 		if mode == fs.ModeRead {
-			return nil, errors.NewNotFoundError(ego, errors.LevelError, `The file "`+absPath.String()+`" does not exist.`)
+			return nil, errors.NewNotFoundError(ego, errors.LevelError, `The file "`+path.String()+`" does not exist.`)
 		}
 
 		// Checking if the parent file exists, if not, creating it
-		if len(absPath) > 0 {
-			if _, err := ego.createDir(absPath.Dir(), origTime); err != nil {
+		if len(path) > 0 {
+			if _, err := ego.createDir(path.Dir(), origTime); err != nil {
 				return nil, err
 			}
 		}
@@ -714,7 +694,7 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 		}
 
 		// Creating a file entry
-		fid, err = ego.createFile(absPath, fullpath, givenFlags|fs.FileContent, origTime)
+		fid, err = ego.createFile(path, fullpath, givenFlags|fs.FileContent, origTime)
 		if err != nil {
 			return nil, err
 		}
@@ -732,52 +712,38 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 }
 
 func (ego *localCountedStorageDriver) Close(path fs.Path) error {
-	return ego.closeFile(ego.absPath(path))
+	return ego.closeFile(path)
 }
 
 func (ego *localCountedStorageDriver) MkDir(path fs.Path, origTime time.Time) error {
-	_, err := ego.createDir(ego.absPath(path), origTime)
+	_, err := ego.createDir(path, origTime)
 	return err
 }
 
 func (ego *localCountedStorageDriver) Copy(srcPath fs.Path, dstPath fs.Path) error {
-	return ego.copyFile(ego.absPath(srcPath), 0, ego.absPath(dstPath))
+	return ego.copyFile(srcPath, 0, dstPath)
 }
 
 func (ego *localCountedStorageDriver) Move(srcPath fs.Path, dstPath fs.Path) error {
 	if srcPath.Equals(dstPath) {
 		errors.NewStateError(ego, errors.LevelWarning, "The source and destination paths are equal.")
 	}
-	return ego.moveFile(ego.absPath(srcPath), ego.absPath(dstPath))
+	return ego.moveFile(srcPath, dstPath)
 }
 
 func (ego *localCountedStorageDriver) Delete(path fs.Path) error {
-	return ego.deleteFile(ego.absPath(path))
+	return ego.deleteFile(path)
 }
 
 func (ego *localCountedStorageDriver) Tree(path fs.Path, depth fs.Depth) (stream.Producer[fs.File], error) {
-	return ego.exportToStream(ego.absPath(path), depth)
-}
-
-func (ego *localCountedStorageDriver) SetCwd(path fs.Path) error {
-	if rec, err := ego.findFile(path); err != nil {
-		return err
-	} else if rec == nil {
-		return errors.NewNotFoundError(ego, errors.LevelError, "The path does not exist.")
-	} else if rec.flags()&fs.FileTopology == 0 {
-		return errors.NewStateError(ego, errors.LevelError, "The file cannot have children.")
-	}
-	ego.cwd = path
-	return nil
+	return ego.exportToStream(path, depth)
 }
 
 func (ego *localCountedStorageDriver) Size(path fs.Path) (uint64, error) {
 
 	var fd *os.File
 
-	absPath := ego.absPath(path)
-
-	rec, err := ego.findFile(absPath)
+	rec, err := ego.findFile(path)
 	if err != nil {
 		return 0, err
 	}
@@ -785,12 +751,12 @@ func (ego *localCountedStorageDriver) Size(path fs.Path) (uint64, error) {
 	ego.globalLock.Lock()
 	if ofd, ok := ego.openFiles[rec.Id]; !ok {
 		ego.globalLock.Unlock()
-		descriptor, err := ego.Open(absPath, fs.ModeRead, fs.FileUndetermined, *new(time.Time))
+		descriptor, err := ego.Open(path, fs.ModeRead, fs.FileUndetermined, *new(time.Time))
 		if err != nil {
 			return 0, err
 		}
 		fd = descriptor.(*localFileDescriptor).fd
-		defer ego.Close(absPath)
+		defer ego.Close(path)
 	} else {
 		ego.globalLock.Unlock()
 		fd = ofd
@@ -806,7 +772,7 @@ func (ego *localCountedStorageDriver) Size(path fs.Path) (uint64, error) {
 }
 
 func (ego *localCountedStorageDriver) Flags(path fs.Path) (fs.FileFlags, error) {
-	if rec, err := ego.findFile(ego.absPath(path)); err != nil || rec == nil {
+	if rec, err := ego.findFile(path); err != nil || rec == nil {
 		return fs.FileUndetermined, err
 	} else {
 		return rec.flags(), nil
@@ -815,7 +781,7 @@ func (ego *localCountedStorageDriver) Flags(path fs.Path) (fs.FileFlags, error) 
 
 func (ego *localCountedStorageDriver) Location(path fs.Path) (location string, err error) {
 
-	rec, err := ego.findFile(ego.absPath(path))
+	rec, err := ego.findFile(path)
 
 	if err == nil {
 
@@ -824,9 +790,7 @@ func (ego *localCountedStorageDriver) Location(path fs.Path) (location string, e
 		} else if rec.flags()&fs.FileContent == 0 {
 			err = errors.NewStateError(ego, errors.LevelWarning, "The file does not have content.")
 		} else {
-			ego.fileLocks[rec.Id].Lock()
 			location = rec.location()
-			ego.fileLocks[rec.Id].Unlock()
 		}
 
 	}

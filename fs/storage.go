@@ -43,14 +43,14 @@ Returns:
   - pointer to the created storage.
 */
 func NewStorage(driver StorageDriver) Storage {
-	return &storage{drv: driver}
+	return &storageController{&storage{drv: driver}, Path{}}
 }
 
 func (ego *storage) driver() StorageDriver {
 	return ego.drv
 }
 
-func (ego *storage) Merge(source Storage) error {
+func (ego *storage) merge(source Storage, prefix Path) error {
 
 	s, err := source.Tree(DepthUnlimited)
 	if err != nil {
@@ -80,7 +80,7 @@ func (ego *storage) Merge(source Storage) error {
 
 		dstFile := NewFile(FileConf{
 			StorageId: ego.driver().Id(),
-			Path:      srcFile.Path(),
+			Path:      prefix.Join(srcFile.Path()),
 			Flags:     stat.Flags,
 		})
 
@@ -107,10 +107,6 @@ func (ego *storage) Tree(depth Depth) (stream.Producer[File], error) {
 	return ego.drv.Tree(Path{}, depth)
 }
 
-func (ego *storage) ChDir(path Path) error {
-	return ego.drv.SetCwd(path)
-}
-
 func (ego *storage) Commit() error {
 	return ego.drv.Commit()
 }
@@ -125,4 +121,18 @@ func (ego *storage) Id() gonatus.GId {
 
 func (ego *storage) Serialize() gonatus.Conf {
 	return ego.drv.Serialize()
+}
+
+type storageController struct {
+	*storage
+	cwd Path
+}
+
+func (ego *storageController) ChDir(path Path) error {
+	ego.cwd = path
+	return nil
+}
+
+func (ego *storageController) Merge(source Storage) error {
+	return ego.storage.merge(source, ego.cwd)
 }
