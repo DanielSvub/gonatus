@@ -289,6 +289,9 @@ func (ego *file) Stat() (FileStat, error) {
 	}
 	var err error
 	ego.stat.Flags, err = ego.Storage().driver().Flags(ego.path)
+	if err != nil {
+		return ego.stat, err
+	}
 	if ego.stat.Flags&FileContent > 0 {
 		ego.stat.Size, err = ego.Storage().driver().Size(ego.path)
 	}
