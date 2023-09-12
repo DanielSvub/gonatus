@@ -9,13 +9,22 @@ import (
 )
 
 func TestSolr(t *testing.T) {
+
+	schema := SchemaConf{
+		Name:         "demo",
+		FieldsNaming: []string{"name"},
+		Fields: []FielderConf{
+			FieldConf[string]{},
+		},
+		Indexes: nil,
+	}
+
 	solrConnMap := map[string]string{}
 	solrConnMap["auth-type"] = "no"
 	solrConnMap["url"] = "http://localhost:8983/solr"
-	solrConnMap["core"] = "demo"
+	solrConnMap["core"] = "gonatus_collection"
 	solrConnConf := NewSolrConnectionConf(solrConnMap)
-	solrCollConf := NewSolrCollectionConf(*solrConnConf)
-
+	solrCollConf := NewSolrCollectionConf(schema, *solrConnConf)
 	solrColl := NewSolrCollection(*solrCollConf)
 
 	query := FilterArgument{
@@ -34,8 +43,13 @@ func TestSolr(t *testing.T) {
 		Limit:     0,
 	}
 
-	res, err := solrColl.Filter(query)
+	//solrColl.Filter(query)
+	//	res, err := solrColl.Filter(query)
 	//fmt.Printf("res: %+v\n", res)
+	//for !res.Closed() {
+	//	data, valid, err := res.Get()
+	//	fmt.Println("data", data, "(", valid, err, ")")
+	//}
 	//fmt.Printf("err: %+v\n", err)
 
 	query = FilterArgument{Limit: NO_LIMIT}
@@ -56,10 +70,11 @@ func TestSolr(t *testing.T) {
 		},
 	}
 
-	res, err = solrColl.Filter(query)
+	//solrColl.Filter(query)
 
-	fmt.Printf("res: %+v\n", res)
-	fmt.Printf("err: %+v\n", err)
+	//	res, err = solrColl.Filter(query)
+	//fmt.Printf("res: %+v\n", res)
+	//fmt.Printf("err: %+v\n", err)
 
 	query = FilterArgument{Limit: NO_LIMIT}
 	query.QueryConf = QueryAndConf{
@@ -83,11 +98,19 @@ func TestSolr(t *testing.T) {
 			},
 		},
 	}
-
-	res, err = solrColl.Filter(query)
-
+	//	solrColl.Filter(query)
+	res, err := solrColl.Filter(query)
 	fmt.Printf("res: %+v\n", res)
+	for !res.Closed() {
+		data, valid, err := res.Get()
+		fmt.Println("data", data, "(", valid, err, ")")
+	}
 	fmt.Printf("err: %+v\n", err)
+
+	//	res, err = solrColl.Filter(query)
+
+	//fmt.Printf("res: %+v\n", res)
+	//fmt.Printf("err: %+v\n", err)
 
 	// query = FilterArgument{Limit: NO_LIMIT}
 	// query.QueryConf = QueryOrConf{
