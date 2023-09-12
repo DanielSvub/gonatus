@@ -111,9 +111,10 @@ func (ego *nativeStorageDriver) Delete(path fs.Path) error {
 }
 
 type nativeRecord struct {
-	path  string
-	isDir bool
-	size  uint64
+	path    string
+	isDir   bool
+	size    uint64
+	modTime time.Time
 }
 
 func nativeStat(path string) (bool, nativeRecord, error) {
@@ -128,6 +129,8 @@ func nativeStat(path string) (bool, nativeRecord, error) {
 	if !me.isDir {
 		me.size = uint64(info.Size())
 	}
+
+	me.modTime = info.ModTime()
 
 	return true, me, nil
 }

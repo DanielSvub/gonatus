@@ -116,6 +116,7 @@ func (ego *file) interStorageCopy(dst File) error {
 			return err
 		}
 		defer ego.Close()
+		dst.SetOrigTime(ego.stat.OrigTime)
 		if err := dst.Open(ModeWrite); err != nil {
 			return err
 		}
