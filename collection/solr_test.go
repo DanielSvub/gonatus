@@ -24,7 +24,7 @@ func TestSolr(t *testing.T) {
 	solrConnMap["url"] = "http://localhost:8983/solr"
 	solrConnMap["core"] = "gonatus_collection"
 	solrConnConf := NewSolrConnectionConf(solrConnMap)
-	solrCollConf := NewSolrCollectionConf(schema, *solrConnConf)
+	solrCollConf := NewSolrCollectionConf(schema, *solrConnConf, 2)
 	solrColl := NewSolrCollection(*solrCollConf)
 
 	query := FilterArgument{

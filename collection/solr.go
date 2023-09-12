@@ -29,20 +29,19 @@ func NewSolrConnectionConf(conData map[string]string) *SolrConnectionConf {
 type SolrConnection interface {
 	gonatus.Gobjecter
 	//Authenticate authenticates user and prepares everything for requests' authorization.
-	Authenticate() error
-	//Request prepares and sends specified request to the server.
-	//Namely it appends authorization headers (tokens, passwords, ...), if they are needed.
-	Query(string) (io.ReadCloser, error)
-	//Test connection and authentication
-	Test() error
-	//Create core with the given schema and name given by the connection settings
-	CreateCore(SchemaConf) error
-	//Drop core we are connected to
-	DropCore() error
-	//Commit all changes since last commit, i.e. hard commit (beware of solr transactions not being classical transactions - they are not isolated)
-	Commit() error
-	//rawRequest allows for user built get requests (i.e. user specifies the aprt of url after core)
-	rawRequest(string) (*http.Response, error)
+	//Authenticate() error  //TODO probably not useful
+	//Query queries the given collection with the given query
+	Query(collection string, query string) (io.ReadCloser, error)
+	//Test connection and authorization to acces given collection
+	Test(collection string) error
+	//CreateCollection creates collection with the given schema
+	CreateCollection(schema SchemaConf, numShards int) error
+	//DropCollection deletes the given collection
+	DropCollection(collection string) error
+	//Commit all changes the given collection since last commit, i.e. hard commit of collections transaction log (beware of solr transactions not being classical transactions - they are not isolated)
+	Commit(collection string) error
+	//RawRequest allows for user built get requests to solr (i.e. user can asks anything he has rights to)
+	RawRequest(string) (*http.Response, error)
 }
 
 func NewSolrConnection(conf SolrConnectionConf) SolrConnection {
@@ -59,21 +58,20 @@ func NewSolrConnection(conf SolrConnectionConf) SolrConnection {
 
 type SimpleSolrConnection struct {
 	gonatus.Gobject
-	baseUrl  string
-	solrCore string //TODO maybe better to have it in collection? (we already have it there if it is the same as the name in the schema)
+	baseUrl string
 }
 
-func (ego *SimpleSolrConnection) Authenticate() error {
-	err := ego.Test()
-	if err == nil {
-		ego.Log().Info("Auhtenticated")
-	}
-	return err
-}
+// func (ego *SimpleSolrConnection) Authenticate() error {
+// 	err := ego.Test()
+// 	if err == nil {
+// 		ego.Log().Info("Auhtenticated")
+// 	}
+// 	return err
+// }
 
-func (ego *SimpleSolrConnection) Query(query string) (io.ReadCloser, error) {
+func (ego *SimpleSolrConnection) Query(collection string, query string) (io.ReadCloser, error) {
 	ego.Log().Info("Request sent", "query", query)
-	fullRequest := ego.baseUrl + "/" + ego.solrCore + "/query?q=" + query
+	fullRequest := ego.baseUrl + "/" + collection + "/query?q=" + query
 	fmt.Println(fullRequest)
 	resp, err := http.Get(fullRequest)
 	fmt.Printf("Query response: %+v\n", resp)
@@ -85,8 +83,8 @@ func (ego *SimpleSolrConnection) Query(query string) (io.ReadCloser, error) {
 
 }
 
-func (ego *SimpleSolrConnection) Test() error {
-	res, err := ego.Query("")
+func (ego *SimpleSolrConnection) Test(collection string) error {
+	res, err := ego.Query(collection, "*.*")
 	if err != nil {
 		return errors.NewNotImplError(ego)
 	}
@@ -98,38 +96,27 @@ func (ego *SimpleSolrConnection) Serialize() gonatus.Conf {
 	confMap := map[string]string{}
 	confMap["auth-type"] = "no"
 	confMap["url"] = ego.baseUrl
-	confMap["core"] = ego.solrCore
 	return &SolrConnectionConf{connectionData: confMap}
 }
 
-func (ego *SimpleSolrConnection) CreateCore(schema SchemaConf) error {
-	q := "/admin/collections?action=CREATE&name=testing_collection&numShards=2"
-	resp, err := ego.adminRequest(q)
+func (ego *SimpleSolrConnection) CreateCollection(schema SchemaConf, numShards int) error {
+	q := fmt.Sprintf("/admin/collections?action=CREATE&name=testing_collection&numShards=%d", numShards)
+	resp, err := ego.RawRequest(q)
 	body, _ := io.ReadAll(resp.Body)
 	println(string(body))
 	return err
 }
 
-func (ego *SimpleSolrConnection) DropCore() error {
+func (ego *SimpleSolrConnection) DropCollection(name string) error {
 	return nil
 }
 
-func (ego *SimpleSolrConnection) Commit() error {
+func (ego *SimpleSolrConnection) Commit(core string) error {
 	return nil
 }
 
-func (ego *SimpleSolrConnection) Rollback() error {
-	return nil
-}
-
-func (ego *SimpleSolrConnection) adminRequest(reqBody string) (*http.Response, error) {
+func (ego *SimpleSolrConnection) RawRequest(reqBody string) (*http.Response, error) {
 	fullRequest := ego.baseUrl + reqBody
-	fmt.Println("\n\n", fullRequest)
-	return http.Get(fullRequest)
-}
-
-func (ego *SimpleSolrConnection) rawRequest(reqBody string) (*http.Response, error) {
-	fullRequest := ego.baseUrl + "/" + ego.solrCore + reqBody
 	fmt.Println(fullRequest)
 	return http.Get(fullRequest)
 }
@@ -140,18 +127,12 @@ func NewSimpleSolrConnection(param SolrConnectionConf) *SimpleSolrConnection {
 		slog.Default().Warn("solr server address not specified in the conf (url)")
 		return nil
 	}
-	core, ok := param.connectionData["core"]
-	if !ok {
-		slog.Default().Warn("solr core name not specified in the conf (core)")
-		return nil
-	}
 
 	res := SimpleSolrConnection{
-		Gobject:  gonatus.Gobject{},
-		baseUrl:  baseUrl,
-		solrCore: core,
+		Gobject: gonatus.Gobject{},
+		baseUrl: baseUrl,
 	}
-	res.SetLog(res.Log().WithGroup("Solr").With("address", res.baseUrl, "core", res.solrCore, "auth-type", "no"))
+	res.SetLog(res.Log().WithGroup("Solr").With("address", res.baseUrl, "auth-type", "no"))
 	res.Log().Info("Simple solr connection object created.")
 	return &res
 }
@@ -159,13 +140,11 @@ func NewSimpleSolrConnection(param SolrConnectionConf) *SimpleSolrConnection {
 type UserPassSolrConnection struct {
 	gonatus.Gobject
 	baseUrl  string
-	solrCore string
 	username string
 	password string
 }
 
-// Test implements SolrConnection
-func (*UserPassSolrConnection) Test() error {
+func (*UserPassSolrConnection) Test(collecton string) error {
 	panic("unimplemented")
 }
 
@@ -175,14 +154,9 @@ func NewUserPassSolrConnection(param SolrConnectionConf) *UserPassSolrConnection
 		slog.Default().Warn("solr server address not specified in the conf (url)")
 		return nil
 	}
-	core, ok := param.connectionData["core"]
-	if !ok {
-		slog.Default().Warn("solr core name not specified in the conf (core)")
-		return nil
-	}
 	user, ok := param.connectionData["user"]
 	if !ok {
-		slog.Default().Warn("solr core name not specified in the conf (core)")
+		slog.Default().Warn("solr username not specified in the conf (core)")
 		return nil
 	}
 	password, ok := param.connectionData["password"]
@@ -194,35 +168,33 @@ func NewUserPassSolrConnection(param SolrConnectionConf) *UserPassSolrConnection
 	res := UserPassSolrConnection{
 		Gobject:  gonatus.Gobject{},
 		baseUrl:  baseUrl,
-		solrCore: core,
 		username: user,
 		password: password,
 	}
-	res.SetLog(res.Log().WithGroup("Solr").With("address", res.baseUrl, "core", res.solrCore, "auth-type", "user-password", "user", res.username))
+	res.SetLog(res.Log().WithGroup("Solr").With("address", res.baseUrl, "auth-type", "user-password", "user", res.username))
 	res.Log().Info("User password solr connection object created.")
 	return &res
 }
 
-func (ego *UserPassSolrConnection) Authenticate() error {
-	resp, err := http.Get(ego.username + ":" + ego.password + "@" + ego.baseUrl + "/" + ego.solrCore)
-	print(resp)
-	//TODO check content of reponse, possibly transform it to error
-	return err
-}
+// func (ego *UserPassSolrConnection) Authenticate() error {
+// 	resp, err := http.Get(ego.username + ":" + ego.password + "@" + ego.baseUrl + "/" + ego.solrCore)
+// 	print(resp)
+// 	//TODO check content of reponse, possibly transform it to error
+// 	return err
+// }
 
 func (ego *UserPassSolrConnection) Serialize() gonatus.Conf {
 	confMap := map[string]string{}
 	confMap["auth-type"] = "user-password"
 	confMap["url"] = ego.baseUrl
-	confMap["core"] = ego.solrCore
 	confMap["user"] = ego.username
 	confMap["password"] = ego.password
 	return &SolrConnectionConf{connectionData: confMap}
 }
 
-func (ego *UserPassSolrConnection) Query(query string) (io.ReadCloser, error) {
+func (ego *UserPassSolrConnection) Query(collection string, query string) (io.ReadCloser, error) {
 	ego.Log().Info("Request sent", "query", query)
-	fullRequest := ego.username + ":" + ego.password + "@" + ego.baseUrl + "/" + ego.solrCore + "/query?q=" + query
+	fullRequest := ego.username + ":" + ego.password + "@" + ego.baseUrl + "/" + collection + "/query?q=" + query
 	//fmt.Println(fullRequest)
 	resp, err := http.Get(fullRequest)
 	//fmt.Printf("Query response: %+v\n", resp)
@@ -233,24 +205,20 @@ func (ego *UserPassSolrConnection) Query(query string) (io.ReadCloser, error) {
 	return resp.Body, err
 }
 
-func (ego *UserPassSolrConnection) SatisfiesSchema(schema SchemaConf) (bool, error) {
-	return false, nil
-}
-
-func (ego *UserPassSolrConnection) CreateCore(schema SchemaConf) error {
+func (ego *UserPassSolrConnection) CreateCollection(schema SchemaConf, numShards int) error {
 	return nil
 }
 
-func (ego *UserPassSolrConnection) DropCore() error {
+func (ego *UserPassSolrConnection) DropCollection(collection string) error {
 	return nil
 }
 
-func (ego *UserPassSolrConnection) Commit() error {
+func (ego *UserPassSolrConnection) Commit(collection string) error {
 	return nil
 }
 
-func (ego *UserPassSolrConnection) rawRequest(reqBody string) (*http.Response, error) {
-	fullRequest := ego.username + ":" + ego.password + "@" + ego.baseUrl + "/" + ego.solrCore + reqBody
+func (ego *UserPassSolrConnection) RawRequest(reqBody string) (*http.Response, error) {
+	fullRequest := ego.username + ":" + ego.password + "@" + ego.baseUrl + reqBody
 	fmt.Println(fullRequest)
 	return http.Get(fullRequest)
 }
@@ -293,7 +261,7 @@ func NewSolrCollection(conf SolrCollectionConf) *SolrCollection {
 	schemaOK, err := res.checkSchema()
 	if !schemaOK {
 		fmt.Printf("schema check err: %v\n", err) //TODO
-		err := con.CreateCore(conf.SchemaConf)
+		err := con.CreateCollection(conf.SchemaConf, conf.numShards)
 		if err != nil {
 			logging.DefaultLogger().Warn("solr collection with the given schema does not exist and can not be created", "error", err)
 			return nil
@@ -326,7 +294,7 @@ func (ego *SolrCollection) Filter(fa FilterArgument) (stream.Producer[RecordConf
 	}
 
 	query = url.QueryEscape(query)
-	responseBody, err := ego.con.Query(query)
+	responseBody, err := ego.con.Query(ego.param.Name, query)
 	if err != nil {
 		return nil, err
 	}
@@ -367,7 +335,7 @@ func (ego *SolrCollection) Serialize() gonatus.Conf {
 	if !valid {
 		return nil
 	}
-	return NewSolrCollectionConf(ego.param.SchemaConf, scc)
+	return NewSolrCollectionConf(ego.param.SchemaConf, scc, ego.param.numShards)
 }
 
 //-------COLLECTION HELPER STUFF
@@ -756,8 +724,8 @@ func (ego *SolrCollection) parseJsonToRecords(jsonData []byte) (stream.Producer[
 }
 
 func (ego *SolrCollection) checkSchema() (bool, error) {
-	request := "/schema"
-	resp, err := ego.con.rawRequest(request)
+	request := "/" + ego.param.Name + "/schema"
+	resp, err := ego.con.RawRequest(request)
 	if err != nil {
 		ego.Log().Info("Solr schema check", "result", false)
 		return false, err
@@ -770,7 +738,7 @@ func (ego *SolrCollection) checkSchema() (bool, error) {
 	dataMap := map[string]any{}
 	if err = json.Unmarshal(data, &dataMap); err != nil {
 		ego.Log().Info("Solr schema check", "result", false)
-		return false, errors.NewStateError(ego, errors.LevelWarning, "could not parse schema check response bofy")
+		return false, errors.NewStateError(ego, errors.LevelWarning, "could not parse schema check response body")
 	}
 
 	fields, valid := dataMap["schema"].(map[string]any)
