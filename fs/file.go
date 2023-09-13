@@ -2,6 +2,7 @@ package fs
 
 import (
 	"io"
+	"slices"
 	"time"
 
 	"github.com/SpongeData-cz/gonatus"
@@ -357,7 +358,7 @@ func (ego *file) Serialize() gonatus.Conf {
 
 	out := *new(FileConf)
 
-	out.Path = ego.path
+	out.Path = slices.Clone(ego.path)
 	out.OrigTime = ego.stat.OrigTime
 	if ego.storage != nil {
 		out.StorageId = ego.Storage().driver().Id()
