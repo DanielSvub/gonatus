@@ -90,7 +90,6 @@ type localCountedStorageDriver struct {
 	files         collection.Collection
 	openFiles     map[collection.CId]*os.File
 	globalLock    sync.Mutex
-	fileLocks     map[collection.CId]*sync.Mutex
 	fileCount     collection.CId
 	locationCount uint64
 }
@@ -118,7 +117,6 @@ func NewLocalCountedStorage(conf LocalCountedStorageConf) fs.Storage {
 		},
 	})
 	ego.openFiles = make(map[collection.CId]*os.File)
-	ego.fileLocks = make(map[collection.CId]*sync.Mutex)
 	ego.createRoot()
 	return fs.NewStorage(ego)
 }
@@ -171,7 +169,7 @@ func (ego *localCountedStorageDriver) findFile(absPath fs.Path) (*record, error)
 			return nil, err
 		} else {
 			if _, valid, _ := s.Get(); valid {
-				return nil, errors.NewStateError(ego, errors.LevelError, "Multiple records found for a single path.")
+				return nil, errors.NewStateError(ego, errors.LevelError, "Multiple records found for a single path "+absPath.String()+".")
 			}
 			rec := record(value)
 			return &rec, nil
@@ -281,8 +279,6 @@ func (ego *localCountedStorageDriver) createFile(absPath fs.Path, location strin
 	id = collection.CId(ego.fileCount)
 	ego.globalLock.Unlock()
 
-	ego.fileLocks[id] = new(sync.Mutex)
-	ego.fileLocks[id].Lock()
 	ego.files.AddRecord(collection.RecordConf{
 		Id: id,
 		Cols: []collection.FielderConf{
@@ -294,7 +290,6 @@ func (ego *localCountedStorageDriver) createFile(absPath fs.Path, location strin
 			collection.FieldConf[time.Time]{Value: time.Now()},
 		},
 	})
-	ego.fileLocks[id].Unlock()
 
 	return
 
@@ -344,8 +339,6 @@ func (ego *localCountedStorageDriver) deleteFile(absPath fs.Path) error {
 
 	return ego.forFilesWithPrefix(absPath, func(rec record) error {
 
-		ego.fileLocks[rec.Id].Lock()
-
 		if err := ego.files.DeleteRecord(collection.RecordConf{
 			Id: rec.Id,
 		}); err != nil {
@@ -357,9 +350,6 @@ func (ego *localCountedStorageDriver) deleteFile(absPath fs.Path) error {
 				return err
 			}
 		}
-
-		ego.fileLocks[rec.Id].Unlock()
-		delete(ego.fileLocks, rec.Id)
 
 		return nil
 
@@ -491,9 +481,6 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 
 	// A function for file creation
 	create := func(content bool, path fs.Path, parent collection.CId, id collection.CId, location string) error {
-		ego.fileLocks[id] = new(sync.Mutex)
-		ego.fileLocks[id].Lock()
-		defer ego.fileLocks[id].Unlock()
 		ego.files.AddRecord(collection.RecordConf{
 			Id: id,
 			Cols: []collection.FielderConf{
@@ -639,8 +626,6 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 		return nil, err
 	} else if rec != nil {
 
-		ego.fileLocks[rec.Id].Lock()
-
 		var err error
 		location := rec.location()
 
@@ -665,8 +650,6 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 		}
 
 		fid = rec.Id
-
-		ego.fileLocks[rec.Id].Unlock()
 
 	} else {
 
