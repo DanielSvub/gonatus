@@ -59,10 +59,12 @@ func (ego *storage) merge(source Storage, prefix Path) error {
 
 	return s.ForEach(func(srcFile File) error {
 
+		fullpath := prefix.Join(srcFile.Path())
+
 		if stat, err := srcFile.Stat(); err != nil {
 			return err
 		} else if stat.Flags&FileContent == 0 {
-			if err := ego.drv.MkDir(srcFile.Path(), stat.OrigTime); err != nil {
+			if err := ego.drv.MkDir(fullpath, stat.OrigTime); err != nil {
 				return err
 			}
 			return nil
@@ -80,7 +82,7 @@ func (ego *storage) merge(source Storage, prefix Path) error {
 
 		dstFile := NewFile(FileConf{
 			StorageId: ego.driver().Id(),
-			Path:      prefix.Join(srcFile.Path()),
+			Path:      fullpath,
 			Flags:     stat.Flags,
 		})
 

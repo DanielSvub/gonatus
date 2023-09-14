@@ -1,7 +1,6 @@
 package driver
 
 import (
-	"io/ioutil"
 	"os"
 	pathlib "path"
 	"path/filepath"
@@ -23,7 +22,6 @@ type nativeStorageDriver struct {
 	gonatus.Gobject
 	id      gonatus.GId
 	prefix  string
-	cwd     fs.Path
 	opened  map[*os.File]fs.FileConf
 	openedR map[string]*os.File
 }
@@ -47,14 +45,6 @@ func (ego *nativeStorageDriver) nativePath(path fs.Path) string {
 func (ego *nativeStorageDriver) storagePath(path string) fs.Path {
 	pfxLen := len(strings.Split(ego.prefix, "/"))
 	return strings.Split(path, "/")[pfxLen:]
-}
-
-func (ego *nativeStorageDriver) PrintFAT() {
-	print(errors.NewNotImplError(ego).Error())
-}
-
-func (ego *nativeStorageDriver) AbsPath(path fs.Path) fs.Path {
-	return ego.cwd.Join(path)
 }
 
 func (ego *nativeStorageDriver) Open(path fs.Path, mode fs.FileMode, givenFlags fs.FileFlags, origTime time.Time) (fs.FileDescriptor, error) {
@@ -111,10 +101,9 @@ func (ego *nativeStorageDriver) Delete(path fs.Path) error {
 }
 
 type nativeRecord struct {
-	path    string
-	isDir   bool
-	size    uint64
-	modTime time.Time
+	path  string
+	isDir bool
+	size  uint64
 }
 
 func nativeStat(path string) (bool, nativeRecord, error) {
@@ -129,8 +118,6 @@ func nativeStat(path string) (bool, nativeRecord, error) {
 	if !me.isDir {
 		me.size = uint64(info.Size())
 	}
-
-	me.modTime = info.ModTime()
 
 	return true, me, nil
 }
@@ -149,7 +136,7 @@ func filterImpl(pfx string, depth fs.Depth) (accum []nativeRecord, err error) {
 		return
 	}
 
-	items, _ := ioutil.ReadDir(pfx)
+	items, _ := os.ReadDir(pfx)
 
 	for _, item := range items {
 		children, err := filterImpl(pathlib.Join(pfx, item.Name()), depth-1)
@@ -195,18 +182,6 @@ func (ego *nativeStorageDriver) Tree(path fs.Path, depth fs.Depth) (stream.Produ
 	}
 
 	return ego.exportToStream(lst)
-}
-
-func (ego *nativeStorageDriver) SetCwd(path fs.Path) error {
-	if exists, rec, err := nativeStat(ego.nativePath(path)); err != nil {
-		return err
-	} else if !exists {
-		return errors.NewNotFoundError(ego, errors.LevelError, "The path does not exist.")
-	} else if !rec.isDir {
-		return errors.NewStateError(ego, errors.LevelError, "The file cannot have children.")
-	}
-	ego.cwd = path
-	return nil
 }
 
 func (ego *nativeStorageDriver) Flags(path fs.Path) (fs.FileFlags, error) {
