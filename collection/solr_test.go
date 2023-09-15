@@ -1,160 +1,412 @@
 package collection_test
 
 import (
-	"fmt"
+	"log/slog"
+	"os"
 	"testing"
 	"time"
 
 	. "github.com/SpongeData-cz/gonatus/collection"
+	log "github.com/SpongeData-cz/gonatus/logging"
 )
 
-func TestSolr(t *testing.T) {
+func TestSolrBasics(t *testing.T) {
 
-	schema := SchemaConf{
-		Name:         "demo",
-		FieldsNaming: []string{"name"},
-		Fields: []FielderConf{
-			FieldConf[string]{},
-		},
-		Indexes: nil,
+	file, err := os.Create("test.log")
+	if err != nil {
+		t.Error(err)
 	}
+	log.SetDefaultLogger(log.NewJSONLogger(file, slog.LevelDebug))
 
-	solrConnMap := map[string]string{}
-	solrConnMap["auth-type"] = "no"
-	solrConnMap["url"] = "http://localhost:8983/solr"
-	solrConnMap["core"] = "gonatus_collection"
-	solrConnConf := NewSolrConnectionConf(solrConnMap)
-	solrCollConf := NewSolrCollectionConf(schema, *solrConnConf, 2)
-	solrColl := NewSolrCollection(*solrCollConf)
-
-	query := FilterArgument{
-		QueryConf: QueryAtomConf{
-			QueryConf: nil,
-			MatchType: FullmatchIndexConf[string]{
-				IndexerConf: nil,
-				Name:        "*",
+	t.Run("drop, create, drop Collection", func(t *testing.T) {
+		schema := SchemaConf{
+			Name:         "test",
+			FieldsNaming: []string{"name", "count", "time"},
+			Fields: []FielderConf{
+				FieldConf[string]{},
+				FieldConf[int32]{},
+				FieldConf[time.Time]{},
 			},
-			Name:  "*",
-			Value: "*",
-		},
-		Sort:      []string{},
-		SortOrder: 0,
-		Skip:      0,
-		Limit:     0,
-	}
+			Indexes: nil,
+		}
 
-	//solrColl.Filter(query)
-	//	res, err := solrColl.Filter(query)
-	//fmt.Printf("res: %+v\n", res)
-	//for !res.Closed() {
-	//	data, valid, err := res.Get()
-	//	fmt.Println("data", data, "(", valid, err, ")")
-	//}
-	//fmt.Printf("err: %+v\n", err)
+		solrConnMap := map[string]string{}
+		solrConnMap["auth-type"] = "no"
+		solrConnMap["url"] = "http://localhost:8983/solr"
+		solrConnConf := NewSolrConnectionConf(solrConnMap)
+		conn := NewSolrConnection(*solrConnConf)
 
-	query = FilterArgument{Limit: NO_LIMIT}
-	query.QueryConf = QueryAndConf{
-		QueryContextConf{
-			Context: []QueryConf{
-				QueryAtomConf{
-					Name:      "cat",
-					Value:     "electronics",
-					MatchType: FullmatchIndexConf[string]{},
+		conn.DropCollection("test")
+
+		err := conn.CreateCollection(schema, 2)
+		if err != nil {
+			t.Error(err)
+		}
+		err = conn.DropCollection("test")
+		if err != nil {
+			t.Error(err)
+		}
+
+	})
+
+	t.Run("create with already existing collection (same schema)", func(t *testing.T) {
+		schema := SchemaConf{
+			Name:         "test",
+			FieldsNaming: []string{"name", "count", "time"},
+			Fields: []FielderConf{
+				FieldConf[string]{},
+				FieldConf[int32]{},
+				FieldConf[time.Time]{},
+			},
+			Indexes: nil,
+		}
+
+		solrConnMap := map[string]string{}
+		solrConnMap["auth-type"] = "no"
+		solrConnMap["url"] = "http://localhost:8983/solr"
+		solrConnConf := NewSolrConnectionConf(solrConnMap)
+		conn := NewSolrConnection(*solrConnConf)
+
+		err := conn.CreateCollection(schema, 2)
+		if err != nil {
+			t.Error("Unexpected error in test setup.", err)
+		}
+
+		err = conn.CreateCollection(schema, 2)
+		if err == nil {
+			t.Error("Error expected but not received")
+		}
+		conn.DropCollection("test")
+
+	})
+
+	t.Run("connect to existing collection", func(t *testing.T) {
+		schema := SchemaConf{
+			Name:         "test",
+			FieldsNaming: []string{"name", "count", "time"},
+			Fields: []FielderConf{
+				FieldConf[string]{},
+				FieldConf[int32]{},
+				FieldConf[time.Time]{},
+			},
+			Indexes: nil,
+		}
+
+		solrConnMap := map[string]string{}
+		solrConnMap["auth-type"] = "no"
+		solrConnMap["url"] = "http://localhost:8983/solr"
+		solrConnConf := NewSolrConnectionConf(solrConnMap)
+		conn := NewSolrConnection(*solrConnConf)
+
+		conn.DropCollection("test")
+
+		err := conn.CreateCollection(schema, 4)
+		if err != nil {
+			t.Error("Unexpected error in test setup.", err)
+		}
+
+		collConf := NewSolrCollectionConf(schema, *solrConnConf, 4)
+		coll := NewSolrCollection(*collConf)
+		if coll == nil {
+			t.Error("Cannot connect to existing collection")
+		}
+		conn.DropCollection("test")
+	})
+
+	t.Run("implicit creation of collection in solr", func(t *testing.T) {
+		schema := SchemaConf{
+			Name:         "test",
+			FieldsNaming: []string{"name", "count", "time"},
+			Fields: []FielderConf{
+				FieldConf[string]{},
+				FieldConf[int32]{},
+				FieldConf[time.Time]{},
+			},
+			Indexes: nil,
+		}
+
+		solrConnMap := map[string]string{}
+		solrConnMap["auth-type"] = "no"
+		solrConnMap["url"] = "http://localhost:8983/solr"
+		solrConnConf := NewSolrConnectionConf(solrConnMap)
+		conn := NewSolrConnection(*solrConnConf)
+
+		conn.DropCollection("test")
+
+		collConf := NewSolrCollectionConf(schema, *solrConnConf, 4)
+		coll := NewSolrCollection(*collConf)
+		if coll == nil {
+			t.Error("Cannot create collection implicitly")
+		}
+		conn.DropCollection("test")
+	})
+
+	t.Run("connect to existing collection with wrong schema", func(t *testing.T) {
+		schema := SchemaConf{
+			Name:         "test",
+			FieldsNaming: []string{"name", "count", "time"},
+			Fields: []FielderConf{
+				FieldConf[string]{},
+				FieldConf[int32]{},
+				FieldConf[time.Time]{},
+			},
+			Indexes: nil,
+		}
+
+		solrConnMap := map[string]string{}
+		solrConnMap["auth-type"] = "no"
+		solrConnMap["url"] = "http://localhost:8983/solr"
+		solrConnConf := NewSolrConnectionConf(solrConnMap)
+		conn := NewSolrConnection(*solrConnConf)
+
+		conn.DropCollection("test")
+
+		//create collection with orginal schema
+		collConf := NewSolrCollectionConf(schema, *solrConnConf, 4)
+		coll := NewSolrCollection(*collConf)
+		if coll == nil {
+			t.Error("Cannot create collection implicitly")
+		}
+
+		//try various kind of different schemas
+		//same types different names
+		schema2 := SchemaConf{
+			Name:         "test",
+			FieldsNaming: []string{"surname", "count", "date"},
+			Fields: []FielderConf{
+				FieldConf[string]{},
+				FieldConf[int32]{},
+				FieldConf[time.Time]{},
+			},
+			Indexes: nil,
+		}
+
+		collConf = NewSolrCollectionConf(schema2, *solrConnConf, 4)
+		coll = NewSolrCollection(*collConf)
+		if coll != nil {
+			t.Error("Somehow connected to incompatible collection, or destroyed original data silently")
+		}
+
+		//same names different types
+		schema2 = SchemaConf{
+			Name:         "test",
+			FieldsNaming: []string{"name", "count", "time"},
+			Fields: []FielderConf{
+				FieldConf[string]{},
+				FieldConf[int64]{},
+				FieldConf[time.Time]{},
+			},
+			Indexes: nil,
+		}
+
+		collConf = NewSolrCollectionConf(schema2, *solrConnConf, 4)
+		coll = NewSolrCollection(*collConf)
+		if coll != nil {
+			t.Error("Somehow connected to incompatible collection, or destroyed original data silently")
+		}
+
+		//extra field
+		schema2 = SchemaConf{
+			Name:         "test",
+			FieldsNaming: []string{"name", "count", "time", "extra"},
+			Fields: []FielderConf{
+				FieldConf[string]{},
+				FieldConf[int64]{},
+				FieldConf[time.Time]{},
+				FieldConf[string]{},
+			},
+			Indexes: nil,
+		}
+
+		//TODO if there are more fields in solr than in the schema, it is ok (because of default and computed solr fields). Is it ok or do we want exactly the same fields in solr and in schema?
+
+		collConf = NewSolrCollectionConf(schema2, *solrConnConf, 4)
+		coll = NewSolrCollection(*collConf)
+		if coll != nil {
+			t.Error("Somehow connected to incompatible collection, or destroyed original data silently")
+		}
+		conn.DropCollection("test")
+	})
+}
+
+func TestSolrAdd(t *testing.T) {
+
+	t.Run("add record", func(t *testing.T) {
+		schema := SchemaConf{
+			Name:         "test",
+			FieldsNaming: []string{"name", "count", "time", "texts"},
+			Fields: []FielderConf{
+				FieldConf[string]{},
+				FieldConf[[]int32]{},
+				FieldConf[time.Time]{},
+				FieldConf[[]string]{},
+			},
+			Indexes: nil,
+		}
+
+		solrConnMap := map[string]string{}
+		solrConnMap["auth-type"] = "no"
+		solrConnMap["url"] = "http://localhost:8983/solr"
+		solrConnConf := NewSolrConnectionConf(solrConnMap)
+		conn := NewSolrConnection(*solrConnConf)
+
+		conn.DropCollection("test")
+		collConf := NewSolrCollectionConf(schema, *solrConnConf, 4)
+		coll := NewSolrCollection(*collConf)
+		if coll == nil {
+			t.Error("Can not create collection.")
+		}
+
+		rec := RecordConf{
+			Id: 1,
+			Cols: []FielderConf{
+				FieldConf[string]{
+					FielderConf: nil,
+					Value:       "Jméno",
 				},
-				QueryAtomConf{
-					Name:      "cat",
-					Value:     "hard",
-					MatchType: PrefixIndexConf[string]{},
+				FieldConf[[]int32]{
+					FielderConf: nil,
+					Value:       []int32{1, 2, 3},
+				},
+				FieldConf[time.Time]{
+					FielderConf: nil,
+					Value:       time.Now(),
+				},
+				FieldConf[[]string]{
+					FielderConf: nil,
+					Value:       []string{"Testovací", "data", "áýžřčšě+"},
 				},
 			},
-		},
+		}
+		_, err := coll.AddRecord(rec)
+
+		if err != nil {
+			t.Error(err)
+		}
+		err = coll.Commit()
+		if err != nil {
+			t.Error(err)
+		}
+
+	})
+}
+
+func TestSolrAddAndDel(t *testing.T) {
+
+	file, err := os.Create("test.log")
+	if err != nil {
+		t.Error(err)
 	}
+	log.SetDefaultLogger(log.NewJSONLogger(file, slog.LevelDebug))
+	t.Run("add record", func(t *testing.T) {
+		schema := SchemaConf{
+			Name:         "test",
+			FieldsNaming: []string{"name", "count", "time", "texts"},
+			Fields: []FielderConf{
+				FieldConf[string]{},
+				FieldConf[[]int32]{},
+				FieldConf[time.Time]{},
+				FieldConf[[]string]{},
+			},
+			Indexes: nil,
+		}
 
-	//solrColl.Filter(query)
+		solrConnMap := map[string]string{}
+		solrConnMap["auth-type"] = "no"
+		solrConnMap["url"] = "http://localhost:8983/solr"
+		solrConnConf := NewSolrConnectionConf(solrConnMap)
+		conn := NewSolrConnection(*solrConnConf)
 
-	//	res, err = solrColl.Filter(query)
-	//fmt.Printf("res: %+v\n", res)
-	//fmt.Printf("err: %+v\n", err)
+		conn.DropCollection("test")
+		collConf := NewSolrCollectionConf(schema, *solrConnConf, 4)
+		coll := NewSolrCollection(*collConf)
+		if coll == nil {
+			t.Error("Can not create collection.")
+		}
 
-	query = FilterArgument{Limit: NO_LIMIT}
-	query.QueryConf = QueryAndConf{
-		QueryContextConf{
-			Context: []QueryConf{
-				QueryAtomConf{
-					Name:      "cat",
-					Value:     "electronics",
-					MatchType: FullmatchIndexConf[string]{},
+		rec := RecordConf{
+			Id: 1,
+			Cols: []FielderConf{
+				FieldConf[string]{
+					FielderConf: nil,
+					Value:       "Jméno",
 				},
-				QueryAtomConf{
-					Name:      "cat",
-					Value:     "hard",
-					MatchType: PrefixIndexConf[string]{},
+				FieldConf[[]int32]{
+					FielderConf: nil,
+					Value:       []int32{1, 2, 3},
 				},
-				QueryRange[time.Time]{
-					Name:   "manufacturedate_dt",
-					Lower:  time.Date(2006, 02, 12, 0, 0, 0, 0, time.Now().Local().Location()), //"2005-01-01T00:00:00Z",
-					Higher: time.Date(2006, 02, 16, 0, 0, 0, 0, time.Now().Local().Location()),
+				FieldConf[time.Time]{
+					FielderConf: nil,
+					Value:       time.Now(),
+				},
+				FieldConf[[]string]{
+					FielderConf: nil,
+					Value:       []string{"Testovací", "data", "áýžřčšě+"},
 				},
 			},
-		},
-	}
-	//	solrColl.Filter(query)
-	res, err := solrColl.Filter(query)
-	fmt.Printf("res: %+v\n", res)
-	for !res.Closed() {
-		data, valid, err := res.Get()
-		fmt.Println("data", data, "(", valid, err, ")")
-	}
-	fmt.Printf("err: %+v\n", err)
+		}
+		_, err := coll.AddRecord(rec)
 
-	//	res, err = solrColl.Filter(query)
+		err = coll.Commit()
+		if err != nil {
+			t.Error(err)
+		}
 
-	//fmt.Printf("res: %+v\n", res)
-	//fmt.Printf("err: %+v\n", err)
+		found, err := coll.Filter(FilterArgument{
+			QueryConf: QueryAtomConf{
+				QueryConf: nil,
+				MatchType: FullmatchIndexConf[uint64]{},
+				Name:      "gonatusId",
+				Value:     rec.Id,
+			},
+			Sort:      []string{},
+			SortOrder: 0,
+			Skip:      0,
+			Limit:     0,
+		})
+		if err != nil {
+			t.Error("unexpected error", err)
+		}
 
-	// query = FilterArgument{Limit: NO_LIMIT}
-	// query.QueryConf = QueryOrConf{
-	// 	QueryContextConf{
-	// 		Context: []QueryConf{
-	// 			QueryAtomConf{
-	// 				Name:      "cat",
-	// 				Value:     "electronics",
-	// 				MatchType: FullmatchIndexConf[string]{},
-	// 			},
-	// 			QueryAtomConf{
-	// 				Name:      "cat",
-	// 				Value:     "hard",
-	// 				MatchType: PrefixIndexConf[string]{},
-	// 			},
-	// 		},
-	// 	},
-	// }
+		res, valid, err := found.Get()
+		if err != nil {
+			t.Error("unexpected error", err)
+		}
+		if !valid {
+			t.Error("Not found ", res, " rigth after it has been added.")
+		}
 
-	// res, err = solrColl.Filter(query)
+		err = coll.DeleteRecord(rec)
+		if err != nil {
+			t.Error(err)
+		}
 
-	// fmt.Printf("res: %+v\n", res)
-	// fmt.Printf("err: %+v\n", err)
+		err = coll.Commit()
+		if err != nil {
+			t.Error(err)
+		}
 
-	// query = FilterArgument{Limit: NO_LIMIT}
-	// query.QueryConf =
-	// 	QueryContextConf{
-	// 		Context: []QueryConf{
-	// 			QueryAtomConf{
-	// 				Name:      "cat",
-	// 				Value:     "electronics",
-	// 				MatchType: FullmatchIndexConf[string]{},
-	// 			},
-	// 			QueryAtomConf{
-	// 				Name:      "cat",
-	// 				Value:     "hard",
-	// 				MatchType: PrefixIndexConf[string]{},
-	// 			},
-	// 		},
-	// 	}
-
-	// res, err = solrColl.Filter(query)
-
-	// fmt.Printf("res: %+v\n", res)
-	// fmt.Printf("err: %+v\n", err)
-
+		found, err = coll.Filter(FilterArgument{
+			QueryConf: QueryAtomConf{
+				QueryConf: nil,
+				MatchType: FullmatchIndexConf[uint64]{},
+				Name:      "gonatusId",
+				Value:     rec.Id,
+			},
+			Sort:      []string{},
+			SortOrder: 0,
+			Skip:      0,
+			Limit:     0,
+		})
+		if err != nil {
+			t.Error("unexpected error", err)
+		}
+		res, valid, err = found.Get()
+		if err != nil {
+			t.Error("unexpected error", err)
+		}
+		if valid {
+			t.Error("Found ", res, " which should be deleted")
+		}
+	})
 }
