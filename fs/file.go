@@ -74,7 +74,7 @@ func NewFile(conf FileConf) File {
 	if conf.Path == nil {
 		ego.path = Path{}
 	} else {
-		ego.path = conf.Path
+		ego.path = slices.Clone(conf.Path)
 	}
 
 	now := time.Now()
