@@ -1,6 +1,7 @@
 package collection_test
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"testing"
@@ -355,9 +356,9 @@ func TestSolrAddAndDel(t *testing.T) {
 		found, err := coll.Filter(FilterArgument{
 			QueryConf: QueryAtomConf{
 				QueryConf: nil,
-				MatchType: FullmatchIndexConf[uint64]{},
-				Name:      "gonatusId",
-				Value:     rec.Id,
+				MatchType: FullmatchIndexConf[string]{},
+				Name:      "id",
+				Value:     fmt.Sprint(rec.Id),
 			},
 			Sort:      []string{},
 			SortOrder: 0,
@@ -390,7 +391,7 @@ func TestSolrAddAndDel(t *testing.T) {
 			QueryConf: QueryAtomConf{
 				QueryConf: nil,
 				MatchType: FullmatchIndexConf[uint64]{},
-				Name:      "gonatusId",
+				Name:      "id",
 				Value:     rec.Id,
 			},
 			Sort:      []string{},

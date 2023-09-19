@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -126,7 +127,7 @@ func (ego *SimpleSolrConnection) CreateCollection(schema SchemaConf, numShards i
 		}
 	}
 	//id field
-	schemaJsonSB.WriteString(fmt.Sprint("\"add-field\":{\"name\":\"gonatusId\",\"type\":\"plong\",\"required\":true,\"indexed\":true,\"stored\":true, \"multiValued\":false}")) //TODO this is hacky - we use plong for go uint64 - is it really safe?
+	//TODO //	schemaJsonSB.WriteString(fmt.Sprint("\"add-field\":{\"name\":\"gonatusId\",\"type\":\"plong\",\"required\":true,\"indexed\":true,\"stored\":true, \"multiValued\":false}")) //TODO this is hacky - we use plong for go uint64 - is it really safe?
 	//TODO we stroe id as goantusId as solr's default schema creates solr's id of different type (string) - this may (shoul?) be set up in solr's default schema settings
 	schemaJsonSB.WriteRune('}')
 
@@ -407,9 +408,9 @@ func (ego *SolrCollection) DeleteRecord(conf RecordConf) error {
 	return ego.DeleteByFilter(FilterArgument{
 		QueryConf: QueryAtomConf{
 			QueryConf: nil,
-			MatchType: FullmatchIndexConf[uint64]{},
-			Name:      "gonatusId",
-			Value:     conf.Id,
+			MatchType: FullmatchIndexConf[string]{},
+			Name:      "id",
+			Value:     fmt.Sprint(conf.Id),
 		},
 		Sort:      []string{},
 		SortOrder: 0,
@@ -521,7 +522,7 @@ func (ego *SolrCollection) recordToJson(conf RecordConf) (string, error) {
 		jsonRecord.WriteRune(',')
 
 	}
-	jsonRecord.WriteString(fmt.Sprintf("\"gonatusId\":%d", conf.Id))
+	jsonRecord.WriteString(fmt.Sprintf("\"id\":\"%d\"", conf.Id)) //TODO
 	jsonRecord.WriteRune('}')
 	return jsonRecord.String(), nil
 }
@@ -751,7 +752,7 @@ func (ego *SolrCollection) translateAtomQuery(query QueryAtomConf) (string, erro
 		PrefixIndexConf[uint8], PrefixIndexConf[uint16],
 		PrefixIndexConf[uint32], PrefixIndexConf[uint64],
 		PrefixIndexConf[float32], PrefixIndexConf[float64]:
-		return "", errors.NewMisappError(ego, fmt.Sprint("it is not clear how to interpret number", query.Value, " as prefixf)")) //TODO it does not make sense to use numbers as prefixes (or w have to specify the meaning of such prefix)
+		return "", errors.NewMisappError(ego, fmt.Sprint("it is not clear how to interpret number", query.Value, " as prefixf)")) //TODO it does not make sense to use numbers as prefixes (or we have to specify the meaning of such prefix)
 	case PrefixIndexConf[time.Time]:
 		return "", errors.NewNotImplError(ego) //TODO prefix of time makes sense, but we need to specify what exactly is ment by time prefix. Also it is not that straightforward for solr. Fallback: Can we overcome it by ranges?
 	case PrefixIndexConf[[]int], PrefixIndexConf[[]int8],
@@ -771,12 +772,12 @@ func (ego *SolrCollection) translateAtomQuery(query QueryAtomConf) (string, erro
 }
 
 func (ego *SolrCollection) translateNegQuery(query QueryNegConf) (string, error) {
-	qAtom := query.QueryAtomConf
-	qAtomTranslated, err := ego.translateAtomQuery(qAtom)
+	qInner := query.QueryConf
+	qInnerTranslated, err := ego.translateQueryConf(qInner)
 	if err != nil {
-		return qAtomTranslated, err
+		return qInnerTranslated, err
 	}
-	return fmt.Sprint("NOT(", qAtomTranslated, ")"), nil //solr is case sensitive in case of operations
+	return fmt.Sprint("NOT(", qInnerTranslated, ")"), nil //solr is case sensitive in case of operations
 }
 
 func (ego *SolrCollection) translateAndQuery(query QueryAndConf) (string, error) {
@@ -812,22 +813,22 @@ func (ego *SolrCollection) translateContextQuery(query QueryContextConf, operati
 }
 
 func (ego *SolrCollection) translateImplicationQuery(query QueryImplicationConf) (string, error) {
-	lATrans, err := ego.translateAtomQuery(query.Left)
+	lATrans, err := ego.translateQueryConf(query.Left)
 	if err != nil {
 		return "", err
 	}
-	rATrans, err := ego.translateAtomQuery(query.Right)
+	rATrans, err := ego.translateQueryConf(query.Right)
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprint("(NOT(", lATrans, ") OR ", rATrans, ")"), nil //basic logic stuff: a implies b is equal to not(a) or b
+	return fmt.Sprint("(NOT(", lATrans, ") OR ", rATrans, ")"), nil // a implies b is equal to not(a) or b
 }
 
 func (ego *SolrCollection) translateRangeQuery(query QueryRange[any]) (string, error) {
 	l := query.Lower
 	h := query.Higher
 	name := query.Name
-	println("Range query", name, l, h)
+	//println("Range query", name, l, h)
 	return fmt.Sprint("(", name, ":[", l, " TO ", h, "])"), nil
 }
 
@@ -881,14 +882,20 @@ func (ego *SolrCollection) parseJsonToRecords(jsonData []byte) (stream.Producer[
 				continue
 			}
 
-			id, valid := docMap["gonatusId"].(float64) //TODO gonatusId type hell begins here
+			id, valid := docMap["id"].(string)
 			if !valid {
 				//this should never happen. If it happens, we are surely having wrong schema in solr.
 				ego.Log().Warn("Document without id (or with wrong id data type) retrieved form solr (skipped, check solr colelction schema)", "docuemnt-data", fmt.Sprintf("%+v", docMap))
 				continue
 			}
-			res := RecordConf{Id: CId(id)} //TODO hacky - no uint64 in solr, so we take it as int64 there, read it as float64 from json  and  interpret it as uint64 (through CId) here (eh?)
-			//TODO type hell ends here
+			uintID, err := strconv.ParseUint(id, 10, 64)
+			if err != nil {
+
+				ego.Log().Warn("Document id can not be parsed in CId", "docuemnt-data", fmt.Sprintf("%+v", docMap))
+				continue
+
+			}
+			res := RecordConf{Id: CId(uintID)}
 			res.Cols = make([]FielderConf, len(ego.param.Fields))
 			invalidColData := false
 			for i := 0; i < len(res.Cols); i++ {

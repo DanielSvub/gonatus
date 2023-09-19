@@ -86,13 +86,13 @@ type QueryOrConf struct {
 }
 
 type QueryNegConf struct {
-	QueryAtomConf
+	QueryConf
 }
 
 type QueryImplicationConf struct {
 	QueryConf
-	Left  QueryAtomConf
-	Right QueryAtomConf
+	Left  QueryConf
+	Right QueryConf
 }
 
 type QuerySpatialConf interface {
