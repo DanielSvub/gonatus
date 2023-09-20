@@ -230,6 +230,133 @@ func TestSolrBasics(t *testing.T) {
 	})
 }
 
+func TestSolrIds(t *testing.T) {
+
+	t.Run("get last id", func(t *testing.T) {
+		schema := SchemaConf{
+			Name:         "test",
+			FieldsNaming: []string{"name", "count", "time", "texts"},
+			Fields: []FielderConf{
+				FieldConf[string]{},
+				FieldConf[[]int32]{},
+				FieldConf[time.Time]{},
+				FieldConf[[]string]{},
+			},
+			Indexes: nil,
+		}
+
+		solrConnMap := map[string]string{}
+		solrConnMap["auth-type"] = "no"
+		solrConnMap["url"] = "http://localhost:8983/solr"
+		solrConnConf := NewSolrConnectionConf(solrConnMap)
+		conn := NewSolrConnection(*solrConnConf)
+
+		conn.DropCollection("test")
+		collConf := NewSolrCollectionConf(schema, *solrConnConf, 4)
+		coll := NewSolrCollection(*collConf)
+		if coll == nil {
+			t.Error("Can not create collection.")
+		}
+
+		rec := RecordConf{
+			Id: 9,
+			Cols: []FielderConf{
+				FieldConf[string]{
+					FielderConf: nil,
+					Value:       "Jméno",
+				},
+				FieldConf[[]int32]{
+					FielderConf: nil,
+					Value:       []int32{1, 2, 3},
+				},
+				FieldConf[time.Time]{
+					FielderConf: nil,
+					Value:       time.Now(),
+				},
+				FieldConf[[]string]{
+					FielderConf: nil,
+					Value:       []string{"Testovací", "data", "áýžřčšě+"},
+				},
+			},
+		}
+		_, err := coll.AddRecord(rec)
+
+		if err != nil {
+			t.Error(err)
+		}
+		err = coll.Commit()
+		if err != nil {
+			t.Error(err)
+		}
+		rec = RecordConf{
+			Id: 3333333,
+			Cols: []FielderConf{
+				FieldConf[string]{
+					FielderConf: nil,
+					Value:       "Jméno",
+				},
+				FieldConf[[]int32]{
+					FielderConf: nil,
+					Value:       []int32{1, 2, 3},
+				},
+				FieldConf[time.Time]{
+					FielderConf: nil,
+					Value:       time.Now(),
+				},
+				FieldConf[[]string]{
+					FielderConf: nil,
+					Value:       []string{"B"},
+				},
+			},
+		}
+		_, err = coll.AddRecord(rec)
+
+		if err != nil {
+			t.Error(err)
+		}
+		err = coll.Commit()
+		if err != nil {
+			t.Error(err)
+		}
+		rec = RecordConf{
+			Id: 3,
+			Cols: []FielderConf{
+				FieldConf[string]{
+					FielderConf: nil,
+					Value:       "SDSDA",
+				},
+				FieldConf[[]int32]{
+					FielderConf: nil,
+					Value:       []int32{1, 5, 6},
+				},
+				FieldConf[time.Time]{
+					FielderConf: nil,
+					Value:       time.Now().Add(time.Hour * 10),
+				},
+				FieldConf[[]string]{
+					FielderConf: nil,
+					Value:       []string{"Testovací", "data", "1234567890"},
+				},
+			},
+		}
+		_, err = coll.AddRecord(rec)
+
+		if err != nil {
+			t.Error(err)
+		}
+		err = coll.Commit()
+		if err != nil {
+			t.Error(err)
+		}
+
+		coll = NewSolrCollection(*collConf)
+		if coll == nil {
+			t.Error("Can not create collection.")
+		}
+
+	})
+}
+
 func TestSolrAdd(t *testing.T) {
 
 	t.Run("add record", func(t *testing.T) {

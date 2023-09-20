@@ -10,11 +10,11 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/SpongeData-cz/gonatus"
 	"github.com/SpongeData-cz/gonatus/errors"
-	"github.com/SpongeData-cz/gonatus/logging"
 	"github.com/SpongeData-cz/stream"
 )
 
@@ -122,13 +122,16 @@ func (ego *SimpleSolrConnection) CreateCollection(schema SchemaConf, numShards i
 		} else {
 			schemaJsonSB.WriteRune('}')
 		}
-		if i != len(schema.Fields)-1 {
-			schemaJsonSB.WriteRune(',')
-		}
+		//		if i != len(schema.Fields)-1 {
+		schemaJsonSB.WriteRune(',')
+		//}
 	}
-	//id field
-	//TODO //	schemaJsonSB.WriteString(fmt.Sprint("\"add-field\":{\"name\":\"gonatusId\",\"type\":\"plong\",\"required\":true,\"indexed\":true,\"stored\":true, \"multiValued\":false}")) //TODO this is hacky - we use plong for go uint64 - is it really safe?
-	//TODO we stroe id as goantusId as solr's default schema creates solr's id of different type (string) - this may (shoul?) be set up in solr's default schema settings
+	//brace yourself type-hell starts here
+	//id field is in solr by default (it is string), but sorting on strings is lexiocraphical
+	//therefore we automatically copy it into long version for possibility of sorting - yes, solr implcitly parses the string into long (and no, solr does not have ulong)
+	schemaJsonSB.WriteString("\"add-field\":{\"name\":\"longId\",\"type\":\"plong\",\"required\":true,\"indexed\":true,\"stored\":true},")
+	schemaJsonSB.WriteString("\"add-copy-field\":{\"source\":\"id\",\"dest\":\"longId\"}")
+	//type hell ends here
 	schemaJsonSB.WriteRune('}')
 
 	//set-up schema of new collection
@@ -312,7 +315,7 @@ type SolrCollectionConf struct {
 	SchemaConf
 	connection SolrConnectionConf
 	numShards  int //how many shards should be used if collection is to be created
-
+	nextId     CId
 }
 
 func NewSolrCollectionConf(schema SchemaConf, solrConnectionConf SolrConnectionConf, numShards int) *SolrCollectionConf {
@@ -320,13 +323,16 @@ func NewSolrCollectionConf(schema SchemaConf, solrConnectionConf SolrConnectionC
 		SchemaConf: schema,
 		connection: solrConnectionConf,
 		numShards:  numShards,
+		nextId:     0,
 	}
 }
 
 type SolrCollection struct {
 	gonatus.Gobject
-	param SolrCollectionConf
-	con   SolrConnection
+	param  SolrCollectionConf
+	con    SolrConnection
+	nextId CId
+	idLock sync.Mutex
 }
 
 func NewSolrCollection(conf SolrCollectionConf) *SolrCollection {
@@ -339,21 +345,68 @@ func NewSolrCollection(conf SolrCollectionConf) *SolrCollection {
 		Gobject: gonatus.Gobject{},
 		con:     con,
 		param:   conf,
+		nextId:  0,
+		idLock:  sync.Mutex{},
 	}
 
 	schemaOK, _ := res.checkSchema()
+
 	//collection does not exist or has incompatible schema
 	if !schemaOK {
 		//try to create it
 		err := con.CreateCollection(conf.SchemaConf, conf.numShards)
 		if err != nil {
 			// probably there is another collection with same name
-			logging.DefaultLogger().Warn("solr collection with the given name and schema does not exist and can not be created", "error", err, "collection", conf.Name, "schema", fmt.Sprintf("%+v", conf.FieldsNaming))
+			res.Log().Warn("solr collection with the given name and schema does not exist in solr and can not be created", "error", err, "collection", conf.Name, "schema", fmt.Sprintf("%+v", conf.FieldsNaming))
 			return nil
 		}
+		res.nextId = max(1, conf.nextId)
+	} else {
+		lastId, err := res.queryLastId()
+		if err != nil {
+			res.Log().Warn("could not read used ids from the solr collection")
+			return nil
+		}
+		res.nextId = max(lastId+1, conf.nextId)
 	}
+	res.SetLog(res.Log().With("collection", conf.Name))
 	return res
 
+}
+
+func (ego *SolrCollection) queryLastId() (CId, error) {
+	resp, err := ego.con.Query(ego.param.Name, "*:*&fl=longId&sort=longId%20desc&rows=1")
+	if err != nil {
+		return 0, errors.NewStateError(ego, errors.LevelWarning, "Cannot query ids from the collection "+ego.param.Name)
+	}
+	rBody, _ := io.ReadAll(resp)
+	result := map[string]any{}
+	json.Unmarshal(rBody, &result)
+	result, ok := result["response"].(map[string]any)
+	if !ok {
+		return 0, errors.NewStateError(ego, errors.LevelWarning, "Cannot query ids from the collection "+ego.param.Name)
+	}
+	reusltsNumDict, ok := result["numFound"].(float64)
+	if !ok {
+		return 0, errors.NewStateError(ego, errors.LevelWarning, "Cannot query ids from the collection "+ego.param.Name)
+	}
+	if int(reusltsNumDict) == 0 {
+		//no documents in solr yet
+		return 1, nil
+	}
+	resultDocs, ok := result["docs"].([]any)
+	if !ok {
+		return 0, errors.NewStateError(ego, errors.LevelWarning, "Cannot query ids from the collection "+ego.param.Name)
+	}
+	resultDocDict, ok := resultDocs[0].(map[string]any)
+	if !ok {
+		return 0, errors.NewStateError(ego, errors.LevelWarning, "Cannot query ids from the collection "+ego.param.Name)
+	}
+	resultingId, ok := resultDocDict["longId"].(float64) //json parses all numbers as doubles
+	if !ok {
+		return 0, errors.NewStateError(ego, errors.LevelWarning, "Cannot query ids from the collection "+ego.param.Name)
+	}
+	return CId(resultingId), nil
 }
 
 func (ego *SolrCollection) Filter(fa FilterArgument) (stream.Producer[RecordConf], error) {
@@ -368,7 +421,7 @@ func (ego *SolrCollection) Filter(fa FilterArgument) (stream.Producer[RecordConf
 	}
 	resJson, err := io.ReadAll(responseBody)
 	if err != nil {
-		return nil, errors.NewValueError(ego, errors.LevelWarning, "cannot read the respsonse body")
+		return nil, errors.NewValueError(ego, errors.LevelWarning, "cannot read the respOnse body")
 	}
 	resStream, err := ego.parseJsonToRecords(resJson)
 
@@ -376,7 +429,31 @@ func (ego *SolrCollection) Filter(fa FilterArgument) (stream.Producer[RecordConf
 
 }
 
+func (ego *SolrCollection) newCid() (CId, error) {
+	ego.idLock.Lock()
+	defer ego.idLock.Unlock()
+	if ego.nextId == CId(MaxUint) {
+		return 0, errors.NewValueError(ego, errors.LevelWarning, "CId pool depleted")
+	}
+	ret := ego.nextId
+	ego.nextId++
+	return ret, nil
+}
+
 func (ego *SolrCollection) AddRecord(conf RecordConf) (CId, error) {
+	ego.idLock.Lock()
+	if conf.Id > ego.nextId {
+		ego.nextId = conf.Id + 1
+		ego.idLock.Unlock()
+	} else {
+		ego.idLock.Unlock()
+		newId, err := ego.newCid()
+		if err != nil {
+			return 0, errors.Wrap("Can not add new record into collection", errors.TypeState, err)
+		}
+		conf.Id = newId
+	}
+
 	jsonAdd := strings.Builder{}
 	recJson, err := ego.recordToJson(conf)
 	if err != nil {
