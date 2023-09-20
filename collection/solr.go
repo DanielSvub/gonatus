@@ -1,11 +1,9 @@
 package collection
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -18,321 +16,33 @@ import (
 	"github.com/SpongeData-cz/stream"
 )
 
-type SolrConnectionConf struct {
-	connectionData map[string]string
-}
+//-----------------------------------------------STRUCTS AND CONSTRUCTORS
 
-func NewSolrConnectionConf(conData map[string]string) *SolrConnectionConf {
-	return &SolrConnectionConf{connectionData: conData}
-}
-
-// SolrConnection is a query/request middleware to solr database.
-// It mediates the user authentication and request authorization processes.
-type SolrConnection interface {
-	gonatus.Gobjecter
-	//Query queries the given collection with the given query
-	Query(collection string, query string) (io.ReadCloser, error)
-	//Test connection and authorization to acces given collection
-	Test(collection string) error
-	//CreateCollection creates collection with the given schema
-	CreateCollection(schema SchemaConf, numShards int) error
-	//DropCollection deletes the given collection
-	DropCollection(collection string) error
-	//Commit all changes to the given collection since last commit, i.e. hard commit of collections transaction log (beware of solr transactions not being classical transactions - they are not isolated)
-	Commit(collection string) error
-	//RawGetRequest allows for user built get requests to solr (i.e. user can ask anything he has rights to do via get parameters)
-	RawGetRequest(string) (*http.Response, error)
-	//RawPostRequest allows for user built post request to solr (i.e. user can ask anything he has right to do via request body and its content type)
-	RawPostRequest(urlSuffix string, contentType string, body io.Reader) (*http.Response, error)
-}
-
-func NewSolrConnection(conf SolrConnectionConf) SolrConnection {
-	switch conf.connectionData["auth-type"] {
-	case "no":
-		return NewSimpleSolrConnection(conf)
-	case "user-password":
-		return NewUserPassSolrConnection(conf)
-	default:
-		slog.Default().Warn("Unknown solr connection auhtentication type", "auth-type", conf.connectionData["auth-type"])
-		return nil
-	}
-}
-
-type SimpleSolrConnection struct {
-	gonatus.Gobject
-	baseUrl string
-}
-
-func (ego *SimpleSolrConnection) Query(collection string, query string) (io.ReadCloser, error) {
-	ego.Log().Info("Request sent", "query", query)
-	fullRequest := ego.baseUrl + "/" + collection + "/query?q=" + query
-	resp, err := http.Get(fullRequest)
-	//TODO check response content, possibly transfomr it to error
-	if err != nil {
-		return nil, err
-	}
-	return resp.Body, err
-
-}
-
-func (ego *SimpleSolrConnection) Test(collection string) error {
-	res, err := ego.Query(collection, "*.*")
-	if err != nil {
-		return errors.NewNotImplError(ego)
-	}
-	println(res)
-	return nil
-}
-
-func (ego *SimpleSolrConnection) Serialize() gonatus.Conf {
-	confMap := map[string]string{}
-	confMap["auth-type"] = "no"
-	confMap["url"] = ego.baseUrl
-	return &SolrConnectionConf{connectionData: confMap}
-}
-
-func (ego *SimpleSolrConnection) CreateCollection(schema SchemaConf, numShards int) error {
-	q := fmt.Sprintf("/admin/collections?action=CREATE&name=%s&numShards=%d", schema.Name, numShards)
-	resp, err := ego.RawGetRequest(q)
-	//create collection
-	if err != nil {
-		ego.Log().Warn("Failed to create collection", "collection", schema.Name)
-		return errors.NewStateError(ego, errors.LevelWarning, fmt.Sprintf("unexpected server response during collection creation (name=%s), (err=%s)", schema.Name, err))
-	}
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		ego.Log().Warn("Failed to create collection", "collection", schema.Name)
-		return errors.NewStateError(ego, errors.LevelWarning, fmt.Sprintf("can not create a collection (name=%s),(httpStatus=%d), (error=%s)", schema.Name, resp.StatusCode, string(body)))
-	}
-
-	//prepare schema
-	schemaJsonSB := strings.Builder{}
-	schemaJsonSB.WriteRune('{')
-	//TODO this is the place to tweak solr fields
-	for i := 0; i < len(schema.Fields); i++ {
-		fName := schema.FieldsNaming[i]
-		fType, fMultiVal, err := fielderTypeToSolrType(schema.Fields[i])
-		if err != nil {
-			ego.Log().Info("Failed to create collection", "collection", schema.Name)
-			return err
-		}
-		schemaJsonSB.WriteString(fmt.Sprint("\"add-field\":{\"name\":\"", fName, "\",\"type\":\"", fType, "\",\"required\":true,\"indexed\":true,\"stored\":true"))
-		if fMultiVal {
-			schemaJsonSB.WriteString(",\"multiValued\":true}")
-		} else {
-			schemaJsonSB.WriteRune('}')
-		}
-		//		if i != len(schema.Fields)-1 {
-		schemaJsonSB.WriteRune(',')
-		//}
-	}
-	//brace yourself type-hell starts here
-	//id field is in solr by default (it is string), but sorting on strings is lexiocraphical
-	//therefore we automatically copy it into long version for possibility of sorting - yes, solr implcitly parses the string into long (and no, solr does not have ulong)
-	schemaJsonSB.WriteString("\"add-field\":{\"name\":\"longId\",\"type\":\"plong\",\"required\":true,\"indexed\":true,\"stored\":true},")
-	schemaJsonSB.WriteString("\"add-copy-field\":{\"source\":\"id\",\"dest\":\"longId\"}")
-	//type hell ends here
-	schemaJsonSB.WriteRune('}')
-
-	//set-up schema of new collection
-	resp, err = http.Post(ego.baseUrl+"/"+schema.Name+"/schema", "application/json", strings.NewReader(schemaJsonSB.String()))
-	ego.Log().Info("Requeset sent", "request", ego.baseUrl+"/"+schema.Name+"/schema", "request-body", schemaJsonSB.String())
-	if err != nil {
-		cleanUpErr := ego.DropCollection(schema.Name)
-		if cleanUpErr != nil {
-			ego.Log().Warn("Failed to create collection (collection stub left in solr)", "collection", schema.Name)
-			return errors.Wrap("Cannot set up schema of new collection (collection stub left in solr)", errors.TypeState, err)
-		}
-		ego.Log().Warn("Failed to create collection (colletion stub removed from solr)", "collection", schema.Name)
-		return errors.Wrap("Cannot set up schema of new collection (collection stub removed from solr)", errors.TypeState, err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		cleanUpErr := ego.DropCollection(schema.Name)
-		if cleanUpErr != nil {
-			ego.Log().Warn("Failed to create collection (collection stub left in solr)", "collection", schema.Name)
-			return errors.NewStateError(ego, errors.LevelWarning, "Cannot set up schema of new collection (collection stub left in solr)"+string(respBody))
-		}
-		ego.Log().Warn("Failed to create collection (colletion stub removed from solr)", "collection", schema.Name)
-		return errors.NewStateError(ego, errors.LevelWarning, "Cannot set up schema of new collection (collection stub removed from solr)"+string(respBody))
-	}
-	ego.Log().Info("Collection created", "collection", schema.Name)
-	return nil
-}
-
-func (ego *SimpleSolrConnection) DropCollection(name string) error {
-	q := fmt.Sprintf("/admin/collections?action=DELETE&name=%s", name)
-	resp, err := ego.RawGetRequest(q)
-	if err != nil {
-		return errors.NewStateError(ego, errors.LevelWarning, fmt.Sprintf("unexpected server response during collection creation (name=%s), (err=%s)", name, err))
-	}
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return errors.NewStateError(ego, errors.LevelWarning, fmt.Sprintf("can not create a collection (name=%s), (httpStatus=%d), (error=%s)", name, resp.StatusCode, string(body)))
-	}
-	return nil
-
-}
-
-func (ego *SimpleSolrConnection) Commit(collection string) error {
-	resp, err := ego.RawGetRequest("/" + collection + "/update?commit=true")
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		ego.Log().Warn("Commit to collection failed", "collection", collection, "response-code", resp.StatusCode, "response-body", string(respBody))
-		return errors.NewStateError(ego, errors.LevelWarning, "Unable to commit to collection")
-	}
-	return nil
-}
-
-func (ego *SimpleSolrConnection) RawGetRequest(reqBody string) (*http.Response, error) {
-	fullRequest := ego.baseUrl + reqBody
-	ego.Log().Info("Request sent", "request", reqBody)
-	return http.Get(fullRequest)
-}
-
-func (ego *SimpleSolrConnection) RawPostRequest(urlSuffix string, contentType string, body io.Reader) (*http.Response, error) {
-	url := ego.baseUrl + urlSuffix
-	var buf bytes.Buffer
-	tee := io.TeeReader(body, &buf) //TODO this is increasing complexity just to log the request body... do we need it?
-	bodyCopy, _ := io.ReadAll(tee)
-	ego.Log().Info("Request sent", "url", url, "content-type", contentType, "body", string(bodyCopy))
-	return http.Post(url, contentType, &buf)
-}
-
-func NewSimpleSolrConnection(param SolrConnectionConf) *SimpleSolrConnection {
-	baseUrl, ok := param.connectionData["url"]
-	if !ok {
-		slog.Default().Warn("solr server address not specified in the conf (url)")
-		return nil
-	}
-
-	res := SimpleSolrConnection{
-		Gobject: gonatus.Gobject{},
-		baseUrl: baseUrl,
-	}
-	res.SetLog(res.Log().WithGroup("Solr").With("address", res.baseUrl, "auth-type", "no"))
-	res.Log().Info("Simple solr connection object created.")
-	return &res
-}
-
-type UserPassSolrConnection struct {
-	gonatus.Gobject
-	baseUrl  string
-	username string
-	password string
-}
-
-func (*UserPassSolrConnection) Test(collecton string) error {
-	panic("unimplemented")
-}
-
-func NewUserPassSolrConnection(param SolrConnectionConf) *UserPassSolrConnection {
-	baseUrl, ok := param.connectionData["url"]
-	if !ok {
-		slog.Default().Warn("solr server address not specified in the conf (url)")
-		return nil
-	}
-	user, ok := param.connectionData["user"]
-	if !ok {
-		slog.Default().Warn("solr username not specified in the conf (core)")
-		return nil
-	}
-	password, ok := param.connectionData["password"]
-	if !ok {
-		slog.Default().Warn("solr user's password not specified in the conf (password)")
-		return nil
-	}
-
-	res := UserPassSolrConnection{
-		Gobject:  gonatus.Gobject{},
-		baseUrl:  baseUrl,
-		username: user,
-		password: password,
-	}
-	res.SetLog(res.Log().WithGroup("Solr").With("address", res.baseUrl, "auth-type", "user-password", "user", res.username))
-	res.Log().Info("User password solr connection object created.")
-	return &res
-}
-
-func (ego *UserPassSolrConnection) Serialize() gonatus.Conf {
-	confMap := map[string]string{}
-	confMap["auth-type"] = "user-password"
-	confMap["url"] = ego.baseUrl
-	confMap["user"] = ego.username
-	confMap["password"] = ego.password
-	return &SolrConnectionConf{connectionData: confMap}
-}
-
-func (ego *UserPassSolrConnection) Query(collection string, query string) (io.ReadCloser, error) {
-	ego.Log().Info("Query request sent", "query", query)
-	fullRequest := ego.username + ":" + ego.password + "@" + ego.baseUrl + "/" + collection + "/query?q=" + query
-	resp, err := http.Get(fullRequest)
-	//TODO check response content, possibly transform it to error
-	if err != nil {
-		return nil, err
-	}
-	if resp.Request.Response.StatusCode != http.StatusOK {
-		ego.Log().Warn("Query request with not ok response.", "query", query, "http-status", resp.StatusCode)
-		rb, _ := io.ReadAll(resp.Body)
-		return nil, errors.NewStateError(ego, errors.LevelWarning, fmt.Sprintf("Response status: %d, response body %s", resp.StatusCode, rb))
-	}
-	return resp.Body, err
-}
-
-func (ego *UserPassSolrConnection) CreateCollection(schema SchemaConf, numShards int) error {
-	return nil //TODO
-}
-
-func (ego *UserPassSolrConnection) DropCollection(collection string) error {
-	return nil //TODO
-}
-
-func (ego *UserPassSolrConnection) Commit(collection string) error {
-	return nil //TODO
-}
-
-func (ego *UserPassSolrConnection) RawGetRequest(reqBody string) (*http.Response, error) {
-	fullRequest := ego.username + ":" + ego.password + "@" + ego.baseUrl + reqBody
-	return http.Get(fullRequest)
-}
-
-func (ego *UserPassSolrConnection) RawPostRequest(urlSuffix string, contentType string, body io.Reader) (*http.Response, error) {
-	url := ego.username + ":" + ego.password + "@" + ego.baseUrl + urlSuffix
-	var buf bytes.Buffer
-	tee := io.TeeReader(body, &buf) //TODO this is increasing complexity just to log the request body... do we need it?
-	bodyCopy, _ := io.ReadAll(tee)
-	ego.Log().Info("Request sent", "url", ego.baseUrl+urlSuffix, "content-type", contentType, "body", string(bodyCopy))
-	return http.Post(url, contentType, &buf)
-
-}
-
-//---------SOLR COLLECTION PUBLIC API
-
+// SolrCollectionConf contains configuration information for solr collection
 type SolrCollectionConf struct {
-	SchemaConf
-	connection SolrConnectionConf
-	numShards  int //how many shards should be used if collection is to be created
-	nextId     CId
+	SchemaConf                    // collections schema information
+	connection SolrConnectionConf //connection information
+	numShards  int                //how many shards should be used if collection is to be created
+	nextId     CId                //ids for newly added records will be higher than this value
 }
 
-func NewSolrCollectionConf(schema SchemaConf, solrConnectionConf SolrConnectionConf, numShards int) *SolrCollectionConf {
+func NewSolrCollectionConf(schema SchemaConf, solrConnectionConf SolrConnectionConf, numShards int, nextId CId) *SolrCollectionConf {
 	return &SolrCollectionConf{
 		SchemaConf: schema,
 		connection: solrConnectionConf,
 		numShards:  numShards,
-		nextId:     0,
+		nextId:     nextId,
 	}
 }
 
 type SolrCollection struct {
 	gonatus.Gobject
-	param  SolrCollectionConf
-	con    SolrConnection
-	nextId CId
-	idLock sync.Mutex
+	param           SolrCollectionConf //configuration information
+	con             SolrConnection     //conection to send requests through to solr
+	nextId          CId                //id for next added record
+	transactionPlan []solrOperation    //operations planned for commit
+	idLock          sync.Mutex         //lock for generating new ids for records (access to nextId)
+	transactionLock sync.Mutex         //lock for planing or commiting operations (access to transactionPlan)
 }
 
 func NewSolrCollection(conf SolrCollectionConf) *SolrCollection {
@@ -342,11 +52,13 @@ func NewSolrCollection(conf SolrCollectionConf) *SolrCollection {
 	}
 
 	res := &SolrCollection{
-		Gobject: gonatus.Gobject{},
-		con:     con,
-		param:   conf,
-		nextId:  0,
-		idLock:  sync.Mutex{},
+		Gobject:         gonatus.Gobject{},
+		con:             con,
+		param:           conf,
+		nextId:          0,
+		transactionPlan: []solrOperation{},
+		idLock:          sync.Mutex{},
+		transactionLock: sync.Mutex{},
 	}
 
 	schemaOK, _ := res.checkSchema()
@@ -370,44 +82,12 @@ func NewSolrCollection(conf SolrCollectionConf) *SolrCollection {
 		res.nextId = max(lastId+1, conf.nextId)
 	}
 	res.SetLog(res.Log().With("collection", conf.Name))
+	res.Log().Info("Collection connected to solr")
 	return res
 
 }
 
-func (ego *SolrCollection) queryLastId() (CId, error) {
-	resp, err := ego.con.Query(ego.param.Name, "*:*&fl=longId&sort=longId%20desc&rows=1")
-	if err != nil {
-		return 0, errors.NewStateError(ego, errors.LevelWarning, "Cannot query ids from the collection "+ego.param.Name)
-	}
-	rBody, _ := io.ReadAll(resp)
-	result := map[string]any{}
-	json.Unmarshal(rBody, &result)
-	result, ok := result["response"].(map[string]any)
-	if !ok {
-		return 0, errors.NewStateError(ego, errors.LevelWarning, "Cannot query ids from the collection "+ego.param.Name)
-	}
-	reusltsNumDict, ok := result["numFound"].(float64)
-	if !ok {
-		return 0, errors.NewStateError(ego, errors.LevelWarning, "Cannot query ids from the collection "+ego.param.Name)
-	}
-	if int(reusltsNumDict) == 0 {
-		//no documents in solr yet
-		return 1, nil
-	}
-	resultDocs, ok := result["docs"].([]any)
-	if !ok {
-		return 0, errors.NewStateError(ego, errors.LevelWarning, "Cannot query ids from the collection "+ego.param.Name)
-	}
-	resultDocDict, ok := resultDocs[0].(map[string]any)
-	if !ok {
-		return 0, errors.NewStateError(ego, errors.LevelWarning, "Cannot query ids from the collection "+ego.param.Name)
-	}
-	resultingId, ok := resultDocDict["longId"].(float64) //json parses all numbers as doubles
-	if !ok {
-		return 0, errors.NewStateError(ego, errors.LevelWarning, "Cannot query ids from the collection "+ego.param.Name)
-	}
-	return CId(resultingId), nil
-}
+//-----------------------------------------------PUBLIC API
 
 func (ego *SolrCollection) Filter(fa FilterArgument) (stream.Producer[RecordConf], error) {
 	query, err := ego.filterArgToSolrQuery(fa)
@@ -429,17 +109,6 @@ func (ego *SolrCollection) Filter(fa FilterArgument) (stream.Producer[RecordConf
 
 }
 
-func (ego *SolrCollection) newCid() (CId, error) {
-	ego.idLock.Lock()
-	defer ego.idLock.Unlock()
-	if ego.nextId == CId(MaxUint) {
-		return 0, errors.NewValueError(ego, errors.LevelWarning, "CId pool depleted")
-	}
-	ret := ego.nextId
-	ego.nextId++
-	return ret, nil
-}
-
 func (ego *SolrCollection) AddRecord(conf RecordConf) (CId, error) {
 	ego.idLock.Lock()
 	if conf.Id > ego.nextId {
@@ -449,79 +118,80 @@ func (ego *SolrCollection) AddRecord(conf RecordConf) (CId, error) {
 		ego.idLock.Unlock()
 		newId, err := ego.newCid()
 		if err != nil {
-			return 0, errors.Wrap("Can not add new record into collection", errors.TypeState, err)
+			return 0, errors.Wrap("Can not add new record into collection (problem with id)", errors.TypeState, err)
 		}
 		conf.Id = newId
 	}
 
-	jsonAdd := strings.Builder{}
-	recJson, err := ego.recordToJson(conf)
-	if err != nil {
-		return 0, err
+	addOp := &solrAddOp{
+		record:     conf,
+		collection: ego,
 	}
+	ego.planOperation(addOp)
 
-	//TODO generate id by hand(similarly to RAM collection)? It seems that solr does not support number id incrementation.
-
-	//request body
-	jsonAdd.WriteString("{\"add\":{\"doc\":")
-	jsonAdd.WriteString(recJson)
-	jsonAdd.WriteString("}}")
-
-	resp, err := ego.con.RawPostRequest("/"+ego.param.Name+"/update", "text/json", strings.NewReader(jsonAdd.String()))
-	if err != nil {
-		ego.Log().Warn("Can not add record to collection", "record", fmt.Sprintf("%+v", conf), "info", "Post request error")
-		return 0, errors.Wrap("Can not add record to collection", errors.TypeState, err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		ego.Log().Warn("Can not add record to collection", "record", fmt.Sprintf("%+v", conf), "http-status", resp.StatusCode, "http-response", string(respBody))
-		return 0, errors.NewStateError(ego, errors.LevelWarning, "Can not add record to collection")
-	}
 	return conf.Id, nil
-
 }
 
 func (ego *SolrCollection) DeleteRecord(conf RecordConf) error {
-	return ego.DeleteByFilter(FilterArgument{
-		QueryConf: QueryAtomConf{
-			QueryConf: nil,
-			MatchType: FullmatchIndexConf[string]{},
-			Name:      "id",
-			Value:     fmt.Sprint(conf.Id),
-		},
-		Sort:      []string{},
-		SortOrder: 0,
-		Skip:      0,
-		Limit:     0,
-	})
-}
-
-func (ego *SolrCollection) DeleteByFilter(fa FilterArgument) error {
-	query, err := ego.filterArgToSolrQuery(fa)
-	if err != nil {
-		return err
+	delOp := &solrDeleteByIdOp{
+		record:     conf,
+		collection: ego,
 	}
-	deleteQuery := strings.NewReader(fmt.Sprintf("{\"delete\": { \"query\":\"%s\"}}", query))
-	resp, err := ego.con.RawPostRequest("/"+ego.param.Name+"/update", "text/json", deleteQuery)
-	if err != nil {
-		ego.Log().Warn("Can not send request to solr while deleting by query", "collection", ego.param.Name, "error", err)
-		return errors.Wrap("can not send request to solr", errors.TypeState, err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		ego.Log().Warn("Cannot delete by query (unexpected response)", "http-response", string(respBody), "http-status", resp.StatusCode)
-		return errors.NewStateError(ego, errors.LevelWarning, fmt.Sprintf("failed to delete data from solr (responseCode=%d)", resp.StatusCode))
-	}
+	ego.planOperation(delOp)
 	return nil
 }
 
-func (ego *SolrCollection) EditRecord(RecordConf, int, any) error {
-	return errors.NewNotImplError(ego) //TODO
+func (ego *SolrCollection) DeleteByFilter(fa FilterArgument) error {
+	delOp := &solrDeleteByQueryOp{
+		collection: ego,
+		filterArg:  fa,
+	}
+	ego.planOperation(delOp)
+	return nil
+}
+
+func (ego *SolrCollection) EditRecord(conf RecordConf) error {
+	updateOp := &solrUpdateOp{
+		collection: ego,
+		record:     conf,
+	}
+	ego.planOperation(updateOp)
+	return nil
 }
 
 func (ego *SolrCollection) Commit() error {
 	// Solr does not have typical transactions. It is only transaction log common to all users. Every call to Commit commits all planned work of all users at once.
-	return ego.con.Commit(ego.param.Name)
+
+	ego.transactionLock.Lock()
+	defer ego.transactionLock.Unlock()
+	querySB := strings.Builder{}
+	querySB.WriteRune('{')
+	for _, op := range ego.transactionPlan {
+		opJson, err := op.toJson()
+		if err != nil {
+			return err
+		}
+		querySB.WriteString(opJson)
+	}
+	querySB.WriteRune('}')
+	query := strings.NewReader(querySB.String())
+
+	resp, err := ego.con.RawPostRequest("/"+ego.param.Name+"/update", "text/json", query)
+	if err != nil {
+		//ego.Log().Warn("Can not send request to solr", "collection", ego.param.Name, "error", err)
+		return errors.Wrap("can not send request to solr", errors.TypeState, err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		ego.Log().Warn("Cannot commit transaction plan", "http-response", string(respBody), "http-status", resp.StatusCode)
+		return errors.NewStateError(ego, errors.LevelWarning, fmt.Sprintf("failed to commit transaction plan to solr (responseCode=%d)", resp.StatusCode))
+	}
+	res := ego.con.Commit(ego.param.Name)
+	if res != nil {
+		res = errors.Wrap("Transaction plan accepted by solr but solr's commit returned error.", errors.TypeState, err)
+	}
+	ego.transactionPlan = []solrOperation{}
+	return res
 }
 
 func (ego *SolrCollection) Serialize() gonatus.Conf {
@@ -529,10 +199,80 @@ func (ego *SolrCollection) Serialize() gonatus.Conf {
 	if !valid {
 		return nil
 	}
-	return NewSolrCollectionConf(ego.param.SchemaConf, scc, ego.param.numShards)
+	return NewSolrCollectionConf(ego.param.SchemaConf, scc, ego.param.numShards, ego.nextId)
 }
 
-//-------COLLECTION HELPER STUFF
+//----------------------------------------------- HELPER STUFF
+
+// solrOperation is a contract for any operation which may be planned for commit
+type solrOperation interface {
+	toJson() (string, error) //convert operation to json for solr's json update api
+}
+
+// solrAddOp is a record of add record (solr's add) operation to be planned for commit
+type solrAddOp struct {
+	collection *SolrCollection
+	record     RecordConf
+}
+
+func (ego *solrAddOp) toJson() (string, error) {
+	recJson, err := ego.collection.recordToJson(ego.record)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("\"add\":{\"doc\":%s}\n", recJson), nil
+}
+
+// solrDeleteByIdOp is a record of delete record (solr's delete by id) operation to be planned for commit
+type solrDeleteByIdOp struct {
+	collection *SolrCollection
+	record     RecordConf
+}
+
+func (ego *solrDeleteByIdOp) toJson() (string, error) {
+	return fmt.Sprintf("\"delete\":{\"id\":\"%d\"}\n", ego.record.Id), nil
+}
+
+// solrDeleteByQueryOp is a record of delete by filter (solr's delete by query) to be planned for commit
+type solrDeleteByQueryOp struct {
+	collection *SolrCollection
+	filterArg  FilterArgument
+}
+
+func (ego *solrDeleteByQueryOp) toJson() (string, error) {
+	query, err := ego.collection.filterArgToSolrQuery(ego.filterArg)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("\"delete\": { \"query\":\"%s\"}", query), nil
+}
+
+// solrUpdateOp is a record of edit record (solr's delete and add) operation to be planned for commit.
+// For simplicity and beacuse it is not planned to be used in the system, the implementation is naive - i.e. delete followed by add instead of solr's update
+type solrUpdateOp struct {
+	collection *SolrCollection
+	record     RecordConf
+}
+
+func (ego *solrUpdateOp) toJson() (string, error) {
+	delOp := solrDeleteByIdOp{
+		collection: ego.collection,
+		record:     ego.record,
+	}
+	delPart, err := delOp.toJson()
+	if err != nil {
+		return "", err
+	}
+	addOp := solrAddOp{
+		collection: ego.collection,
+		record:     ego.record,
+	}
+	addPart, err := addOp.toJson()
+	if err != nil {
+		return "", err
+	}
+	return addPart + delPart, nil
+}
 
 // filterArgToSolrQuery generates solr query for the given FilterArgument
 func (ego *SolrCollection) filterArgToSolrQuery(fa FilterArgument) (string, error) {
@@ -729,6 +469,7 @@ func sliceToSolrArray[T any](sl []T) string {
 	return res.String()
 }
 
+// translateAtomQuery converts QueryAtomConf int solr's query formula
 func (ego *SolrCollection) translateAtomQuery(query QueryAtomConf) (string, error) {
 
 	switch typ := query.MatchType.(type) {
@@ -848,6 +589,7 @@ func (ego *SolrCollection) translateAtomQuery(query QueryAtomConf) (string, erro
 
 }
 
+// translateNegQuery converts QueryNegConf into solr's query formula
 func (ego *SolrCollection) translateNegQuery(query QueryNegConf) (string, error) {
 	qInner := query.QueryConf
 	qInnerTranslated, err := ego.translateQueryConf(qInner)
@@ -857,15 +599,18 @@ func (ego *SolrCollection) translateNegQuery(query QueryNegConf) (string, error)
 	return fmt.Sprint("NOT(", qInnerTranslated, ")"), nil //solr is case sensitive in case of operations
 }
 
+// translateAndQuery converts QueryAndConf into solr's query formula
 func (ego *SolrCollection) translateAndQuery(query QueryAndConf) (string, error) {
 	return ego.translateContextQuery(query.QueryContextConf, "AND") //solr is case sensitive in case of operations
 }
 
+// translateOrQuery converts QueryOrConf into solr's query formula
 func (ego *SolrCollection) translateOrQuery(query QueryOrConf) (string, error) {
 	return ego.translateContextQuery(query.QueryContextConf, "OR") //solr is case sensitive in case of operations
 }
 
-func (ego *SolrCollection) translateContextQuery(query QueryContextConf, operation string) (string, error) {
+// translateContextQuery converts QueryContextConf into solr's query formula. Uses elements of context as operands to specified binary operation (assumes associativity).
+func (ego *SolrCollection) translateContextQuery(query QueryContextConf, binOper string) (string, error) {
 	subqueries := []string{}
 	for _, sq := range query.Context {
 		sqs, err := ego.translateQueryConf(sq)
@@ -881,7 +626,7 @@ func (ego *SolrCollection) translateContextQuery(query QueryContextConf, operati
 	sb.WriteString("(")
 	sb.WriteString(subqueries[0])
 	for _, sq := range subqueries[1:] {
-		sb.WriteString(fmt.Sprint(" ", operation, " "))
+		sb.WriteString(fmt.Sprint(" ", binOper, " "))
 		sb.WriteString(sq)
 	}
 	sb.WriteString(")")
@@ -889,6 +634,7 @@ func (ego *SolrCollection) translateContextQuery(query QueryContextConf, operati
 
 }
 
+// translateImplicationQuery converts QueryImplicationQuery into solr's query formula
 func (ego *SolrCollection) translateImplicationQuery(query QueryImplicationConf) (string, error) {
 	lATrans, err := ego.translateQueryConf(query.Left)
 	if err != nil {
@@ -901,6 +647,7 @@ func (ego *SolrCollection) translateImplicationQuery(query QueryImplicationConf)
 	return fmt.Sprint("(NOT(", lATrans, ") OR ", rATrans, ")"), nil // a implies b is equal to not(a) or b
 }
 
+// translateRangeQuery converts QueryRange into solr's range query
 func (ego *SolrCollection) translateRangeQuery(query QueryRange[any]) (string, error) {
 	l := query.Lower
 	h := query.Higher
@@ -928,9 +675,9 @@ func genSortBody(sorts []string, order int) string {
 	return resSB.String()
 }
 
-// formatSolrTime formats time.Time values into format demanded by TrieDateField, DatePointField, DateRangeField and DatePointFieldsolr field-type in solr
+// formatSolrTime formats time.Time values into format demanded by solr for datetime types
 func formatSolrTime(t time.Time) string {
-	return t.UTC().Format(time.RFC3339) //assuming Field-Type of  TrieDateField, DatePointField, DateRangeField or DatePointFieldsolr, solr needs EXACTLY this time format and  UTC zone, i.e. change zone and then format it (see solr's docs)
+	return t.UTC().Format(time.RFC3339) //solr needs EXACTLY this time format and  UTC zone, i.e. change zone and then format it (see solr's docs)
 }
 
 // parseJsonToRecords parses solr query response into stream of RecordConfs
@@ -996,6 +743,7 @@ func (ego *SolrCollection) parseJsonToRecords(jsonData []byte) (stream.Producer[
 	return returnBuffer, nil
 }
 
+// checkSchema checks if collection's schema and schema of solr's collection of the same name are compatible - i.e. if go's schema is a subset of solr's schema.
 func (ego *SolrCollection) checkSchema() (bool, error) {
 	request := "/" + ego.param.Name + "/schema"
 	resp, err := ego.con.RawGetRequest(request)
@@ -1106,4 +854,60 @@ func fielderTypeToSolrType(fc FielderConf) (string, bool, error) {
 	default:
 		return "", false, errors.Wrap(fmt.Sprintf("solr collection is not set up to work with this type: %+v", typ), errors.TypeState, nil)
 	}
+}
+
+// newCid generates new id for a record (the last used one  + 1). Returns error if all valid ids were already used.
+func (ego *SolrCollection) newCid() (CId, error) {
+	ego.idLock.Lock()
+	defer ego.idLock.Unlock()
+	if ego.nextId == CId(MaxUint) {
+		ego.Log().Warn("IDs depleted")
+		return 0, errors.NewValueError(ego, errors.LevelWarning, "CId pool depleted")
+	}
+	ret := ego.nextId
+	ego.nextId++
+	return ret, nil
+}
+
+// planOperation apends op to the transactionPlan of the collection
+func (ego *SolrCollection) planOperation(op solrOperation) {
+	ego.transactionLock.Lock()
+	ego.transactionPlan = append(ego.transactionPlan, op)
+	ego.transactionLock.Unlock()
+}
+
+// queryLastId gets last id used in the solr image of this collection. Returns error if ids cannot be queried.
+func (ego *SolrCollection) queryLastId() (CId, error) {
+	resp, err := ego.con.Query(ego.param.Name, "*:*&fl=numId&sort=numId%20desc&rows=1")
+	if err != nil {
+		return 0, errors.NewStateError(ego, errors.LevelWarning, "Cannot query ids from the collection "+ego.param.Name)
+	}
+	rBody, _ := io.ReadAll(resp)
+	result := map[string]any{}
+	json.Unmarshal(rBody, &result)
+	result, ok := result["response"].(map[string]any)
+	if !ok {
+		return 0, errors.NewStateError(ego, errors.LevelWarning, "Cannot query ids from the collection "+ego.param.Name)
+	}
+	reusltsNumDict, ok := result["numFound"].(float64)
+	if !ok {
+		return 0, errors.NewStateError(ego, errors.LevelWarning, "Cannot query ids from the collection "+ego.param.Name)
+	}
+	if int(reusltsNumDict) == 0 {
+		//no documents in solr yet
+		return 1, nil
+	}
+	resultDocs, ok := result["docs"].([]any)
+	if !ok {
+		return 0, errors.NewStateError(ego, errors.LevelWarning, "Cannot query ids from the collection "+ego.param.Name)
+	}
+	resultDocDict, ok := resultDocs[0].(map[string]any)
+	if !ok {
+		return 0, errors.NewStateError(ego, errors.LevelWarning, "Cannot query ids from the collection "+ego.param.Name)
+	}
+	resultingId, ok := resultDocDict["numId"].(float64) //json parses all numbers as doubles
+	if !ok {
+		return 0, errors.NewStateError(ego, errors.LevelWarning, "Cannot query ids from the collection "+ego.param.Name)
+	}
+	return CId(resultingId), nil
 }

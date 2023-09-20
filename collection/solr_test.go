@@ -1,6 +1,7 @@
 package collection_test
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -11,15 +12,36 @@ import (
 	log "github.com/SpongeData-cz/gonatus/logging"
 )
 
-func TestSolrBasics(t *testing.T) {
+var connConf *SolrConnectionConf
+var conn SolrConnection
 
+func SetUp() error {
 	file, err := os.Create("test.log")
 	if err != nil {
-		t.Error(err)
+		return err
 	}
 	log.SetDefaultLogger(log.NewJSONLogger(file, slog.LevelDebug))
 
-	t.Run("drop, create, drop Collection", func(t *testing.T) {
+	solrConnMap := map[string]string{}
+	solrConnMap["auth-type"] = "no"
+	solrConnMap["url"] = "http://localhost:8983/solr"
+	connConf = NewSolrConnectionConf(solrConnMap)
+	conn = NewSolrConnection(*connConf)
+	if conn == nil {
+		return errors.New("Cannot create connection to solr")
+	}
+	return nil
+}
+
+func TestSolrBasics(t *testing.T) {
+	if conn == nil {
+		err := SetUp()
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	t.Run("drop, create, drop collection", func(t *testing.T) {
 		schema := SchemaConf{
 			Name:         "test",
 			FieldsNaming: []string{"name", "count", "time"},
@@ -30,12 +52,6 @@ func TestSolrBasics(t *testing.T) {
 			},
 			Indexes: nil,
 		}
-
-		solrConnMap := map[string]string{}
-		solrConnMap["auth-type"] = "no"
-		solrConnMap["url"] = "http://localhost:8983/solr"
-		solrConnConf := NewSolrConnectionConf(solrConnMap)
-		conn := NewSolrConnection(*solrConnConf)
 
 		conn.DropCollection("test")
 
@@ -62,12 +78,6 @@ func TestSolrBasics(t *testing.T) {
 			Indexes: nil,
 		}
 
-		solrConnMap := map[string]string{}
-		solrConnMap["auth-type"] = "no"
-		solrConnMap["url"] = "http://localhost:8983/solr"
-		solrConnConf := NewSolrConnectionConf(solrConnMap)
-		conn := NewSolrConnection(*solrConnConf)
-
 		err := conn.CreateCollection(schema, 2)
 		if err != nil {
 			t.Error("Unexpected error in test setup.", err)
@@ -92,13 +102,6 @@ func TestSolrBasics(t *testing.T) {
 			},
 			Indexes: nil,
 		}
-
-		solrConnMap := map[string]string{}
-		solrConnMap["auth-type"] = "no"
-		solrConnMap["url"] = "http://localhost:8983/solr"
-		solrConnConf := NewSolrConnectionConf(solrConnMap)
-		conn := NewSolrConnection(*solrConnConf)
-
 		conn.DropCollection("test")
 
 		err := conn.CreateCollection(schema, 4)
@@ -106,7 +109,7 @@ func TestSolrBasics(t *testing.T) {
 			t.Error("Unexpected error in test setup.", err)
 		}
 
-		collConf := NewSolrCollectionConf(schema, *solrConnConf, 4)
+		collConf := NewSolrCollectionConf(schema, *connConf, 4, 0)
 		coll := NewSolrCollection(*collConf)
 		if coll == nil {
 			t.Error("Cannot connect to existing collection")
@@ -134,7 +137,7 @@ func TestSolrBasics(t *testing.T) {
 
 		conn.DropCollection("test")
 
-		collConf := NewSolrCollectionConf(schema, *solrConnConf, 4)
+		collConf := NewSolrCollectionConf(schema, *solrConnConf, 4, 0)
 		coll := NewSolrCollection(*collConf)
 		if coll == nil {
 			t.Error("Cannot create collection implicitly")
@@ -154,16 +157,10 @@ func TestSolrBasics(t *testing.T) {
 			Indexes: nil,
 		}
 
-		solrConnMap := map[string]string{}
-		solrConnMap["auth-type"] = "no"
-		solrConnMap["url"] = "http://localhost:8983/solr"
-		solrConnConf := NewSolrConnectionConf(solrConnMap)
-		conn := NewSolrConnection(*solrConnConf)
-
 		conn.DropCollection("test")
 
 		//create collection with orginal schema
-		collConf := NewSolrCollectionConf(schema, *solrConnConf, 4)
+		collConf := NewSolrCollectionConf(schema, *connConf, 4, 0)
 		coll := NewSolrCollection(*collConf)
 		if coll == nil {
 			t.Error("Cannot create collection implicitly")
@@ -182,7 +179,7 @@ func TestSolrBasics(t *testing.T) {
 			Indexes: nil,
 		}
 
-		collConf = NewSolrCollectionConf(schema2, *solrConnConf, 4)
+		collConf = NewSolrCollectionConf(schema2, *connConf, 4, 0)
 		coll = NewSolrCollection(*collConf)
 		if coll != nil {
 			t.Error("Somehow connected to incompatible collection, or destroyed original data silently")
@@ -200,7 +197,7 @@ func TestSolrBasics(t *testing.T) {
 			Indexes: nil,
 		}
 
-		collConf = NewSolrCollectionConf(schema2, *solrConnConf, 4)
+		collConf = NewSolrCollectionConf(schema2, *connConf, 4, 0)
 		coll = NewSolrCollection(*collConf)
 		if coll != nil {
 			t.Error("Somehow connected to incompatible collection, or destroyed original data silently")
@@ -221,7 +218,7 @@ func TestSolrBasics(t *testing.T) {
 
 		//TODO if there are more fields in solr than in the schema, it is ok (because of default and computed solr fields). Is it ok or do we want exactly the same fields in solr and in schema?
 
-		collConf = NewSolrCollectionConf(schema2, *solrConnConf, 4)
+		collConf = NewSolrCollectionConf(schema2, *connConf, 4, 0)
 		coll = NewSolrCollection(*collConf)
 		if coll != nil {
 			t.Error("Somehow connected to incompatible collection, or destroyed original data silently")
@@ -231,7 +228,12 @@ func TestSolrBasics(t *testing.T) {
 }
 
 func TestSolrIds(t *testing.T) {
-
+	if conn == nil {
+		err := SetUp()
+		if err != nil {
+			t.Error(err)
+		}
+	}
 	t.Run("get last id", func(t *testing.T) {
 		schema := SchemaConf{
 			Name:         "test",
@@ -245,14 +247,9 @@ func TestSolrIds(t *testing.T) {
 			Indexes: nil,
 		}
 
-		solrConnMap := map[string]string{}
-		solrConnMap["auth-type"] = "no"
-		solrConnMap["url"] = "http://localhost:8983/solr"
-		solrConnConf := NewSolrConnectionConf(solrConnMap)
-		conn := NewSolrConnection(*solrConnConf)
-
 		conn.DropCollection("test")
-		collConf := NewSolrCollectionConf(schema, *solrConnConf, 4)
+
+		collConf := NewSolrCollectionConf(schema, *connConf, 4, 0)
 		coll := NewSolrCollection(*collConf)
 		if coll == nil {
 			t.Error("Can not create collection.")
@@ -284,10 +281,7 @@ func TestSolrIds(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		err = coll.Commit()
-		if err != nil {
-			t.Error(err)
-		}
+
 		rec = RecordConf{
 			Id: 3333333,
 			Cols: []FielderConf{
@@ -314,10 +308,7 @@ func TestSolrIds(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		err = coll.Commit()
-		if err != nil {
-			t.Error(err)
-		}
+
 		rec = RecordConf{
 			Id: 3,
 			Cols: []FielderConf{
@@ -358,7 +349,12 @@ func TestSolrIds(t *testing.T) {
 }
 
 func TestSolrAdd(t *testing.T) {
-
+	if conn == nil {
+		err := SetUp()
+		if err != nil {
+			t.Error(err)
+		}
+	}
 	t.Run("add record", func(t *testing.T) {
 		schema := SchemaConf{
 			Name:         "test",
@@ -372,14 +368,8 @@ func TestSolrAdd(t *testing.T) {
 			Indexes: nil,
 		}
 
-		solrConnMap := map[string]string{}
-		solrConnMap["auth-type"] = "no"
-		solrConnMap["url"] = "http://localhost:8983/solr"
-		solrConnConf := NewSolrConnectionConf(solrConnMap)
-		conn := NewSolrConnection(*solrConnConf)
-
 		conn.DropCollection("test")
-		collConf := NewSolrCollectionConf(schema, *solrConnConf, 4)
+		collConf := NewSolrCollectionConf(schema, *connConf, 4, 0)
 		coll := NewSolrCollection(*collConf)
 		if coll == nil {
 			t.Error("Can not create collection.")
@@ -415,18 +405,11 @@ func TestSolrAdd(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
+		coll.Filter(FilterArgument{})
 
 	})
-}
 
-func TestSolrAddAndDel(t *testing.T) {
-
-	file, err := os.Create("test.log")
-	if err != nil {
-		t.Error(err)
-	}
-	log.SetDefaultLogger(log.NewJSONLogger(file, slog.LevelDebug))
-	t.Run("add record", func(t *testing.T) {
+	t.Run("add record (uint limit id)", func(t *testing.T) {
 		schema := SchemaConf{
 			Name:         "test",
 			FieldsNaming: []string{"name", "count", "time", "texts"},
@@ -439,14 +422,100 @@ func TestSolrAddAndDel(t *testing.T) {
 			Indexes: nil,
 		}
 
-		solrConnMap := map[string]string{}
-		solrConnMap["auth-type"] = "no"
-		solrConnMap["url"] = "http://localhost:8983/solr"
-		solrConnConf := NewSolrConnectionConf(solrConnMap)
-		conn := NewSolrConnection(*solrConnConf)
+		conn.DropCollection("test")
+
+		collConf := NewSolrCollectionConf(schema, *connConf, 4, 0)
+		coll := NewSolrCollection(*collConf)
+		if coll == nil {
+			t.Error("Can not create collection.")
+		}
+
+		rec := RecordConf{
+			Id: CId(MaxUint),
+			Cols: []FielderConf{
+				FieldConf[string]{
+					FielderConf: nil,
+					Value:       "Jméno",
+				},
+				FieldConf[[]int32]{
+					FielderConf: nil,
+					Value:       []int32{1, 2, 3},
+				},
+				FieldConf[time.Time]{
+					FielderConf: nil,
+					Value:       time.Now(),
+				},
+				FieldConf[[]string]{
+					FielderConf: nil,
+					Value:       []string{"Testovací", "data", "áýžřčšě+"},
+				},
+			},
+		}
+		cId, err := coll.AddRecord(rec)
+
+		if err != nil {
+			t.Error(err)
+		}
+
+		if cId != CId(MaxUint) {
+			t.Error("Used different id than expected")
+		}
+		err = coll.Commit()
+		if err != nil {
+			t.Error(err)
+		}
+
+		found, err := coll.Filter(FilterArgument{
+			QueryConf: QueryAtomConf{
+				QueryConf: nil,
+				MatchType: FullmatchIndexConf[string]{},
+				Name:      "id",
+				Value:     fmt.Sprint(cId),
+			},
+			Sort:      []string{},
+			SortOrder: 0,
+			Skip:      0,
+			Limit:     0,
+		})
+		if err != nil {
+			t.Error("unexpected error", err)
+		}
+
+		res, valid, err := found.Get()
+		if err != nil {
+			t.Error("unexpected error", err)
+		}
+		if !valid {
+			t.Error("Not found ", res, " rigth after it has been added.")
+		}
+
+	})
+
+}
+
+func TestSolrDel(t *testing.T) {
+	if conn == nil {
+		err := SetUp()
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	t.Run("add and delete record", func(t *testing.T) {
+		schema := SchemaConf{
+			Name:         "test",
+			FieldsNaming: []string{"name", "count", "time", "texts"},
+			Fields: []FielderConf{
+				FieldConf[string]{},
+				FieldConf[[]int32]{},
+				FieldConf[time.Time]{},
+				FieldConf[[]string]{},
+			},
+			Indexes: nil,
+		}
 
 		conn.DropCollection("test")
-		collConf := NewSolrCollectionConf(schema, *solrConnConf, 4)
+
+		collConf := NewSolrCollectionConf(schema, *connConf, 4, 0)
 		coll := NewSolrCollection(*collConf)
 		if coll == nil {
 			t.Error("Can not create collection.")
