@@ -24,8 +24,8 @@ func TestCollection(t *testing.T) {
 
 	t.Run("filterArgument", func(t *testing.T) {
 
-		rmc := prepareTable(false, false, false)
-		err := testFilling(rmc, 15, false)
+		col := prepareTable(false, false, false)
+		err := testFilling(col, 15, false)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -35,10 +35,10 @@ func TestCollection(t *testing.T) {
 			row.Cols[0] = FieldConf[string]{Value: fmt.Sprintf("bah%dlol%d", i, (i+10)*11)}
 			row.Cols[1] = FieldConf[string]{Value: fmt.Sprintf("ah%dnechapute%d", i, (i+15)*23)}
 
-			rmc.AddRecord(row)
+			col.AddRecord(row)
 		}
 
-		rmc.Inspect()
+		//col.Inspect()
 
 		// Sort by CId, without Limit and Skip
 		query := FilterArgument{
@@ -46,7 +46,7 @@ func TestCollection(t *testing.T) {
 			QueryConf: new(QueryConf),
 		}
 
-		output, err := filterCollect(rmc, query)
+		output, err := filterCollect(col, query)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -62,7 +62,7 @@ func TestCollection(t *testing.T) {
 		query.Skip = 4
 		query.Limit = 6
 
-		output, err = filterCollect(rmc, query)
+		output, err = filterCollect(col, query)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -81,7 +81,7 @@ func TestCollection(t *testing.T) {
 		query.Sort = []string{"who"}
 		query.Skip = 0
 		query.Limit = NO_LIMIT
-		output, err = filterCollect(rmc, query)
+		output, err = filterCollect(col, query)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -97,7 +97,7 @@ func TestCollection(t *testing.T) {
 		query.SortOrder = DESC
 		query.Skip = 4
 		query.Limit = 6
-		output, err = filterCollect(rmc, query)
+		output, err = filterCollect(col, query)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -111,8 +111,8 @@ func TestCollection(t *testing.T) {
 	})
 
 	t.Run("usage", func(t *testing.T) {
-		rmc := prepareTable(false, false, false)
-		err := testFilling(rmc, 2, false)
+		col := prepareTable(false, false, false)
+		err := testFilling(col, 2, false)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -137,7 +137,7 @@ func TestCollection(t *testing.T) {
 			},
 		}
 
-		output, err := filterCollect(rmc, query)
+		output, err := filterCollect(col, query)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -149,7 +149,7 @@ func TestCollection(t *testing.T) {
 		record := rcrds[0]
 		record.Id = 69
 
-		id, err := rmc.AddRecord(record)
+		id, err := col.AddRecord(record)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -157,13 +157,13 @@ func TestCollection(t *testing.T) {
 			t.Errorf("Expected Id 69 but %d given", id)
 		}
 
-		if len(rmc.Rows()) != 3 {
+		if recordCount(col) != 3 {
 			t.Errorf("Exptecting 3 rows after add third.")
 		}
 
 		// rmc.Inspect()
 
-		output, err = filterCollect(rmc, query)
+		output, err = filterCollect(col, query)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -172,12 +172,12 @@ func TestCollection(t *testing.T) {
 			t.Error("Found more or less results, than 1.")
 		}
 
-		err = rmc.DeleteRecord(RecordConf{Id: 1})
+		err = col.DeleteRecord(RecordConf{Id: 1})
 		if err != nil {
 			t.Errorf(err.Error())
 		}
 
-		if len(rmc.Rows()) != 2 {
+		if recordCount(col) != 2 {
 			t.Errorf("Exptecting 2 rows after remove third.")
 		}
 
@@ -200,7 +200,7 @@ func TestCollection(t *testing.T) {
 			},
 		}
 
-		output, err = filterCollect(rmc, query)
+		output, err = filterCollect(col, query)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -208,29 +208,29 @@ func TestCollection(t *testing.T) {
 			t.Error("Found more or less results, than 2.")
 		}
 
-		err = rmc.DeleteRecord(RecordConf{Id: 2})
+		err = col.DeleteRecord(RecordConf{Id: 2})
 		if err != nil {
 			t.Errorf(err.Error())
 		}
 
-		if len(rmc.Rows()) != 1 {
+		if recordCount(col) != 1 {
 			t.Errorf("Exptecting 1 rows after remove second.")
 		}
 
 		// rmc.Inspect()
 
-		err = rmc.DeleteRecord(RecordConf{Id: 69})
+		err = col.DeleteRecord(RecordConf{Id: 69})
 		if err != nil {
 			t.Errorf(err.Error())
 		}
 
-		if len(rmc.Rows()) != 0 {
+		if recordCount(col) != 0 {
 			t.Errorf("Exptecting 0 rows after remove first.")
 		}
 
 		// rmc.Inspect()
 
-		output, err = filterCollect(rmc, query)
+		output, err = filterCollect(col, query)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -242,7 +242,7 @@ func TestCollection(t *testing.T) {
 		record = rcrds[0]
 		record.Id = 32
 
-		id, err = rmc.AddRecord(record)
+		id, err = col.AddRecord(record)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -250,7 +250,7 @@ func TestCollection(t *testing.T) {
 			t.Errorf("Expected Id 32 but %d given", id)
 		}
 
-		if len(rmc.Rows()) != 1 {
+		if recordCount(col) != 1 {
 			t.Errorf("Exptecting 1 rows after adding one.")
 		}
 
@@ -523,35 +523,35 @@ func TestCollection(t *testing.T) {
 
 	// EDIT
 	t.Run("editRecord", func(t *testing.T) {
-		rmc := prepareTable(true, false, false)
-		err := testFilling(rmc, 2, false)
+		col := prepareTable(true, false, false)
+		err := testFilling(col, 2, false)
 		if err != nil {
 			t.Error(err.Error())
 		}
 
-		rmc.Inspect()
+		//col.Inspect()
 
 		rc := RecordConf{Id: 1, Cols: make([]FielderConf, 2)}
 		rc.Cols[0] = FieldConf[string]{Value: "imChanged@text.me"}
 		rc.Cols[1] = FieldConf[string]{Value: "row0_str345"}
 
-		err = rmc.EditRecord(rc)
+		err = col.EditRecord(rc)
 		if err != nil {
 			t.Error(err.Error())
 		}
 
-		rmc.Inspect()
+		//col.Inspect()
 		rcN := RecordConf{Id: 42, Cols: make([]FielderConf, 3)}
 		rcN.Cols[0] = FieldConf[string]{Value: "imChanged@text.me"}
 		rcN.Cols[1] = FieldConf[string]{Value: "nowhereToSee@msg.me"}
 		rcN.Cols[2] = FieldConf[string]{Value: "ImDolphin@eueu.me"}
-		err = rmc.EditRecord(rcN)
+		err = col.EditRecord(rcN)
 		if err == nil {
 			t.Error("No record with id 42 shoud be found.")
 		}
 
 		rcN.Id = 2
-		err = rmc.EditRecord(rcN)
+		err = col.EditRecord(rcN)
 		if err == nil {
 			t.Error("Should throw an error \"wrong number of columns.\"")
 		}
@@ -859,8 +859,8 @@ func TestCollection(t *testing.T) {
 
 	// REMOVAL
 	t.Run("removalWithoutIndexer", func(t *testing.T) {
-		rmc := prepareTable(false, false, false)
-		err := testFilling(rmc, 2, false)
+		col := prepareTable(false, false, false)
+		err := testFilling(col, 2, false)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -868,7 +868,7 @@ func TestCollection(t *testing.T) {
 		record := rcrds[0]
 		record.Id = 1337
 
-		id, err := rmc.AddRecord(record)
+		id, err := col.AddRecord(record)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -876,7 +876,7 @@ func TestCollection(t *testing.T) {
 			t.Errorf("Expected Id 1337 but %d given", id)
 		}
 
-		id, err = rmc.AddRecord(record)
+		id, err = col.AddRecord(record)
 		if err == nil {
 			t.Errorf("Repeating Id should lead to error but got nil.")
 		}
@@ -884,25 +884,25 @@ func TestCollection(t *testing.T) {
 			t.Errorf("Repeating Id should lead to invalid Id got %d.", id)
 		}
 
-		err = rmc.DeleteRecord(RecordConf{Id: 1})
+		err = col.DeleteRecord(RecordConf{Id: 1})
 		if err != nil {
 			t.Errorf(err.Error())
 		}
 
-		if len(rmc.Rows()) != 2 {
+		if recordCount(col) != 2 {
 			t.Errorf("Exptecting 2 rows after remove third.")
 		}
 
 		rcr := RecordConf{Id: 2222}
-		err = rmc.DeleteRecord(rcr)
+		err = col.DeleteRecord(rcr)
 		if err == nil {
 			t.Errorf("Removal of not existing record should lead to error.")
 		}
 	})
 	t.Run("removalFMindexer", func(t *testing.T) {
-		rmc := prepareTable(true, false, false)
+		col := prepareTable(true, false, false)
 
-		err := testFilling(rmc, 2, false)
+		err := testFilling(col, 2, false)
 		if err != nil {
 			t.Error(err)
 		}
@@ -911,7 +911,7 @@ func TestCollection(t *testing.T) {
 		record := rcrds[0]
 		record.Id = 1337
 
-		id, err := rmc.AddRecord(record)
+		id, err := col.AddRecord(record)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -919,7 +919,7 @@ func TestCollection(t *testing.T) {
 			t.Errorf("Expected Id 1337 but %d given", id)
 		}
 
-		id, err = rmc.AddRecord(record)
+		id, err = col.AddRecord(record)
 		if err == nil {
 			t.Errorf("Repeating Id should lead to error but got nil.")
 		}
@@ -928,24 +928,24 @@ func TestCollection(t *testing.T) {
 			t.Errorf("Repeating Id should lead to invalid Id got %d.", id)
 		}
 
-		err = rmc.DeleteRecord(RecordConf{Id: 1})
+		err = col.DeleteRecord(RecordConf{Id: 1})
 		if err != nil {
 			t.Errorf(err.Error())
 		}
 
-		if len(rmc.Rows()) != 2 {
+		if recordCount(col) != 2 {
 			t.Errorf("Exptecting 2 rows after remove third.")
 		}
 
 		rcr := RecordConf{Id: 2222}
-		err = rmc.DeleteRecord(rcr)
+		err = col.DeleteRecord(rcr)
 		if err == nil {
 			t.Errorf("Removal of not existing record should lead to error.")
 		}
 	})
 	t.Run("removalPrefixIndexer", func(t *testing.T) {
-		rmc := prepareTable(false, true, false)
-		err := testFilling(rmc, 2, true)
+		col := prepareTable(false, true, false)
+		err := testFilling(col, 2, true)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -954,7 +954,7 @@ func TestCollection(t *testing.T) {
 		record := rcrds[0]
 		record.Id = 1337
 
-		id, err := rmc.AddRecord(record)
+		id, err := col.AddRecord(record)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -962,7 +962,7 @@ func TestCollection(t *testing.T) {
 			t.Errorf("Expected Id 1337 but %d given", id)
 		}
 
-		id, err = rmc.AddRecord(record)
+		id, err = col.AddRecord(record)
 		if err == nil {
 			t.Errorf("Repeating Id should lead to error but got nil.")
 		}
@@ -970,26 +970,26 @@ func TestCollection(t *testing.T) {
 			t.Errorf("Repeating Id should lead to invalid Id got %d.", id)
 		}
 
-		err = rmc.DeleteRecord(RecordConf{Id: 1})
+		err = col.DeleteRecord(RecordConf{Id: 1})
 		if err != nil {
 			t.Errorf(err.Error())
 		}
 
-		if len(rmc.Rows()) != 2 {
+		if recordCount(col) != 2 {
 			t.Errorf("Exptecting 2 rows after remove third.")
 		}
 
 		rcr := RecordConf{Id: 2222}
-		err = rmc.DeleteRecord(rcr)
+		err = col.DeleteRecord(rcr)
 		if err == nil {
 			t.Errorf("Removal of not existing record should lead to error.")
 		}
 
 	})
 	t.Run("removalByFilter", func(t *testing.T) {
-		rmc := prepareTable(true, false, false)
+		col := prepareTable(true, false, false)
 
-		err := testFilling(rmc, 2, false)
+		err := testFilling(col, 2, false)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -1003,14 +1003,14 @@ func TestCollection(t *testing.T) {
 				MatchType: FullmatchIndexConf[string]{},
 			}}
 
-		err = rmc.DeleteByFilter(query)
+		_, err = col.DeleteByFilter(query) //TODO _ -> count check
 		if err != nil {
 			t.Error(err.Error())
 		}
 
 		// rmc.Inspect()
 
-		if len(rmc.Rows()) != 1 {
+		if recordCount(col) != 1 {
 			t.Error("Expecting 1 row after remove second.")
 		}
 
@@ -1021,14 +1021,14 @@ func TestCollection(t *testing.T) {
 			MatchType: FullmatchIndexConf[string]{},
 		}
 
-		err = rmc.DeleteByFilter(query)
+		_, err = col.DeleteByFilter(query) //TODO _ -> count check
 		if err == nil {
 			t.Error("Should throw an error")
 		}
 
 		// rmc.Inspect()
 
-		if len(rmc.Rows()) != 1 {
+		if recordCount(col) != 1 {
 			t.Error("Expecting 1 row after remove second.")
 		}
 
@@ -1051,24 +1051,24 @@ func TestCollection(t *testing.T) {
 			},
 		}
 
-		err = rmc.DeleteByFilter(query)
+		_, err = col.DeleteByFilter(query) //TODO _ -> count check
 		if err != nil {
 			t.Error(err.Error())
 		}
 
-		if len(rmc.Rows()) != 0 {
+		if recordCount(col) != 0 {
 			t.Error("Expecting 0 row after remove second.")
 		}
 
 		// Valid and-conf
 		query.QueryConf = QueryAndConf{QueryContextConf{Context: []QueryConf{}}}
 
-		err = rmc.DeleteByFilter(query)
+		_, err = col.DeleteByFilter(query) //TODO _ -> count check
 		if err != nil {
 			t.Error(err.Error())
 		}
 
-		if len(rmc.Rows()) != 0 {
+		if recordCount(col) != 0 {
 			t.Error("Expecting 0 row after remove second.")
 		}
 
@@ -1267,14 +1267,14 @@ func TestCollection(t *testing.T) {
 				Name:  "noExisting",
 				Value: "string",
 			}}
-		_, err = rmc.Filter(query)
+		_, _, err = rmc.Filter(query) //TODO _ -> count check
 		if err == nil {
 			t.Error("Should throw en error column not found.")
 		}
 
 		query.QueryConf = QueryAtomConf{Name: "who", Value: "row0_str110"}
 
-		_, err = rmc.Filter(query)
+		_, _, err = rmc.Filter(query) //TODO _ -> count check
 		if err == nil {
 			t.Error("Should throw en error: not valid prefix in query")
 		}
@@ -1346,7 +1346,7 @@ func testNthLine(rc []RecordConf, n int) error {
 	return nil
 }
 
-func prepareTable(fullmatchIndexP bool, prefixIndexP bool, stringPrefixIndexP bool) *RamCollection {
+func prepareTable(fullmatchIndexP bool, prefixIndexP bool, stringPrefixIndexP bool) Collection {
 
 	rmC := RamCollectionConf{
 		SchemaConf: SchemaConf{
@@ -1400,9 +1400,9 @@ func prepareTable(fullmatchIndexP bool, prefixIndexP bool, stringPrefixIndexP bo
 	return NewRamCollection(rmC)
 }
 
-func testFilling(rmc *RamCollection, iteration int, prefixI bool) error {
-
-	for i := 0; i < iteration; i++ {
+func testFilling(col Collection, iteration uint64, prefixI bool) error {
+	var i uint64
+	for i = 0; i < iteration; i++ {
 		row := RecordConf{Cols: make([]FielderConf, 2)}
 		if prefixI {
 			row.Cols[0] = FieldConf[[]string]{Value: []string{fmt.Sprintf("row%d_str%d", i, (i+10)*11), fmt.Sprintf("row%d_str%d", i, (i+21)*12)}}
@@ -1411,7 +1411,7 @@ func testFilling(rmc *RamCollection, iteration int, prefixI bool) error {
 			row.Cols[0] = FieldConf[string]{Value: fmt.Sprintf("row%d_str%d", i, (i+10)*11)}
 			row.Cols[1] = FieldConf[string]{Value: fmt.Sprintf("row%d_str%d", i, (i+15)*23)}
 		}
-		id, err := rmc.AddRecord(row)
+		id, err := col.AddRecord(row)
 		if id != CId(i+1) {
 			return fmt.Errorf("Expecting: %d, got: %d\n", i+1, id)
 		} else if err != nil {
@@ -1419,15 +1419,15 @@ func testFilling(rmc *RamCollection, iteration int, prefixI bool) error {
 		}
 	}
 
-	if len(rmc.Rows()) != iteration {
-		return fmt.Errorf("Expecting %d rows, got: %d\n", iteration, len(rmc.Rows()))
+	if recordCount(col) != iteration {
+		return fmt.Errorf("Expecting %d rows, got: %d\n", iteration, recordCount(col))
 	}
 
 	return nil
 }
 
-func filterCollect(rmc *RamCollection, fa FilterArgument) ([]RecordConf, error) {
-	smc, err := rmc.Filter(fa)
+func filterCollect(col Collection, fa FilterArgument) ([]RecordConf, error) {
+	smc, _, err := col.Filter(fa) //TODO _ -> count check
 	if err != nil {
 		return nil, err
 	}
@@ -1826,6 +1826,46 @@ func getOut(prefixI bool, rmc *RamCollection) ([]RecordConf, error) {
 		},
 	}
 	return filterCollect(rmc, query)
+}
+
+func inspectCollection(col Collection) {
+	switch tc := col.(type) {
+	case *RamCollection:
+		tc.Inspect()
+		break
+	case *SolrCollection:
+		break
+	default:
+		panic("You should implement this testing related behaviour for your great new collection")
+	}
+}
+
+func recordCount(col Collection) uint64 {
+	switch tc := col.(type) {
+	case *RamCollection:
+		return uint64(len(tc.Rows()))
+
+	case *SolrCollection:
+		_, count, _ := tc.Filter(FilterArgument{
+			QueryConf: QueryAtomConf{
+				QueryConf: nil,
+				MatchType: PrefixIndexConf[string]{
+					IndexerConf: nil,
+					Name:        "",
+					MinPrefix:   0,
+				},
+				Name:  "id",
+				Value: "",
+			},
+			Sort:      []string{},
+			SortOrder: 0,
+			Skip:      0,
+			Limit:     0,
+		})
+		return count
+	default:
+		panic("You should implement this testing related behaviour for your great new collection")
+	}
 }
 
 // func consumeGPfxOutput(rcrds []RecordConf) error {

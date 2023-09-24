@@ -89,26 +89,32 @@ func NewSolrCollection(conf SolrCollectionConf) *SolrCollection {
 
 //-----------------------------------------------PUBLIC API
 
-func (ego *SolrCollection) Filter(fa FilterArgument) (stream.Producer[RecordConf], error) {
+// Filter returns the records form solr constrained by the FilterArgument in a Producer together with the expected count of records to be produced, or error.
+// Note that the expected count may be higher then actual number of records produced if any of the results could not be parsed.
+// Also note that every call to Filter implicitly commits transactionPlan if it is not empty.
+func (ego *SolrCollection) Filter(fa FilterArgument) (stream.Producer[RecordConf], uint64, error) {
+	err := ego.Commit()
+	if err != nil {
+		return nil, 0, err
+	}
 	query, err := ego.filterArgToSolrQuery(fa)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	query = url.QueryEscape(query)
 	responseBody, err := ego.con.Query(ego.param.Name, query)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	resJson, err := io.ReadAll(responseBody)
 	if err != nil {
-		return nil, errors.NewValueError(ego, errors.LevelWarning, "cannot read the respOnse body")
+		return nil, 0, errors.NewValueError(ego, errors.LevelWarning, "cannot read the respOnse body")
 	}
-	resStream, err := ego.parseJsonToRecords(resJson)
-
-	return resStream, err
-
+	return ego.parseJsonToRecords(resJson)
 }
 
+// AddRecord puts an add operation of the specified record into transaction plan on the go side.
+// It reserves an CId value for the record and returns the reserved value.
 func (ego *SolrCollection) AddRecord(conf RecordConf) (CId, error) {
 	ego.idLock.Lock()
 	if conf.Id > ego.nextId {
@@ -132,6 +138,7 @@ func (ego *SolrCollection) AddRecord(conf RecordConf) (CId, error) {
 	return conf.Id, nil
 }
 
+// DeleteRecord puts a delete operation of the specified record into transaction plan on the go side.
 func (ego *SolrCollection) DeleteRecord(conf RecordConf) error {
 	delOp := &solrDeleteByIdOp{
 		record:     conf,
@@ -141,15 +148,20 @@ func (ego *SolrCollection) DeleteRecord(conf RecordConf) error {
 	return nil
 }
 
-func (ego *SolrCollection) DeleteByFilter(fa FilterArgument) error {
+// DeleteByFilter plans deleting of documents satistfying the FilterArgument.
+// The returned count of deleted documents is not valid, as this collection has an implicit transaction plan which is run only when commit is requested.
+func (ego *SolrCollection) DeleteByFilter(fa FilterArgument) (uint64, error) {
+	//TODO another option is to actually comit the transaction plan and then evalaute this delete operation immediately. Then we would get the correct number of deleted records, but this operation would behave differently from all others.
 	delOp := &solrDeleteByQueryOp{
 		collection: ego,
 		filterArg:  fa,
 	}
 	ego.planOperation(delOp)
-	return nil
+	return 0, nil
 }
 
+// EditRecord plans operations of delete and add record in a way that here will be the specified record with the specified id instead of any previous record with the same id in solr.
+// It is NOT using solr's capabilites of update, just naively deletes and then adds, as planned usecases are not going to use this possibility (confirmed with Pavel).
 func (ego *SolrCollection) EditRecord(conf RecordConf) error {
 	updateOp := &solrUpdateOp{
 		collection: ego,
@@ -159,36 +171,38 @@ func (ego *SolrCollection) EditRecord(conf RecordConf) error {
 	return nil
 }
 
+// Commit commits transaction log from the go site into solr by one update query to solr's api (by sequence of adds and deletes in one json).
 func (ego *SolrCollection) Commit() error {
 	// Solr does not have typical transactions. It is only transaction log common to all users. Every call to Commit commits all planned work of all users at once.
-
-	ego.transactionLock.Lock()
-	defer ego.transactionLock.Unlock()
-	querySB := strings.Builder{}
-	querySB.WriteRune('{')
-	for _, op := range ego.transactionPlan {
-		opJson, err := op.toJson()
-		if err != nil {
-			return err
+	if len(ego.transactionPlan) > 0 {
+		ego.transactionLock.Lock()
+		defer ego.transactionLock.Unlock()
+		querySB := strings.Builder{}
+		querySB.WriteRune('{')
+		for _, op := range ego.transactionPlan {
+			opJson, err := op.toJson()
+			if err != nil {
+				return err
+			}
+			querySB.WriteString(opJson)
 		}
-		querySB.WriteString(opJson)
-	}
-	querySB.WriteRune('}')
-	query := strings.NewReader(querySB.String())
+		querySB.WriteRune('}')
+		query := strings.NewReader(querySB.String())
 
-	resp, err := ego.con.RawPostRequest("/"+ego.param.Name+"/update", "text/json", query)
-	if err != nil {
-		//ego.Log().Warn("Can not send request to solr", "collection", ego.param.Name, "error", err)
-		return errors.Wrap("can not send request to solr", errors.TypeState, err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		ego.Log().Warn("Cannot commit transaction plan", "http-response", string(respBody), "http-status", resp.StatusCode)
-		return errors.NewStateError(ego, errors.LevelWarning, fmt.Sprintf("failed to commit transaction plan to solr (responseCode=%d)", resp.StatusCode))
+		resp, err := ego.con.RawPostRequest("/"+ego.param.Name+"/update", "text/json", query)
+		if err != nil {
+			//ego.Log().Warn("Can not send request to solr", "collection", ego.param.Name, "error", err)
+			return errors.Wrap("can not send request to solr", errors.TypeState, err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			respBody, _ := io.ReadAll(resp.Body)
+			ego.Log().Warn("Cannot commit transaction plan", "http-response", string(respBody), "http-status", resp.StatusCode)
+			return errors.NewStateError(ego, errors.LevelWarning, fmt.Sprintf("failed to commit transaction plan to solr (responseCode=%d)", resp.StatusCode))
+		}
 	}
 	res := ego.con.Commit(ego.param.Name)
 	if res != nil {
-		res = errors.Wrap("Transaction plan accepted by solr but solr's commit returned error.", errors.TypeState, err)
+		res = errors.Wrap("Transaction plan accepted by solr but solr's commit returned error.", errors.TypeState, res)
 	}
 	ego.transactionPlan = []solrOperation{}
 	return res
@@ -681,40 +695,48 @@ func formatSolrTime(t time.Time) string {
 }
 
 // parseJsonToRecords parses solr query response into stream of RecordConfs
-func (ego *SolrCollection) parseJsonToRecords(jsonData []byte) (stream.Producer[RecordConf], error) {
+// Returns the stream and expected (see bellow) number of data records to be processed, or error.
+// Stream-filling runs in goroutine. If some record is malformed then it is skipped, that is returned number of expected records may be higher then actual number of records in the stream.
+func (ego *SolrCollection) parseJsonToRecords(jsonData []byte) (stream.Producer[RecordConf], uint64, error) {
 	returnBuffer := stream.NewChanneledInput[RecordConf](100)
 	resMap := map[string]any{}
 	if err := json.Unmarshal(jsonData, &resMap); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	responseData, valid := resMap["response"].(map[string]any)
 	if !valid {
-		return nil, errors.NewStateError(ego, errors.LevelWarning, "unknown response format while parsing solr collection response")
+		return nil, 0, errors.NewStateError(ego, errors.LevelWarning, "unknown response format while parsing solr collection response")
+	}
+
+	numFound, valid := responseData["numFound"].(float64)
+	if !valid {
+		return nil, 0, errors.NewStateError(ego, errors.LevelWarning, "unknown response format while parsing solr collection response")
 	}
 
 	responseDocuments, valid := responseData["docs"].([]any)
 	if !valid {
-		return nil, errors.NewStateError(ego, errors.LevelWarning, "unknown docs format while parsing solr collection response")
+		return nil, 0, errors.NewStateError(ego, errors.LevelWarning, "unknown docs format while parsing solr collection response")
 	}
 
 	fetchData := func() {
 		for _, doc := range responseDocuments {
 			docMap, valid := doc.(map[string]any)
 			if !valid {
-				ego.Log().Warn("Invalid document read (skipped)", "document-data", fmt.Sprintf("%+v", docMap))
+				//this is suspicious. If it happens go check your schema.
+				ego.Log().Warn("Invalid document read and was skipped (suspicious, check solr collection schema)", "document-data", fmt.Sprintf("%+v", docMap))
 				continue
 			}
 
-			id, valid := docMap["id"].(string)
+			id, valid := docMap["id"].(string) //TODO Now, we have id in solr's id string and also autocopied in solr's numId double value. It may be cheaper to read it from the numeric value.
 			if !valid {
 				//this should never happen. If it happens, we are surely having wrong schema in solr.
-				ego.Log().Warn("Document without id (or with wrong id data type) retrieved form solr (skipped, check solr colelction schema)", "docuemnt-data", fmt.Sprintf("%+v", docMap))
+				ego.Log().Warn("Document without id (or with wrong id data type) retrieved form solr and was skipped (suspicious, check solr collection schema)", "docuemnt-data", fmt.Sprintf("%+v", docMap))
 				continue
 			}
 			uintID, err := strconv.ParseUint(id, 10, 64)
 			if err != nil {
-
+				//this means that solr's record is malformed, if it was added by this collection then we have bug in AddRecord. Otherwise check the source of data.
 				ego.Log().Warn("Document id can not be parsed in CId", "docuemnt-data", fmt.Sprintf("%+v", docMap))
 				continue
 
@@ -740,7 +762,7 @@ func (ego *SolrCollection) parseJsonToRecords(jsonData []byte) (stream.Producer[
 	}
 	go fetchData()
 
-	return returnBuffer, nil
+	return returnBuffer, uint64(numFound), nil
 }
 
 // checkSchema checks if collection's schema and schema of solr's collection of the same name are compatible - i.e. if go's schema is a subset of solr's schema.

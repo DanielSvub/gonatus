@@ -106,13 +106,20 @@ type QueryRange[T any] struct {
 	Higher T
 }
 
+// Collection is the interface which specify the functionality common to all Collection:
+// - Filter which returns records from the collection constrianed by the FilterArguemnt in a stream and a count of records in the stream.
+// - AddRecord adds specified record to collection and returns assigned id. Note that returned id may be different than the one specified in the record.
+// - DeleteRecord deletes the given record from the Collection
+// - DeleteByFilter deletes all the reocrds which satisfy the FilterArgument and returns the number of deleted records.
+// - EditRecord changes the record with id specified by RecordConf so it has specified values.
+// - Commit commits all planned changes to the collection.
 type Collection interface {
 	gonatus.Gobjecter
-	Filter(FilterArgument) (stream.Producer[RecordConf], error)
+	Filter(FilterArgument) (stream.Producer[RecordConf], uint64, error)
 	// Group(QueryConf, GroupQueryConf) (streams.ReadableOutputStreamer[GroupRecordConf], error) // TODO: define grouping
 	AddRecord(RecordConf) (CId, error)
 	DeleteRecord(RecordConf) error
-	DeleteByFilter(FilterArgument) error
+	DeleteByFilter(FilterArgument) (uint64, error)
 	EditRecord(RecordConf) error
 	Commit() error
 }

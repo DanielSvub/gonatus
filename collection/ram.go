@@ -249,35 +249,36 @@ Parameters:
   - q - Configuration of the query.
 
 Returns:
+  - Number of deleted rows.
   - Error, if any.
 */
-func (ego *RamCollection) DeleteByFilter(fa FilterArgument) error {
+func (ego *RamCollection) DeleteByFilter(fa FilterArgument) (uint64, error) {
 	if qq, ok := fa.QueryConf.(QueryAndConf); ok && len(qq.Context) == 0 {
 		ego.rows = make(map[CId][]any)
 		ego.indexes = make(map[string][]ramCollectionIndexer)
 		ego.registerIndexes()
 		ego.autoincrement = 1
-		return nil
+		return 0, nil
 	}
-
-	if stream, err := ego.Filter(fa); err != nil {
-		return err
+	count := uint64(0)
+	if stream, _, err := ego.Filter(fa); err != nil {
+		return 0, err
 	} else {
 		for !stream.Closed() {
 			s := make([]RecordConf, 1)
 			if _, err := stream.Read(s); err != nil {
-				return err
+				return count, err
 			}
 			rec := s[0]
 
 			err = ego.DeleteRecord(RecordConf{Id: rec.Id})
 			if err != nil {
-				return err
+				return count, err
 			}
-
+			count++
 		}
 	}
-	return nil
+	return count, nil
 }
 
 /*
@@ -579,22 +580,23 @@ Parameters:
   - fa - Filter argument.
 
 Returns:
-  - Readable Output Streamer,
+  - Producer of RecordConfs,
+  - number of records to be produced by the Producer
   - error, if any.
 */
-func (ego *RamCollection) Filter(fa FilterArgument) (stream.Producer[RecordConf], error) {
+func (ego *RamCollection) Filter(fa FilterArgument) (stream.Producer[RecordConf], uint64, error) {
 	ego.mutex.RLock()
 
 	retFilter, err := ego.filterQueryEval(fa.QueryConf)
 	if err != nil {
 		ego.mutex.RUnlock()
-		return nil, err
+		return nil, 0, err
 	}
 
 	ret, err := ego.makeItSorted(retFilter, fa)
 	if err != nil {
 		ego.mutex.RUnlock()
-		return nil, err
+		return nil, 0, err
 	}
 
 	sbuf := stream.NewChanneledInput[RecordConf](100)
@@ -618,7 +620,7 @@ func (ego *RamCollection) Filter(fa FilterArgument) (stream.Producer[RecordConf]
 	}
 
 	go fetchRows()
-	return sbuf, nil
+	return sbuf, uint64(len(ret)), nil
 }
 
 /*

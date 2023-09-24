@@ -465,7 +465,7 @@ func TestSolrAdd(t *testing.T) {
 			t.Error(err)
 		}
 
-		found, err := coll.Filter(FilterArgument{
+		found, num, err := coll.Filter(FilterArgument{
 			QueryConf: QueryAtomConf{
 				QueryConf: nil,
 				MatchType: FullmatchIndexConf[string]{},
@@ -484,6 +484,9 @@ func TestSolrAdd(t *testing.T) {
 		res, valid, err := found.Get()
 		if err != nil {
 			t.Error("unexpected error", err)
+		}
+		if num != 1 {
+			t.Error("Expected exactly one occurence of record, got ", num)
 		}
 		if !valid {
 			t.Error("Not found ", res, " rigth after it has been added.")
@@ -549,7 +552,7 @@ func TestSolrDel(t *testing.T) {
 			t.Error(err)
 		}
 
-		found, err := coll.Filter(FilterArgument{
+		found, num, err := coll.Filter(FilterArgument{
 			QueryConf: QueryAtomConf{
 				QueryConf: nil,
 				MatchType: FullmatchIndexConf[string]{},
@@ -563,6 +566,10 @@ func TestSolrDel(t *testing.T) {
 		})
 		if err != nil {
 			t.Error("unexpected error", err)
+		}
+
+		if num != 1 {
+			t.Error("Expected exactly one occurence of record, got ", num)
 		}
 
 		res, valid, err := found.Get()
@@ -583,7 +590,7 @@ func TestSolrDel(t *testing.T) {
 			t.Error(err)
 		}
 
-		found, err = coll.Filter(FilterArgument{
+		found, num, err = coll.Filter(FilterArgument{
 			QueryConf: QueryAtomConf{
 				QueryConf: nil,
 				MatchType: FullmatchIndexConf[uint64]{},
@@ -597,6 +604,9 @@ func TestSolrDel(t *testing.T) {
 		})
 		if err != nil {
 			t.Error("unexpected error", err)
+		}
+		if num != 0 {
+			t.Error("Expected no occurence of record, got ", num)
 		}
 		res, valid, err = found.Get()
 		if err != nil {
