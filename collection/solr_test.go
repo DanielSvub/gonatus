@@ -159,14 +159,14 @@ func TestSolrBasics(t *testing.T) {
 
 		conn.DropCollection("test")
 
-		//create collection with orginal schema
+		//create collection with original schema
 		collConf := NewSolrCollectionConf(schema, *connConf, 4, 0)
 		coll := NewSolrCollection(*collConf)
 		if coll == nil {
 			t.Error("Cannot create collection implicitly")
 		}
 
-		//try various kind of different schemas
+		//try various kind of different schema
 		//same types different names
 		schema2 := SchemaConf{
 			Name:         "test",
@@ -216,7 +216,7 @@ func TestSolrBasics(t *testing.T) {
 			Indexes: nil,
 		}
 
-		//TODO if there are more fields in solr than in the schema, it is ok (because of default and computed solr fields). Is it ok or do we want exactly the same fields in solr and in schema?
+		//TODO if there are more fields in solr than in the schema, it is OK (because of default and computed solr fields). Is it OK or do we want exactly the same fields in solr and in schema?
 
 		collConf = NewSolrCollectionConf(schema2, *connConf, 4, 0)
 		coll = NewSolrCollection(*collConf)
@@ -486,10 +486,10 @@ func TestSolrAdd(t *testing.T) {
 			t.Error("unexpected error", err)
 		}
 		if num != 1 {
-			t.Error("Expected exactly one occurence of record, got ", num)
+			t.Error("Expected exactly one occurrence of record, got ", num)
 		}
 		if !valid {
-			t.Error("Not found ", res, " rigth after it has been added.")
+			t.Error("Not found ", res, " Right after it has been added.")
 		}
 
 	})
@@ -569,7 +569,7 @@ func TestSolrDel(t *testing.T) {
 		}
 
 		if num != 1 {
-			t.Error("Expected exactly one occurence of record, got ", num)
+			t.Error("Expected exactly one occurrence of record, got ", num)
 		}
 
 		res, valid, err := found.Get()
@@ -577,7 +577,7 @@ func TestSolrDel(t *testing.T) {
 			t.Error("unexpected error", err)
 		}
 		if !valid {
-			t.Error("Not found ", res, " rigth after it has been added.")
+			t.Error("Not found ", res, " right after it has been added.")
 		}
 
 		err = coll.DeleteRecord(rec)
@@ -606,7 +606,7 @@ func TestSolrDel(t *testing.T) {
 			t.Error("unexpected error", err)
 		}
 		if num != 0 {
-			t.Error("Expected no occurence of record, got ", num)
+			t.Error("Expected no occurrence of record, got ", num)
 		}
 		res, valid, err = found.Get()
 		if err != nil {

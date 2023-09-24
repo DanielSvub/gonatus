@@ -107,10 +107,10 @@ type QueryRange[T any] struct {
 }
 
 // Collection is the interface which specify the functionality common to all Collection:
-// - Filter which returns records from the collection constrianed by the FilterArguemnt in a stream and a count of records in the stream.
+// - Filter which returns records from the collection constrained by the FilterArguemnt in a stream and a count of records in the stream.
 // - AddRecord adds specified record to collection and returns assigned id. Note that returned id may be different than the one specified in the record.
 // - DeleteRecord deletes the given record from the Collection
-// - DeleteByFilter deletes all the reocrds which satisfy the FilterArgument and returns the number of deleted records.
+// - DeleteByFilter deletes all the records which satisfy the FilterArgument and returns the number of deleted records.
 // - EditRecord changes the record with id specified by RecordConf so it has specified values.
 // - Commit commits all planned changes to the collection.
 type Collection interface {

@@ -16,11 +16,11 @@ import (
 	"github.com/SpongeData-cz/stream"
 )
 
-//-----------------------------------------------STRUCTS AND CONSTRUCTORS
+//-----------------------------------------------STRUCTURES AND CONSTRUCTORS
 
 // SolrCollectionConf contains configuration information for solr collection
 type SolrCollectionConf struct {
-	SchemaConf                    // collections schema information
+	SchemaConf                    //collection schema information
 	connection SolrConnectionConf //connection information
 	numShards  int                //how many shards should be used if collection is to be created
 	nextId     CId                //ids for newly added records will be higher than this value
@@ -35,14 +35,22 @@ func NewSolrCollectionConf(schema SchemaConf, solrConnectionConf SolrConnectionC
 	}
 }
 
+// SolrCollection mediates solr capabilites for storing collections.
+// SolrCloud is necessary as single-instance solr does not have enough capabilities (e.g. creating of new collections is not possible there)
+// It connects to the given SolrCloud instance using specified SolrConnection.
+// If collection of the given name and compatible schema exists, it is used as data source. The schemas are compatible if go's schema is subset of solr's schemas (solr schema has some extra auto computed fields).
+// If such collection does not exist and no other collection of the same name exist then new collection is created in solr.
+// The only surprising thing about schema is the way ids are used:
+// - Solr expects field of name id and type string to be present. Our go collections expect id to be of uint64 type. Therefore our uint64 is stored as string of decimal digits in solr's id  and moreover each collection contains numId field of type double (solr does not have unsigned 64 bit ints) whose value is autocopied from the id field.
+// - Solr does not have auto increment for such ids. It can only generate new random UUID, which is no go for us. As our use case for collections is single user mode (confirmed by Pavel), we generate new ids on the go side. We do so in a thread safe way (under lock) but not in a process safe way. That is if need for multi user/process record adding/updating arises, this functionality has to be moved to solr plugin.
 type SolrCollection struct {
 	gonatus.Gobject
 	param           SolrCollectionConf //configuration information
-	con             SolrConnection     //conection to send requests through to solr
+	con             SolrConnection     //connection to send requests through to solr
 	nextId          CId                //id for next added record
 	transactionPlan []solrOperation    //operations planned for commit
 	idLock          sync.Mutex         //lock for generating new ids for records (access to nextId)
-	transactionLock sync.Mutex         //lock for planing or commiting operations (access to transactionPlan)
+	transactionLock sync.Mutex         //lock for planing or committing operations (access to transactionPlan)
 }
 
 func NewSolrCollection(conf SolrCollectionConf) *SolrCollection {
@@ -148,10 +156,10 @@ func (ego *SolrCollection) DeleteRecord(conf RecordConf) error {
 	return nil
 }
 
-// DeleteByFilter plans deleting of documents satistfying the FilterArgument.
+// DeleteByFilter plans deleting of documents satisfying the FilterArgument.
 // The returned count of deleted documents is not valid, as this collection has an implicit transaction plan which is run only when commit is requested.
 func (ego *SolrCollection) DeleteByFilter(fa FilterArgument) (uint64, error) {
-	//TODO another option is to actually comit the transaction plan and then evalaute this delete operation immediately. Then we would get the correct number of deleted records, but this operation would behave differently from all others.
+	//TODO another option is to actually commit the transaction plan and then evaluate this delete operation immediately. Then we would get the correct number of deleted records, but this operation would behave differently from all others.
 	delOp := &solrDeleteByQueryOp{
 		collection: ego,
 		filterArg:  fa,
@@ -161,7 +169,7 @@ func (ego *SolrCollection) DeleteByFilter(fa FilterArgument) (uint64, error) {
 }
 
 // EditRecord plans operations of delete and add record in a way that here will be the specified record with the specified id instead of any previous record with the same id in solr.
-// It is NOT using solr's capabilites of update, just naively deletes and then adds, as planned usecases are not going to use this possibility (confirmed with Pavel).
+// It is NOT using solr's capabilites of update, just naively deletes and then adds, as planned use cases are not going to use this possibility (confirmed with Pavel).
 func (ego *SolrCollection) EditRecord(conf RecordConf) error {
 	updateOp := &solrUpdateOp{
 		collection: ego,
@@ -171,7 +179,7 @@ func (ego *SolrCollection) EditRecord(conf RecordConf) error {
 	return nil
 }
 
-// Commit commits transaction log from the go site into solr by one update query to solr's api (by sequence of adds and deletes in one json).
+// Commit commits transaction log from the go site into solr by one update query to solr's API (by sequence of adds and deletes in one json).
 func (ego *SolrCollection) Commit() error {
 	// Solr does not have typical transactions. It is only transaction log common to all users. Every call to Commit commits all planned work of all users at once.
 	if len(ego.transactionPlan) > 0 {
@@ -220,7 +228,7 @@ func (ego *SolrCollection) Serialize() gonatus.Conf {
 
 // solrOperation is a contract for any operation which may be planned for commit
 type solrOperation interface {
-	toJson() (string, error) //convert operation to json for solr's json update api
+	toJson() (string, error) //convert operation to json for solr's json update API
 }
 
 // solrAddOp is a record of add record (solr's add) operation to be planned for commit
@@ -262,7 +270,7 @@ func (ego *solrDeleteByQueryOp) toJson() (string, error) {
 }
 
 // solrUpdateOp is a record of edit record (solr's delete and add) operation to be planned for commit.
-// For simplicity and beacuse it is not planned to be used in the system, the implementation is naive - i.e. delete followed by add instead of solr's update
+// For simplicity and because it is not planned to be used in the system, the implementation is naive - i.e. delete followed by add instead of solr's update
 type solrUpdateOp struct {
 	collection *SolrCollection
 	record     RecordConf
@@ -575,7 +583,7 @@ func (ego *SolrCollection) translateAtomQuery(query QueryAtomConf) (string, erro
 		}
 		return fmt.Sprint(query.Name, ":", formatSolrTime(t)), nil
 	case FullmatchIndexConf[string]:
-		return fmt.Sprint(query.Name, ":", query.Value), nil //keeping it case sensitive here, this is user's resposnisibility
+		return fmt.Sprint(query.Name, ":", query.Value), nil //keeping it case sensitive here, this is user's responsibility
 	case PrefixIndexConf[string]:
 		return fmt.Sprint(query.Name, ":", query.Value, "*"), nil
 	case PrefixIndexConf[int], PrefixIndexConf[int8],
@@ -584,9 +592,9 @@ func (ego *SolrCollection) translateAtomQuery(query QueryAtomConf) (string, erro
 		PrefixIndexConf[uint8], PrefixIndexConf[uint16],
 		PrefixIndexConf[uint32], PrefixIndexConf[uint64],
 		PrefixIndexConf[float32], PrefixIndexConf[float64]:
-		return "", errors.NewMisappError(ego, fmt.Sprint("it is not clear how to interpret number", query.Value, " as prefixf)")) //TODO it does not make sense to use numbers as prefixes (or we have to specify the meaning of such prefix)
+		return "", errors.NewMisappError(ego, fmt.Sprint("it is not clear how to interpret number", query.Value, " as prefix)")) //TODO it does not make sense to use numbers as prefixes (or we have to specify the meaning of such prefix)
 	case PrefixIndexConf[time.Time]:
-		return "", errors.NewNotImplError(ego) //TODO prefix of time makes sense, but we need to specify what exactly is ment by time prefix. Also it is not that straightforward for solr. Fallback: Can we overcome it by ranges?
+		return "", errors.NewNotImplError(ego) //TODO prefix of time makes sense, but we need to specify what exactly is meant by time prefix. Also it is not that straightforward for solr. Fallback: Can we overcome it by ranges?
 	case PrefixIndexConf[[]int], PrefixIndexConf[[]int8],
 		PrefixIndexConf[[]int16], PrefixIndexConf[[]int32],
 		PrefixIndexConf[[]int64], PrefixIndexConf[[]uint],
@@ -594,8 +602,8 @@ func (ego *SolrCollection) translateAtomQuery(query QueryAtomConf) (string, erro
 		PrefixIndexConf[[]uint32], PrefixIndexConf[[]uint64],
 		PrefixIndexConf[[]float32], PrefixIndexConf[[]float64],
 		PrefixIndexConf[[]string]:
-		//TODO seems there is undocummented(?) fixed order of multivalued fields in solr if they are initialized by array literal (e.g. [1,2,3])
-		return "", errors.NewNotImplError(ego) //TODO arrays' prefix? is solr able to prefix multivalued field?
+		//TODO seems there is undocumented(?) fixed order of multi valued fields in solr if they are initialized by array literal (e.g. [1,2,3])
+		return "", errors.NewNotImplError(ego) //TODO arrays' prefix? is solr able to prefix multi valued field?
 
 	default:
 		return "", errors.NewMisappError(ego, "unknown indexer type: "+fmt.Sprint(typ))
@@ -648,7 +656,7 @@ func (ego *SolrCollection) translateContextQuery(query QueryContextConf, binOper
 
 }
 
-// translateImplicationQuery converts QueryImplicationQuery into solr's query formula
+// translateImplicationQuery converts QueryImplicationConf into solr's query formula
 func (ego *SolrCollection) translateImplicationQuery(query QueryImplicationConf) (string, error) {
 	lATrans, err := ego.translateQueryConf(query.Left)
 	if err != nil {
@@ -666,7 +674,6 @@ func (ego *SolrCollection) translateRangeQuery(query QueryRange[any]) (string, e
 	l := query.Lower
 	h := query.Higher
 	name := query.Name
-	//println("Range query", name, l, h)
 	return fmt.Sprint("(", name, ":[", l, " TO ", h, "])"), nil
 }
 
@@ -689,14 +696,14 @@ func genSortBody(sorts []string, order int) string {
 	return resSB.String()
 }
 
-// formatSolrTime formats time.Time values into format demanded by solr for datetime types
+// formatSolrTime formats time.Time values into format demanded by solr for date time types
 func formatSolrTime(t time.Time) string {
 	return t.UTC().Format(time.RFC3339) //solr needs EXACTLY this time format and  UTC zone, i.e. change zone and then format it (see solr's docs)
 }
 
 // parseJsonToRecords parses solr query response into stream of RecordConfs
 // Returns the stream and expected (see bellow) number of data records to be processed, or error.
-// Stream-filling runs in goroutine. If some record is malformed then it is skipped, that is returned number of expected records may be higher then actual number of records in the stream.
+// Stream-filling runs in go routine. If some record is malformed then it is skipped, that is returned number of expected records may be higher then actual number of records in the stream.
 func (ego *SolrCollection) parseJsonToRecords(jsonData []byte) (stream.Producer[RecordConf], uint64, error) {
 	returnBuffer := stream.NewChanneledInput[RecordConf](100)
 	resMap := map[string]any{}
@@ -844,11 +851,11 @@ func (ego *SolrCollection) checkSchema() (bool, error) {
 	return true, nil
 }
 
-// fielderTypeToSolrType returns name of solr type together with mutlivalued flag (true = field is multivalued/slice) or error
+// fielderTypeToSolrType returns name of solr type together with multiplied flag (true = field is multivalued/slice) or error
 func fielderTypeToSolrType(fc FielderConf) (string, bool, error) {
 	switch typ := fc.(type) {
 	case FieldConf[int64]:
-		return "plong", false, nil //TODO seems solr cloud uses these types for default clasess as IntPointFiled, LongPointFiled, etc.
+		return "plong", false, nil //TODO seems solr cloud uses these types for default classes as IntPointField, LongPointField, etc.
 	case FieldConf[int32]:
 		return "pint", false, nil
 	case FieldConf[bool]:
@@ -891,7 +898,7 @@ func (ego *SolrCollection) newCid() (CId, error) {
 	return ret, nil
 }
 
-// planOperation apends op to the transactionPlan of the collection
+// planOperation appends op to the transactionPlan of the collection
 func (ego *SolrCollection) planOperation(op solrOperation) {
 	ego.transactionLock.Lock()
 	ego.transactionPlan = append(ego.transactionPlan, op)
