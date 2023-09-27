@@ -58,8 +58,9 @@ type SimpleSolrConnection struct {
 }
 
 func (ego *SimpleSolrConnection) Query(collection string, query string) (io.ReadCloser, error) {
-	ego.Log().Info("Request sent", "query", query)
-	fullRequest := ego.baseUrl + "/" + collection + "/query?q=" + query
+	fullRequest := ego.baseUrl + "/" + collection + "/select?q=" + query
+	ego.Log().Info("Request sent", "collection", collection, "query", query, "fullrequest", fullRequest)
+
 	resp, err := http.Get(fullRequest)
 	//TODO check response content, possibly transfomr it to error
 	if err != nil {
@@ -114,7 +115,7 @@ func (ego *SimpleSolrConnection) CreateCollection(schema SchemaConf, numShards i
 		if fMultiVal {
 			schemaJsonSB.WriteString(",\"multiValued\":true}")
 		} else {
-			schemaJsonSB.WriteRune('}')
+			schemaJsonSB.WriteString(",\"multiValued\":false}")
 		}
 		//		if i != len(schema.Fields)-1 {
 		schemaJsonSB.WriteRune(',')
@@ -122,7 +123,7 @@ func (ego *SimpleSolrConnection) CreateCollection(schema SchemaConf, numShards i
 	}
 	//brace yourself type-hell starts here
 	//id field is in solr by default (it is string), but sorting on strings is lexiocraphical
-	//therefore we automatically copy it into long version for possibility of sorting - yes, solr implcitly parses the string into long (and no, solr does not have ulong)
+	//therefore we automatically copy it into numeric (double) version for possibility of sorting - yes, solr implcitly parses the string into double-number (and no, solr does not have ulong)
 	schemaJsonSB.WriteString("\"add-field\":{\"name\":\"numId\",\"type\":\"pdouble\",\"required\":true,\"indexed\":true,\"stored\":true},")
 	schemaJsonSB.WriteString("\"add-copy-field\":{\"source\":\"id\",\"dest\":\"numId\"}")
 	//type hell ends here

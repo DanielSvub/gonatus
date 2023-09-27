@@ -95,9 +95,9 @@ type QueryImplicationConf struct {
 	Right QueryConf
 }
 
-type QuerySpatialConf interface {
-	QueryConf
-}
+//type QuerySpatialConf interface {
+//	QueryConf
+//}
 
 type QueryRange[T any] struct {
 	QueryConf

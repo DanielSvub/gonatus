@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -109,14 +110,14 @@ func (ego *SolrCollection) Filter(fa FilterArgument) (stream.Producer[RecordConf
 	if err != nil {
 		return nil, 0, err
 	}
-	query = url.QueryEscape(query)
+	//	query = url.QueryEscape(query)
 	responseBody, err := ego.con.Query(ego.param.Name, query)
 	if err != nil {
 		return nil, 0, err
 	}
 	resJson, err := io.ReadAll(responseBody)
 	if err != nil {
-		return nil, 0, errors.NewValueError(ego, errors.LevelWarning, "cannot read the respOnse body")
+		return nil, 0, errors.NewValueError(ego, errors.LevelWarning, "cannot read the response body")
 	}
 	return ego.parseJsonToRecords(resJson)
 }
@@ -302,21 +303,25 @@ func (ego *SolrCollection) filterArgToSolrQuery(fa FilterArgument) (string, erro
 	if err != nil {
 		return "", err
 	}
+	query = url.QueryEscape(query)
 
 	//add other info from fa
 	sortQueryPart := genSortBody(fa.Sort, fa.SortOrder)
 	if len(sortQueryPart) > 0 {
-		query = query + "&" + sortQueryPart
+		query = query + "&sort=" + url.QueryEscape(sortQueryPart)
 	}
 
 	if fa.Skip != 0 {
-		skipQueryPart := fmt.Sprintf("start=%d", fa.Skip)
-		query = query + "&" + skipQueryPart
+		skipQueryPart := fmt.Sprintf("%d", fa.Skip)
+		query = query + "&start=" + url.QueryEscape(skipQueryPart)
 	}
 
 	if fa.Limit > 0 {
-		limitQueryPart := fmt.Sprintf("rows=%d", fa.Limit)
-		query = query + "&" + limitQueryPart
+		limitQueryPart := fmt.Sprintf("%d", fa.Limit)
+		query = query + "&rows=" + url.QueryEscape(limitQueryPart)
+	} else {
+		limitQueryPart := fmt.Sprintf("%d", math.MaxInt32-17) //TODO WTF SOLR? Max items returned is 32-bit-int maximum minus 17...
+		query = query + "&rows=" + url.QueryEscape(limitQueryPart)
 	}
 
 	return query, nil
@@ -465,10 +470,13 @@ func (ego *SolrCollection) translateQueryConf(query QueryConf) (string, error) {
 		q.Lower = formatSolrTime(qt.Lower)
 		q.Name = qt.Name
 		return ego.translateRangeQuery(q)
-	case QuerySpatialConf:
-		return "", errors.NewNotImplError(ego)
+		//case QuerySpatialConf:
+		//ego.Log().Error("SpatialConf") //TODO delete
+		//return "", errors.NewNotImplError(ego)
 	default:
-		return "", errors.NewMisappError(ego, fmt.Sprint("unknown query type ", qt))
+		//TODO we have just QueryConf (now it is any). Maybe just empty conf (then probably everything is wanted) or an error of invalid value
+		return "id:*", nil
+		//return "", errors.NewMisappError(ego, fmt.Sprint("unknown query type ", qt))
 	}
 }
 
@@ -594,6 +602,7 @@ func (ego *SolrCollection) translateAtomQuery(query QueryAtomConf) (string, erro
 		PrefixIndexConf[float32], PrefixIndexConf[float64]:
 		return "", errors.NewMisappError(ego, fmt.Sprint("it is not clear how to interpret number", query.Value, " as prefix)")) //TODO it does not make sense to use numbers as prefixes (or we have to specify the meaning of such prefix)
 	case PrefixIndexConf[time.Time]:
+		ego.Log().Error("Prefix of time")      //TODO delete
 		return "", errors.NewNotImplError(ego) //TODO prefix of time makes sense, but we need to specify what exactly is meant by time prefix. Also it is not that straightforward for solr. Fallback: Can we overcome it by ranges?
 	case PrefixIndexConf[[]int], PrefixIndexConf[[]int8],
 		PrefixIndexConf[[]int16], PrefixIndexConf[[]int32],
@@ -603,6 +612,7 @@ func (ego *SolrCollection) translateAtomQuery(query QueryAtomConf) (string, erro
 		PrefixIndexConf[[]float32], PrefixIndexConf[[]float64],
 		PrefixIndexConf[[]string]:
 		//TODO seems there is undocumented(?) fixed order of multi valued fields in solr if they are initialized by array literal (e.g. [1,2,3])
+		ego.Log().Error("Prefix of slice")     //TODO delete
 		return "", errors.NewNotImplError(ego) //TODO arrays' prefix? is solr able to prefix multi valued field?
 
 	default:
@@ -710,7 +720,6 @@ func (ego *SolrCollection) parseJsonToRecords(jsonData []byte) (stream.Producer[
 	if err := json.Unmarshal(jsonData, &resMap); err != nil {
 		return nil, 0, err
 	}
-
 	responseData, valid := resMap["response"].(map[string]any)
 	if !valid {
 		return nil, 0, errors.NewStateError(ego, errors.LevelWarning, "unknown response format while parsing solr collection response")
@@ -719,6 +728,10 @@ func (ego *SolrCollection) parseJsonToRecords(jsonData []byte) (stream.Producer[
 	numFound, valid := responseData["numFound"].(float64)
 	if !valid {
 		return nil, 0, errors.NewStateError(ego, errors.LevelWarning, "unknown response format while parsing solr collection response")
+	}
+
+	if numFound == 0 {
+		return returnBuffer, 0, nil
 	}
 
 	responseDocuments, valid := responseData["docs"].([]any)
@@ -738,13 +751,13 @@ func (ego *SolrCollection) parseJsonToRecords(jsonData []byte) (stream.Producer[
 			id, valid := docMap["id"].(string) //TODO Now, we have id in solr's id string and also autocopied in solr's numId double value. It may be cheaper to read it from the numeric value.
 			if !valid {
 				//this should never happen. If it happens, we are surely having wrong schema in solr.
-				ego.Log().Warn("Document without id (or with wrong id data type) retrieved form solr and was skipped (suspicious, check solr collection schema)", "docuemnt-data", fmt.Sprintf("%+v", docMap))
+				ego.Log().Warn("Document without id (or with wrong id data type) retrieved form solr and was skipped (suspicious, check solr collection schema)", "document-data", fmt.Sprintf("%+v", docMap))
 				continue
 			}
 			uintID, err := strconv.ParseUint(id, 10, 64)
 			if err != nil {
 				//this means that solr's record is malformed, if it was added by this collection then we have bug in AddRecord. Otherwise check the source of data.
-				ego.Log().Warn("Document id can not be parsed in CId", "docuemnt-data", fmt.Sprintf("%+v", docMap))
+				ego.Log().Warn("Document id can not be parsed in CId", "document-data", fmt.Sprintf("%+v", docMap))
 				continue
 
 			}
@@ -752,13 +765,109 @@ func (ego *SolrCollection) parseJsonToRecords(jsonData []byte) (stream.Producer[
 			res.Cols = make([]FielderConf, len(ego.param.Fields))
 			invalidColData := false
 			for i := 0; i < len(res.Cols); i++ {
-				colValue, valid := docMap[ego.param.FieldsNaming[i]].(FielderConf)
+				var colValue FielderConf
+				var valid bool
+				switch ego.param.Fields[i].(type) {
+				case FieldConf[int64]:
+					var innerValue int64
+					innerValue, valid = docMap[ego.param.FieldsNaming[i]].(int64)
+					colValue = FieldConf[int64]{
+						FielderConf: nil,
+						Value:       innerValue,
+					}
+				case FieldConf[int32]:
+					var innerValue int32
+					innerValue, valid = docMap[ego.param.FieldsNaming[i]].(int32)
+					colValue = FieldConf[int32]{
+						FielderConf: nil,
+						Value:       innerValue,
+					}
+				case FieldConf[bool]:
+					var innerValue bool
+					innerValue, valid = docMap[ego.param.FieldsNaming[i]].(bool)
+					colValue = FieldConf[bool]{
+						FielderConf: nil,
+						Value:       innerValue,
+					}
+				case FieldConf[float64]:
+					var innerValue float64
+					innerValue, valid = docMap[ego.param.FieldsNaming[i]].(float64)
+					colValue = FieldConf[float64]{
+						FielderConf: nil,
+						Value:       innerValue,
+					}
+				case FieldConf[float32]:
+					var innerValue float32
+					innerValue, valid = docMap[ego.param.FieldsNaming[i]].(float32)
+					colValue = FieldConf[float32]{
+						FielderConf: nil,
+						Value:       innerValue,
+					}
+				case FieldConf[string]:
+					var innerValue string
+					innerValue, valid = docMap[ego.param.FieldsNaming[i]].(string)
+					colValue = FieldConf[string]{
+						FielderConf: nil,
+						Value:       innerValue,
+					}
+				case FieldConf[time.Time]:
+					var innerValue time.Time
+					innerValue, valid = docMap[ego.param.FieldsNaming[i]].(time.Time)
+					colValue = FieldConf[time.Time]{
+						FielderConf: nil,
+						Value:       innerValue,
+					}
+				case FieldConf[[]int64]:
+					var innerValue []int64
+					innerValue, valid = docMap[ego.param.FieldsNaming[i]].([]int64)
+					colValue = FieldConf[[]int64]{
+						FielderConf: nil,
+						Value:       innerValue,
+					}
+				case FieldConf[[]int32]:
+					var innerValue []int32
+					innerValue, valid = docMap[ego.param.FieldsNaming[i]].([]int32)
+					colValue = FieldConf[[]int32]{
+						FielderConf: nil,
+						Value:       innerValue,
+					}
+				case FieldConf[[]bool]:
+					var innerValue []bool
+					innerValue, valid = docMap[ego.param.FieldsNaming[i]].([]bool)
+					colValue = FieldConf[[]bool]{
+						FielderConf: nil,
+						Value:       innerValue,
+					}
+				case FieldConf[[]float64]:
+					var innerValue []float64
+					innerValue, valid = docMap[ego.param.FieldsNaming[i]].([]float64)
+					colValue = FieldConf[[]float64]{
+						FielderConf: nil,
+						Value:       innerValue,
+					}
+				case FieldConf[[]float32]:
+					var innerValue []float32
+					innerValue, valid = docMap[ego.param.FieldsNaming[i]].([]float32)
+					colValue = FieldConf[[]float32]{
+						FielderConf: nil,
+						Value:       innerValue,
+					}
+				case FieldConf[[]string]:
+					var innerValue []string
+					innerValue, valid = docMap[ego.param.FieldsNaming[i]].([]string)
+					colValue = FieldConf[[]string]{
+						FielderConf: nil,
+						Value:       innerValue,
+					}
+
+				}
 				if !valid {
-					ego.Log().Warn("document with wrong data type in column (skipped)", "document-data", fmt.Sprintf("%+v", docMap))
+					ego.Log().Warn("document with wrong data type in column (skipped)", "document-data", fmt.Sprintf("%+v", docMap), "column", ego.param.FieldsNaming[i])
 					invalidColData = true
 					break
 				}
 				res.Cols[i] = colValue
+
 			}
 			if invalidColData {
 				continue
@@ -843,7 +952,7 @@ func (ego *SolrCollection) checkSchema() (bool, error) {
 		if expected != solrFieldTypeMapping[ego.param.SchemaConf.FieldsNaming[i]] || multivalued != solrFieldMultivalued[ego.param.SchemaConf.FieldsNaming[i]] {
 			ego.Log().Info("Solr schema check", "result", false)
 			return false, errors.NewStateError(ego, errors.LevelWarning,
-				fmt.Sprint("incomptaible types in schema and solr for field ", ego.param.SchemaConf.FieldsNaming[i], ":", solrFieldTypeMapping[ego.param.SchemaConf.FieldsNaming[i]], " and ", expected, "(multivalued=", multivalued, ")"))
+				fmt.Sprint("incompatible types in schema and solr for field ", ego.param.SchemaConf.FieldsNaming[i], ":", solrFieldTypeMapping[ego.param.SchemaConf.FieldsNaming[i]], " and ", expected, "(multivalued=", multivalued, ")"))
 		}
 	}
 

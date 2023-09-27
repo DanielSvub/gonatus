@@ -8,110 +8,209 @@ import (
 	. "github.com/SpongeData-cz/gonatus/collection"
 )
 
+var schemaConf = SchemaConf{
+	Name:         "FooBarTable",
+	FieldsNaming: []string{"who", "whom"},
+	Fields: []FielderConf{
+		FieldConf[string]{},
+		FieldConf[string]{},
+	},
+	Indexes: [][]IndexerConf{{}},
+}
+
+var solrConnConf = NewSolrConnectionConf(map[string]string{"auth-type": "no", "url": "http://localhost:8983/solr"})
+
+func prepareRAMCollection(fullmatchIndexP bool, prefixIndexP bool, stringPrefixIndexP bool) Collection {
+	rmC := RamCollectionConf{
+		SchemaConf: schemaConf,
+		MaxMemory:  1024 * 1024 * 1024,
+	}
+
+	if fullmatchIndexP {
+
+		rmC.Indexes = [][]IndexerConf{
+			{
+				FullmatchIndexConf[string]{Name: "who"},
+				FullmatchIndexConf[string]{Name: "whom"},
+			},
+		}
+	}
+
+	if prefixIndexP {
+
+		rmC.SchemaConf.Fields = []FielderConf{
+			FieldConf[[]string]{},
+			FieldConf[[]string]{},
+		}
+
+		rmC.Indexes = [][]IndexerConf{
+			{
+				PrefixIndexConf[[]string]{Name: "who"},
+				PrefixIndexConf[[]string]{Name: "whom"},
+			},
+		}
+	}
+
+	if stringPrefixIndexP {
+
+		rmC.Indexes = [][]IndexerConf{
+			{
+				PrefixIndexConf[string]{Name: "who"},
+				PrefixIndexConf[string]{Name: "whom"},
+			},
+		}
+
+	}
+
+	return NewRamCollection(rmC)
+}
+
+var collections = []struct {
+	name string
+	col  Collection
+}{}
+
+func initCollections() {
+	sc := NewSolrConnection(*solrConnConf)
+	sc.DropCollection(schemaConf.Name)
+	collections = []struct {
+		name string
+		col  Collection
+	}{
+		{"RAM nofullmatch_noprefix_nostringprefix", prepareRAMCollection(false, false, false)},
+		{"RAM nofullmatch_noprefix_stringprefix", prepareRAMCollection(false, false, true)},
+		//{"RAM nofullmatch_prefix_nostringprefix", prepareRAMCollection(false, true, false)},
+		//	{"RAM nofullmatch_prefix_stringprefix", prepareRAMCollection(false, true, true)},
+		{"RAM fullmatch_noprefix_nostringprefix", prepareRAMCollection(true, false, false)},
+		{"RAM fullmatch_noprefix_stringprefix", prepareRAMCollection(true, false, true)},
+		//{"RAM fullmatch_prefix_nostringprefix", prepareRAMCollection(true, true, false)},
+		//{"RAM fullmatch_prefix_stringprefix", prepareRAMCollection(true, true, true)},
+		{"SOLR", NewSolrCollection(*NewSolrCollectionConf(schemaConf, *solrConnConf, 1, 0))},
+	}
+}
+
+//TODO continue here : the desired state is to eb able to add collection just to slice above and all test shuld then run automatically even for new collection.
+// this means we need to specify a desired output for egeneral collection or the test shoudl have desired behaviour for general collection
+// it is probalby not feasible (or maybe even possible to differentiate between different indexers in such tests.
+
 func TestCollection(t *testing.T) {
 
 	inspectOutput := func(output []RecordConf) {
 		fmt.Print("\nID   who        whom")
 		for _, o := range output {
 			fmt.Printf("\n%d", o.Id)
+			//	fmt.Printf("\n%+v", o)
 			for _, j := range o.Cols {
+				//	fmt.Printf("\n%+v", j)
 				fmt.Printf(", %s", j.(FieldConf[string]).Value)
 			}
 		}
 		println()
 		println()
 	}
+	initCollections()
+	for _, namedCol := range collections {
 
-	t.Run("filterArgument", func(t *testing.T) {
+		t.Run("filterArgument"+namedCol.name, func(t *testing.T) {
+			col := namedCol.col
+			_, c, err := col.Filter(FilterArgument{
+				Limit:     NO_LIMIT,
+				QueryConf: new(QueryConf),
+			})
+			if c != 0 {
+				t.Error("Collection expected to be empty!")
+			}
 
-		col := prepareTable(false, false, false)
-		err := testFilling(col, 15, false)
-		if err != nil {
-			t.Error(err.Error())
-		}
+			err = testFilling(col, 15, false)
+			if err != nil {
+				t.Error(err.Error())
+			}
 
-		for i := 0; i < 3; i++ {
-			row := RecordConf{Cols: make([]FielderConf, 2)}
-			row.Cols[0] = FieldConf[string]{Value: fmt.Sprintf("bah%dlol%d", i, (i+10)*11)}
-			row.Cols[1] = FieldConf[string]{Value: fmt.Sprintf("ah%dnechapute%d", i, (i+15)*23)}
+			for i := 0; i < 3; i++ {
+				row := RecordConf{Cols: make([]FielderConf, 2)}
+				row.Cols[0] = FieldConf[string]{Value: fmt.Sprintf("bah%dlol%d", i, (i+10)*11)}
+				row.Cols[1] = FieldConf[string]{Value: fmt.Sprintf("ah%dnechapute%d", i, (i+15)*23)}
 
-			col.AddRecord(row)
-		}
+				col.AddRecord(row)
+			}
+			col.Commit()
+			//col.Inspect()
 
-		//col.Inspect()
+			// Sort by CId, without Limit and Skip
+			query := FilterArgument{
+				Limit:     NO_LIMIT,
+				QueryConf: new(QueryConf),
+			}
 
-		// Sort by CId, without Limit and Skip
-		query := FilterArgument{
-			Limit:     NO_LIMIT,
-			QueryConf: new(QueryConf),
-		}
+			output, err := filterCollect(col, query)
+			if err != nil {
+				t.Error(err.Error())
+			}
 
-		output, err := filterCollect(col, query)
-		if err != nil {
-			t.Error(err.Error())
-		}
+			fmt.Print("Only query")
 
-		fmt.Print("Only query")
-		inspectOutput(output)
+			inspectOutput(output)
 
-		if len(output) != 18 {
-			t.Errorf("Expected 18 rows, got %d.", len(output))
-		}
+			if len(output) != 18 {
+				t.Errorf("Expected 18 rows, got %d.", len(output))
+			}
 
-		// Sort by CId, with Limit and Skip
-		query.Skip = 4
-		query.Limit = 6
+			// Sort by CId, with Limit and Skip
+			query.Skip = 4
+			query.Limit = 6
 
-		output, err = filterCollect(col, query)
-		if err != nil {
-			t.Error(err.Error())
-		}
+			output, err = filterCollect(col, query)
+			if err != nil {
+				t.Error(err.Error())
+			}
 
-		fmt.Print("Skip: 4 and Limit: 6")
-		inspectOutput(output)
+			fmt.Print("Skip: 4 and Limit: 6")
+			inspectOutput(output)
 
-		if len(output) != 6 {
-			t.Errorf("Expected 6 rows, got: %d", len(output))
-		}
-		if output[0].Id != 5 || output[len(output)-1].Id != 10 {
-			t.Error("Wrong order of output.")
-		}
+			if len(output) != 6 {
+				t.Errorf("Expected 6 rows, got: %d", len(output))
+			}
+			if len(output) > 0 && (output[0].Id != 5 || output[len(output)-1].Id != 10) {
+				t.Error("Wrong order of output.")
+			}
 
-		// Sort by "who", without Limit and Skip
-		query.Sort = []string{"who"}
-		query.Skip = 0
-		query.Limit = NO_LIMIT
-		output, err = filterCollect(col, query)
-		if err != nil {
-			t.Error(err.Error())
-		}
+			// Sort by "who", without Limit and Skip
+			query.Sort = []string{"who"}
+			query.Skip = 0
+			query.Limit = NO_LIMIT
+			output, err = filterCollect(col, query)
+			if err != nil {
+				t.Error(err.Error())
+			}
 
-		fmt.Printf("Sorted by \"who\"")
-		inspectOutput(output)
+			fmt.Printf("Sorted by \"who\"")
+			inspectOutput(output)
 
-		if output[0].Id != 16 || output[len(output)-1].Id != 10 {
-			t.Error("Wrong order of output.")
-		}
+			if len(output) > 0 && (output[0].Id != 16 || output[len(output)-1].Id != 10) {
+				t.Error("Wrong order of output.")
+			}
 
-		// Sort by "who" DESC, with Limit and Skip
-		query.SortOrder = DESC
-		query.Skip = 4
-		query.Limit = 6
-		output, err = filterCollect(col, query)
-		if err != nil {
-			t.Error(err.Error())
-		}
+			// Sort by "who" DESC, with Limit and Skip
+			query.SortOrder = DESC
+			query.Skip = 4
+			query.Limit = 6
+			output, err = filterCollect(col, query)
+			if err != nil {
+				t.Error(err.Error())
+			}
 
-		fmt.Print("Sorted by \"who\" DESC with Limit and Skip")
-		inspectOutput(output)
+			fmt.Print("Sorted by \"who\" DESC with Limit and Skip")
+			inspectOutput(output)
 
-		if output[0].Id != 6 || output[len(output)-1].Id != 15 {
-			t.Error("Wrong order of output.")
-		}
-	})
+			if len(output) > 0 && (output[0].Id != 6 || output[len(output)-1].Id != 15) {
+				t.Error("Wrong order of output.")
+			}
+
+		})
+	}
 
 	t.Run("usage", func(t *testing.T) {
-		col := prepareTable(false, false, false)
+		col := prepareRAMCollection(false, false, false)
 		err := testFilling(col, 2, false)
 		if err != nil {
 			t.Error(err.Error())
@@ -287,7 +386,7 @@ func TestCollection(t *testing.T) {
 	})
 	t.Run("basicWithoutIndexer", func(t *testing.T) {
 
-		rmc := prepareTable(false, false, false)
+		rmc := prepareRAMCollection(false, false, false)
 		if rmc == nil {
 			t.Errorf("Should return valid instance of RamCollection.")
 		}
@@ -327,7 +426,7 @@ func TestCollection(t *testing.T) {
 
 	})
 	t.Run("basicFullmatchIndexer", func(t *testing.T) {
-		rmc := prepareTable(true, false, false)
+		rmc := prepareRAMCollection(true, false, false)
 		if rmc == nil {
 			t.Errorf("Should return valid instance of RamCollection.")
 		}
@@ -364,7 +463,7 @@ func TestCollection(t *testing.T) {
 		}
 	})
 	t.Run("basicPrefixIndexer", func(t *testing.T) {
-		rmc := prepareTable(false, true, false)
+		rmc := prepareRAMCollection(false, true, false)
 		if rmc == nil {
 			t.Errorf("Should return valid instance of RamCollection.")
 		}
@@ -415,7 +514,7 @@ func TestCollection(t *testing.T) {
 	})
 	t.Run("basicStringPrefix", func(t *testing.T) {
 
-		rmc := prepareTable(false, false, true)
+		rmc := prepareRAMCollection(false, false, true)
 		if rmc == nil {
 			t.Errorf("Should return valid instance of RamCollection.")
 		}
@@ -523,7 +622,7 @@ func TestCollection(t *testing.T) {
 
 	// EDIT
 	t.Run("editRecord", func(t *testing.T) {
-		col := prepareTable(true, false, false)
+		col := prepareRAMCollection(true, false, false)
 		err := testFilling(col, 2, false)
 		if err != nil {
 			t.Error(err.Error())
@@ -859,7 +958,7 @@ func TestCollection(t *testing.T) {
 
 	// REMOVAL
 	t.Run("removalWithoutIndexer", func(t *testing.T) {
-		col := prepareTable(false, false, false)
+		col := prepareRAMCollection(false, false, false)
 		err := testFilling(col, 2, false)
 		if err != nil {
 			t.Error(err.Error())
@@ -900,7 +999,7 @@ func TestCollection(t *testing.T) {
 		}
 	})
 	t.Run("removalFMindexer", func(t *testing.T) {
-		col := prepareTable(true, false, false)
+		col := prepareRAMCollection(true, false, false)
 
 		err := testFilling(col, 2, false)
 		if err != nil {
@@ -944,7 +1043,7 @@ func TestCollection(t *testing.T) {
 		}
 	})
 	t.Run("removalPrefixIndexer", func(t *testing.T) {
-		col := prepareTable(false, true, false)
+		col := prepareRAMCollection(false, true, false)
 		err := testFilling(col, 2, true)
 		if err != nil {
 			t.Error(err.Error())
@@ -987,7 +1086,7 @@ func TestCollection(t *testing.T) {
 
 	})
 	t.Run("removalByFilter", func(t *testing.T) {
-		col := prepareTable(true, false, false)
+		col := prepareRAMCollection(true, false, false)
 
 		err := testFilling(col, 2, false)
 		if err != nil {
@@ -1116,7 +1215,7 @@ func TestCollection(t *testing.T) {
 	// ERRORS / PANICS
 	t.Run("error", func(t *testing.T) {
 		// Test limit id
-		rmc := prepareTable(true, false, false)
+		rmc := prepareRAMCollection(true, false, false)
 
 		err := testFilling(rmc, 2, false)
 
@@ -1256,7 +1355,7 @@ func TestCollection(t *testing.T) {
 
 	})
 	t.Run("notValidQuery", func(t *testing.T) {
-		rmc := prepareTable(false, false, false)
+		rmc := prepareRAMCollection(false, false, false)
 		err := testFilling(rmc, 2, false)
 		if err != nil {
 			t.Error(err.Error())
@@ -1300,7 +1399,7 @@ func TestCollection(t *testing.T) {
 	// TODO
 	t.Run("commit", func(t *testing.T) {
 		// TODO: ...
-		rmc := prepareTable(true, true, false)
+		rmc := prepareRAMCollection(true, true, false)
 		err := rmc.Commit()
 		if err != nil {
 			t.Error(err.Error())
@@ -1346,60 +1445,6 @@ func testNthLine(rc []RecordConf, n int) error {
 	return nil
 }
 
-func prepareTable(fullmatchIndexP bool, prefixIndexP bool, stringPrefixIndexP bool) Collection {
-
-	rmC := RamCollectionConf{
-		SchemaConf: SchemaConf{
-			Name:         "FooBarTable",
-			FieldsNaming: []string{"who", "whom"},
-			Fields: []FielderConf{
-				FieldConf[string]{},
-				FieldConf[string]{},
-			},
-			Indexes: [][]IndexerConf{{}},
-		},
-		MaxMemory: 1024 * 1024 * 1024,
-	}
-
-	if fullmatchIndexP {
-
-		rmC.Indexes = [][]IndexerConf{
-			{
-				FullmatchIndexConf[string]{Name: "who"},
-				FullmatchIndexConf[string]{Name: "whom"},
-			},
-		}
-	}
-
-	if prefixIndexP {
-
-		rmC.SchemaConf.Fields = []FielderConf{
-			FieldConf[[]string]{},
-			FieldConf[[]string]{},
-		}
-
-		rmC.Indexes = [][]IndexerConf{
-			{
-				PrefixIndexConf[[]string]{Name: "who"},
-				PrefixIndexConf[[]string]{Name: "whom"},
-			},
-		}
-	}
-
-	if stringPrefixIndexP {
-
-		rmC.Indexes = [][]IndexerConf{
-			{
-				PrefixIndexConf[string]{Name: "who"},
-				PrefixIndexConf[string]{Name: "whom"},
-			},
-		}
-
-	}
-
-	return NewRamCollection(rmC)
-}
-
 func testFilling(col Collection, iteration uint64, prefixI bool) error {
 	var i uint64
 	for i = 0; i < iteration; i++ {
@@ -1418,9 +1463,11 @@ func testFilling(col Collection, iteration uint64, prefixI bool) error {
 			return err
 		}
 	}
+	col.Commit()
 
-	if recordCount(col) != iteration {
-		return fmt.Errorf("Expecting %d rows, got: %d\n", iteration, recordCount(col))
+	rCount := recordCount(col)
+	if rCount != iteration {
+		return fmt.Errorf("Expecting %d rows, got: %d\n", iteration, rCount)
 	}
 
 	return nil
@@ -1460,7 +1507,7 @@ func fillRecords[T any](rows [][]T) []RecordConf {
 }
 
 func testLogical(t *testing.T, op string) []RecordConf {
-	rmc := prepareTable(false, false, false)
+	rmc := prepareRAMCollection(false, false, false)
 
 	err := testFilling(rmc, 2, false)
 	if err != nil {
@@ -1841,31 +1888,11 @@ func inspectCollection(col Collection) {
 }
 
 func recordCount(col Collection) uint64 {
-	switch tc := col.(type) {
-	case *RamCollection:
-		return uint64(len(tc.Rows()))
-
-	case *SolrCollection:
-		_, count, _ := tc.Filter(FilterArgument{
-			QueryConf: QueryAtomConf{
-				QueryConf: nil,
-				MatchType: PrefixIndexConf[string]{
-					IndexerConf: nil,
-					Name:        "",
-					MinPrefix:   0,
-				},
-				Name:  "id",
-				Value: "",
-			},
-			Sort:      []string{},
-			SortOrder: 0,
-			Skip:      0,
-			Limit:     0,
-		})
-		return count
-	default:
-		panic("You should implement this testing related behaviour for your great new collection")
-	}
+	_, count, _ := col.Filter(FilterArgument{
+		Limit:     NO_LIMIT,
+		QueryConf: new(QueryConf),
+	})
+	return count
 }
 
 // func consumeGPfxOutput(rcrds []RecordConf) error {
