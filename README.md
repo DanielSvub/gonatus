@@ -4,7 +4,6 @@ Gonatus is an opensource Golang library for highly scalable environments for uns
 ## Gonatus System
 While Gonatus is meant to be Big Data framework for large scalable environments, we cover these areas:
   * object system with functional serialization,
-  * lazy streams,
   * reinvented file system,
   * logging,
   * network service over various protocols (HTTP, TCP, unix sockets, ...),
@@ -91,11 +90,6 @@ func (ego *Dog) Bark() {
 	fmt.Println("Woof")
 }
 ```
-
-## The Lazy Streams
-Lazy streams are implemented for ability of perfomance management during the stream lifetime. Data are not loaded until they are needed, which allows to process a large amount of data with constant space complexity.
-
-For more information, check `streams/README.md`.
 
 ## Reinvented File System
 Due to limitations of traditional file systems (max path legth, max name size, unicode problems, reserved characters, inode count, ...), we redefined the the architecture of a file system. The term "directory" does not exist, all records in the FS are called files. Each file may have content, topology (child records) or both (so files can also behave as directories). This way we can extract archives into the original file topology.
