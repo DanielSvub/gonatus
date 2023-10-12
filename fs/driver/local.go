@@ -85,14 +85,15 @@ type LocalCountedStorageConf struct {
 
 type localCountedStorageDriver struct {
 	gonatus.Gobject
-	id            gonatus.GId
-	prefix        string
-	files         collection.Collection
-	openFiles     map[collection.CId]*os.File
-	fileLocks     map[collection.CId]*sync.Mutex
-	globalLock    sync.Mutex
-	fileCount     collection.CId
-	locationCount uint64
+	id              gonatus.GId
+	prefix          string
+	files           collection.Collection
+	openFiles       map[collection.CId]*os.File
+	fileLocks       map[collection.CId]*sync.Mutex
+	fileLockMapLock sync.RWMutex
+	globalLock      sync.Mutex
+	fileCount       collection.CId
+	locationCount   uint64
 }
 
 func NewLocalCountedStorage(conf LocalCountedStorageConf) fs.Storage {
@@ -279,8 +280,11 @@ func (ego *localCountedStorageDriver) createFile(absPath fs.Path, location strin
 	ego.globalLock.Lock()
 	ego.fileCount++
 	id = collection.CId(ego.fileCount)
-	ego.fileLocks[id] = new(sync.Mutex)
 	ego.globalLock.Unlock()
+
+	ego.fileLockMapLock.Lock()
+	ego.fileLocks[id] = new(sync.Mutex)
+	ego.fileLockMapLock.Unlock()
 
 	ego.files.AddRecord(collection.RecordConf{
 		Id: id,
@@ -350,11 +354,11 @@ func (ego *localCountedStorageDriver) deleteFile(absPath fs.Path) error {
 			}
 		}
 
+		ego.fileLockMapLock.Lock()
 		if _, exists := ego.fileLocks[rec.Id]; !exists {
-			ego.globalLock.Lock()
 			delete(ego.fileLocks, rec.Id)
-			ego.globalLock.Unlock()
 		}
+		ego.fileLockMapLock.Unlock()
 
 		if err := ego.files.DeleteRecord(collection.RecordConf{
 			Id: rec.Id,
@@ -665,15 +669,15 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 
 		// Creating a file mutex if does not exist
 		if _, exists := ego.fileLocks[fid]; !exists {
-			ego.globalLock.Lock()
+			ego.fileLockMapLock.Lock()
 			ego.fileLocks[fid] = new(sync.Mutex)
-			ego.globalLock.Unlock()
+			ego.fileLockMapLock.Unlock()
 		}
 
 		// Locking the file mutex
-		ego.globalLock.Lock()
+		ego.fileLockMapLock.RLock()
 		ego.fileLocks[fid].Lock()
-		ego.globalLock.Unlock()
+		ego.fileLockMapLock.RUnlock()
 
 		// Opening the existing file
 		fd, err = os.OpenFile(location, modeFlags, 0664)
@@ -709,9 +713,9 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 		}
 
 		// Locking the file mutex
-		ego.globalLock.Lock()
+		ego.fileLockMapLock.RLock()
 		ego.fileLocks[fid].Lock()
-		ego.globalLock.Unlock()
+		ego.fileLockMapLock.RUnlock()
 
 		// Opening the file
 		fd, err = os.OpenFile(fullpath, modeFlags, 0664)
