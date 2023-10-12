@@ -613,8 +613,12 @@ func (ego *localCountedStorageDriver) closeFile(path fs.Path) error {
 	ego.globalLock.Lock()
 	ego.openFiles[rec.Id].Close()
 	delete(ego.openFiles, rec.Id)
-	ego.fileLocks[rec.Id].Unlock()
 	ego.globalLock.Unlock()
+
+	ego.fileLockMapLock.RLock()
+	ego.fileLocks[rec.Id].Unlock()
+	ego.fileLockMapLock.RUnlock()
+
 	rec.Cols[fieldModifTime] = collection.FieldConf[time.Time]{Value: time.Now()}
 	if err := ego.files.EditRecord(rec.conf()); err != nil {
 		return err
