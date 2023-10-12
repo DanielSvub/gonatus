@@ -286,6 +286,7 @@ func (ego *localCountedStorageDriver) createFile(absPath fs.Path, location strin
 	ego.fileLockMapLock.Lock()
 	ego.fileLocks[id] = new(sync.Mutex)
 	ego.fileLockMapLock.Unlock()
+	fmt.Println("create file unlock", id)
 
 	ego.files.AddRecord(collection.RecordConf{
 		Id: id,
@@ -361,6 +362,7 @@ func (ego *localCountedStorageDriver) deleteFile(absPath fs.Path) error {
 			delete(ego.fileLocks, rec.Id)
 		}
 		ego.fileLockMapLock.Unlock()
+		fmt.Println("delete file unlock", rec.Id)
 
 		if err := ego.files.DeleteRecord(collection.RecordConf{
 			Id: rec.Id,
@@ -621,6 +623,7 @@ func (ego *localCountedStorageDriver) closeFile(path fs.Path) error {
 	ego.fileLockMapLock.RLock()
 	ego.fileLocks[rec.Id].Unlock()
 	ego.fileLockMapLock.RUnlock()
+	fmt.Println("close file runlock", rec.Id)
 
 	rec.Cols[fieldModifTime] = collection.FieldConf[time.Time]{Value: time.Now()}
 	if err := ego.files.EditRecord(rec.conf()); err != nil {
@@ -683,6 +686,7 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 			lock = ego.fileLocks[fid]
 		}
 		ego.fileLockMapLock.Unlock()
+		fmt.Println("existing file lock", fid)
 
 		// Locking the file mutex
 		lock.Lock()
@@ -725,6 +729,7 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 		ego.fileLockMapLock.RLock()
 		lock := ego.fileLocks[fid]
 		ego.fileLockMapLock.RUnlock()
+		fmt.Println("new file runlock", fid)
 		lock.Lock()
 
 		// Opening the file
