@@ -282,7 +282,7 @@ func (ego *localCountedStorageDriver) createFile(absPath fs.Path, location strin
 	id = collection.CId(ego.fileCount)
 	ego.globalLock.Unlock()
 
-	fmt.Println("create file lock")
+	fmt.Println("create file lock", id)
 	ego.fileLockMapLock.Lock()
 	ego.fileLocks[id] = new(sync.Mutex)
 	ego.fileLockMapLock.Unlock()
@@ -355,7 +355,7 @@ func (ego *localCountedStorageDriver) deleteFile(absPath fs.Path) error {
 			}
 		}
 
-		fmt.Println("delete file lock")
+		fmt.Println("delete file lock", rec.Id)
 		ego.fileLockMapLock.Lock()
 		if _, exists := ego.fileLocks[rec.Id]; !exists {
 			delete(ego.fileLocks, rec.Id)
@@ -617,7 +617,7 @@ func (ego *localCountedStorageDriver) closeFile(path fs.Path) error {
 	delete(ego.openFiles, rec.Id)
 	ego.globalLock.Unlock()
 
-	fmt.Println("close file rlock")
+	fmt.Println("close file rlock", rec.Id)
 	ego.fileLockMapLock.RLock()
 	ego.fileLocks[rec.Id].Unlock()
 	ego.fileLockMapLock.RUnlock()
@@ -675,7 +675,7 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 		fid = rec.Id
 
 		// Creating a file mutex if does not exist
-		fmt.Println("existing file lock")
+		fmt.Println("existing file lock", fid)
 		ego.fileLockMapLock.Lock()
 		lock, exists := ego.fileLocks[fid]
 		if !exists {
@@ -721,7 +721,7 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 		}
 
 		// Locking the file mutex
-		fmt.Println("new file rlock")
+		fmt.Println("new file rlock", fid)
 		ego.fileLockMapLock.RLock()
 		lock := ego.fileLocks[fid]
 		ego.fileLockMapLock.RUnlock()
