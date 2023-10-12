@@ -671,7 +671,9 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 		}
 
 		// Locking the file mutex
+		ego.globalLock.Lock()
 		ego.fileLocks[fid].Lock()
+		ego.globalLock.Unlock()
 
 		// Opening the existing file
 		fd, err = os.OpenFile(location, modeFlags, 0664)
@@ -707,7 +709,9 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 		}
 
 		// Locking the file mutex
+		ego.globalLock.Lock()
 		ego.fileLocks[fid].Lock()
+		ego.globalLock.Unlock()
 
 		// Opening the file
 		fd, err = os.OpenFile(fullpath, modeFlags, 0664)
