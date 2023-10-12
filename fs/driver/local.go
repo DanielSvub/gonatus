@@ -675,17 +675,14 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 		fid = rec.Id
 
 		// Creating a file mutex if does not exist
-		fmt.Println("existing file rlock")
-		ego.fileLockMapLock.RLock()
+		fmt.Println("existing file lock")
+		ego.fileLockMapLock.Lock()
 		lock, exists := ego.fileLocks[fid]
-		ego.fileLockMapLock.RUnlock()
 		if !exists {
-			fmt.Println("existing file lock")
-			ego.fileLockMapLock.Lock()
 			ego.fileLocks[fid] = new(sync.Mutex)
 			lock = ego.fileLocks[fid]
-			ego.fileLockMapLock.Unlock()
 		}
+		ego.fileLockMapLock.Unlock()
 
 		// Locking the file mutex
 		lock.Lock()
