@@ -695,6 +695,7 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 		// Opening the existing file
 		fd, err = os.OpenFile(location, modeFlags, 0664)
 		if err != nil {
+			lock.Unlock()
 			return nil, err
 		}
 
@@ -736,6 +737,7 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 		// Opening the file
 		fd, err = os.OpenFile(fullpath, modeFlags, 0664)
 		if err != nil {
+			lock.Unlock()
 			return nil, err
 		}
 
