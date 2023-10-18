@@ -621,8 +621,9 @@ func (ego *localCountedStorageDriver) closeFile(path fs.Path) error {
 
 	fmt.Println("close file rlock", rec.Id)
 	ego.fileLockMapLock.RLock()
-	ego.fileLocks[rec.Id].Unlock()
+	lock := ego.fileLocks[rec.Id]
 	ego.fileLockMapLock.RUnlock()
+	lock.Unlock()
 	fmt.Println("close file runlock", rec.Id)
 
 	rec.Cols[fieldModifTime] = collection.FieldConf[time.Time]{Value: time.Now()}
@@ -686,7 +687,7 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 			lock = ego.fileLocks[fid]
 		}
 		ego.fileLockMapLock.Unlock()
-		fmt.Println("existing file lock", fid)
+		fmt.Println("existing file unlock", fid)
 
 		// Locking the file mutex
 		lock.Lock()
