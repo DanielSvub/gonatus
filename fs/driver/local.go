@@ -690,7 +690,9 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 		fmt.Println("existing file unlock", fid)
 
 		// Locking the file mutex
+		fmt.Println("actual lock locking", fid)
 		lock.Lock()
+		fmt.Println("actual lock locked", fid)
 
 		// Opening the existing file
 		fd, err = os.OpenFile(location, modeFlags, 0664)
@@ -732,7 +734,9 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 		lock := ego.fileLocks[fid]
 		ego.fileLockMapLock.RUnlock()
 		fmt.Println("new file runlock", fid)
+		fmt.Println("actual lock new file locking", fid)
 		lock.Lock()
+		fmt.Println("actual lock new file locked", fid)
 
 		// Opening the file
 		fd, err = os.OpenFile(fullpath, modeFlags, 0664)
