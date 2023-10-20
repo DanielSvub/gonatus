@@ -475,12 +475,13 @@ type StorageDriver interface {
 		Closes one descriptor of a file.
 
 		Parameters:
-		  - descriptor - descriptor to close.
+		  - descriptor - descriptor to close,
+		  - path - path to the file.
 
 		Returns:
 		  - error if any occurred.
 	*/
-	CloseDescriptor(descriptor FileDescriptor) error
+	CloseDescriptor(descriptor FileDescriptor, path Path) error
 
 	/*
 		Closes all descriptors of a file.

@@ -24,6 +24,7 @@ Gonatus abstraction of the Golang file descriptor.
 type localFileDescriptor struct {
 	id     descriptorId
 	fileId collection.CId
+	mode   fs.FileMode
 	fd     *os.File
 }
 
@@ -344,6 +345,10 @@ func (ego *localCountedStorageDriver) deleteFile(absPath fs.Path) error {
 
 	return ego.forFilesWithPrefix(absPath, func(rec record) error {
 
+		if err := ego.CloseFile(absPath); err != nil {
+			return err
+		}
+
 		if err := ego.files.DeleteRecord(collection.RecordConf{
 			Id: rec.Id,
 		}); err != nil {
@@ -466,7 +471,7 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 	if err != nil {
 		return err
 	}
-	defer ego.CloseDescriptor(srcFd)
+	defer ego.CloseDescriptor(srcFd, source)
 
 	// Creating a new location
 	newLocation, err := ego.newLocation()
@@ -578,12 +583,13 @@ Closes a file descriptor.
 Invokes closing of file descriptor, deletes the it from opened files and refreshes the modification time in the file table.
 
 Parameters:
+  - descriptor - file descriptor to close,
   - path - absolute path to the file.
 
 Returns:
   - error if any occurred.
 */
-func (ego *localCountedStorageDriver) closeDescriptor(descriptor *localFileDescriptor) error {
+func (ego *localCountedStorageDriver) closeDescriptor(descriptor *localFileDescriptor, path fs.Path) error {
 
 	if descriptor == nil {
 		return errors.NewNilError(ego, errors.LevelError, "nil file descriptor")
@@ -607,18 +613,23 @@ func (ego *localCountedStorageDriver) closeDescriptor(descriptor *localFileDescr
 
 	descriptor.fd.Close()
 
-	// TODO modif time
-	/* rec.Cols[fieldModifTime] = collection.FieldConf[time.Time]{Value: time.Now()}
-	if err := ego.files.EditRecord(rec.conf()); err != nil {
-		return err
-	} */
+	if descriptor.mode != fs.ModeRead {
+		if rec, err := ego.findFile(path); err != nil {
+			return errors.NewNotFoundError(ego, errors.LevelError, "missing entry in the file table")
+		} else {
+			rec.Cols[fieldModifTime] = collection.FieldConf[time.Time]{Value: time.Now()}
+			if err := ego.files.EditRecord(rec.conf()); err != nil {
+				return err
+			}
+		}
+	}
 
 	return nil
 }
 
 /*
 Closes a file.
-Invokes closing of file descriptor, deletes the it from opened files and refreshes the modification time in the file table.
+Invokes closing all file descriptor and deletes the them from opened files.
 
 Parameters:
   - path - absolute path to the file.
@@ -643,12 +654,6 @@ func (ego *localCountedStorageDriver) closeFile(path fs.Path) error {
 	}
 	delete(ego.openFiles, rec.Id)
 	ego.globalLock.Unlock()
-
-	// TODO modif time
-	rec.Cols[fieldModifTime] = collection.FieldConf[time.Time]{Value: time.Now()}
-	if err := ego.files.EditRecord(rec.conf()); err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -756,17 +761,18 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 	return &localFileDescriptor{
 		id:     id,
 		fileId: fid,
+		mode:   mode,
 		fd:     fd,
 	}, nil
 
 }
 
-func (ego *localCountedStorageDriver) CloseDescriptor(descriptor fs.FileDescriptor) error {
+func (ego *localCountedStorageDriver) CloseDescriptor(descriptor fs.FileDescriptor, path fs.Path) error {
 	localDescriptor, ok := descriptor.(*localFileDescriptor)
 	if !ok {
 		return errors.NewMisappError(ego, "not a compatible descriptor")
 	}
-	return ego.closeDescriptor(localDescriptor)
+	return ego.closeDescriptor(localDescriptor, path)
 }
 
 func (ego *localCountedStorageDriver) CloseFile(path fs.Path) error {
@@ -808,7 +814,7 @@ func (ego *localCountedStorageDriver) Size(path fs.Path) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer ego.CloseDescriptor(descriptor)
+	defer ego.CloseDescriptor(descriptor, path)
 
 	stat, err := descriptor.(*localFileDescriptor).fd.Stat()
 	if err != nil {
