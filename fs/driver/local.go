@@ -680,9 +680,11 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 
 	} else if rec != nil {
 
+		ego.globalLock.Lock()
 		if _, exists := ego.openFiles[rec.Id]; exists && modeFlags&os.O_WRONLY > 0 {
 			return nil, errors.NewStateError(ego, errors.LevelError, "cannot read and write to the same file at the same time")
 		}
+		ego.globalLock.Unlock()
 
 		var err error
 		location := rec.location()
