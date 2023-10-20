@@ -16,11 +16,15 @@ import (
 	"github.com/SpongeData-cz/gonatus"
 )
 
+type descriptorId uint64
+
 /*
 Gonatus abstraction of the Golang file descriptor.
 */
 type localFileDescriptor struct {
-	fd *os.File
+	id     descriptorId
+	fileId collection.CId
+	fd     *os.File
 }
 
 func (ego *localFileDescriptor) Read(p []byte) (n int, err error) {
@@ -85,13 +89,14 @@ type LocalCountedStorageConf struct {
 
 type localCountedStorageDriver struct {
 	gonatus.Gobject
-	id            gonatus.GId
-	prefix        string
-	files         collection.Collection
-	openFiles     map[collection.CId]*os.File
-	globalLock    sync.Mutex
-	fileCount     collection.CId
-	locationCount uint64
+	id              gonatus.GId
+	prefix          string
+	files           collection.Collection
+	openFiles       map[collection.CId]map[descriptorId]*os.File
+	globalLock      sync.Mutex
+	fileCount       collection.CId
+	locationCount   uint64
+	descriptorCount descriptorId
 }
 
 func NewLocalCountedStorage(conf LocalCountedStorageConf) fs.Storage {
@@ -116,7 +121,7 @@ func NewLocalCountedStorage(conf LocalCountedStorageConf) fs.Storage {
 			}},
 		},
 	})
-	ego.openFiles = make(map[collection.CId]*os.File)
+	ego.openFiles = make(map[collection.CId]map[descriptorId]*os.File)
 	ego.createRoot()
 	return fs.NewStorage(ego)
 }
@@ -461,7 +466,7 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 	if err != nil {
 		return err
 	}
-	defer ego.Close(source)
+	defer ego.CloseDescriptor(srcFd)
 
 	// Creating a new location
 	newLocation, err := ego.newLocation()
@@ -569,6 +574,49 @@ func (ego *localCountedStorageDriver) exportToStream(absPath fs.Path, depth fs.D
 }
 
 /*
+Closes a file descriptor.
+Invokes closing of file descriptor, deletes the it from opened files and refreshes the modification time in the file table.
+
+Parameters:
+  - path - absolute path to the file.
+
+Returns:
+  - error if any occurred.
+*/
+func (ego *localCountedStorageDriver) closeDescriptor(descriptor *localFileDescriptor) error {
+
+	if descriptor == nil {
+		return errors.NewNilError(ego, errors.LevelError, "nil file descriptor")
+	}
+
+	ego.globalLock.Lock()
+	if fds, exists := ego.openFiles[descriptor.fileId]; !exists {
+		return errors.NewNotFoundError(ego, errors.LevelError, "file not found")
+	} else {
+		if fd, exists := fds[descriptor.id]; !exists {
+			return errors.NewNotFoundError(ego, errors.LevelError, "file not found")
+		} else {
+			fd.Close()
+			delete(ego.openFiles[descriptor.fileId], descriptor.id)
+			if len(ego.openFiles[descriptor.fileId]) == 0 {
+				delete(ego.openFiles, descriptor.fileId)
+			}
+		}
+	}
+	ego.globalLock.Unlock()
+
+	descriptor.fd.Close()
+
+	// TODO modif time
+	/* rec.Cols[fieldModifTime] = collection.FieldConf[time.Time]{Value: time.Now()}
+	if err := ego.files.EditRecord(rec.conf()); err != nil {
+		return err
+	} */
+
+	return nil
+}
+
+/*
 Closes a file.
 Invokes closing of file descriptor, deletes the it from opened files and refreshes the modification time in the file table.
 
@@ -590,9 +638,13 @@ func (ego *localCountedStorageDriver) closeFile(path fs.Path) error {
 	}
 
 	ego.globalLock.Lock()
-	ego.openFiles[rec.Id].Close()
+	for _, fd := range ego.openFiles[rec.Id] {
+		fd.Close()
+	}
 	delete(ego.openFiles, rec.Id)
 	ego.globalLock.Unlock()
+
+	// TODO modif time
 	rec.Cols[fieldModifTime] = collection.FieldConf[time.Time]{Value: time.Now()}
 	if err := ego.files.EditRecord(rec.conf()); err != nil {
 		return err
@@ -623,8 +675,14 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 
 	// Checking if the file exists
 	if rec, err := ego.findFile(path); err != nil {
+
 		return nil, err
+
 	} else if rec != nil {
+
+		if _, exists := ego.openFiles[rec.Id]; exists && modeFlags&os.O_WRONLY > 0 {
+			return nil, errors.NewStateError(ego, errors.LevelError, "cannot read and write to the same file at the same time")
+		}
 
 		var err error
 		location := rec.location()
@@ -685,16 +743,31 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 	}
 
 	ego.globalLock.Lock()
-	ego.openFiles[fid] = fd
+	if _, exists := ego.openFiles[fid]; !exists {
+		ego.openFiles[fid] = make(map[descriptorId]*os.File)
+	}
+	id := ego.descriptorCount
+	ego.openFiles[fid][id] = fd
+	ego.descriptorCount++
 	ego.globalLock.Unlock()
 
 	return &localFileDescriptor{
-		fd: fd,
+		id:     id,
+		fileId: fid,
+		fd:     fd,
 	}, nil
 
 }
 
-func (ego *localCountedStorageDriver) Close(path fs.Path) error {
+func (ego *localCountedStorageDriver) CloseDescriptor(descriptor fs.FileDescriptor) error {
+	localDescriptor, ok := descriptor.(*localFileDescriptor)
+	if !ok {
+		return errors.NewMisappError(ego, "not a compatible descriptor")
+	}
+	return ego.closeDescriptor(localDescriptor)
+}
+
+func (ego *localCountedStorageDriver) CloseFile(path fs.Path) error {
 	return ego.closeFile(path)
 }
 
@@ -724,28 +797,18 @@ func (ego *localCountedStorageDriver) Tree(path fs.Path, depth fs.Depth) (stream
 
 func (ego *localCountedStorageDriver) Size(path fs.Path) (uint64, error) {
 
-	var fd *os.File
-
-	rec, err := ego.findFile(path)
+	_, err := ego.findFile(path)
 	if err != nil {
 		return 0, err
 	}
 
-	ego.globalLock.Lock()
-	if ofd, ok := ego.openFiles[rec.Id]; !ok {
-		ego.globalLock.Unlock()
-		descriptor, err := ego.Open(path, fs.ModeRead, fs.FileUndetermined, *new(time.Time))
-		if err != nil {
-			return 0, err
-		}
-		fd = descriptor.(*localFileDescriptor).fd
-		defer ego.Close(path)
-	} else {
-		ego.globalLock.Unlock()
-		fd = ofd
+	descriptor, err := ego.Open(path, fs.ModeRead, fs.FileUndetermined, *new(time.Time))
+	if err != nil {
+		return 0, err
 	}
+	defer ego.CloseDescriptor(descriptor)
 
-	stat, err := fd.Stat()
+	stat, err := descriptor.(*localFileDescriptor).fd.Stat()
 	if err != nil {
 		return 0, err
 	}
@@ -799,10 +862,12 @@ func (ego *localCountedStorageDriver) Clear() error {
 		return err
 	}
 
-	for _, fd := range ego.openFiles {
-		fd.Close()
+	for _, fds := range ego.openFiles {
+		for _, fd := range fds {
+			fd.Close()
+		}
 	}
-	ego.openFiles = make(map[collection.CId]*os.File)
+	ego.openFiles = make(map[collection.CId]map[descriptorId]*os.File)
 
 	ego.createRoot()
 	ego.locationCount = 0

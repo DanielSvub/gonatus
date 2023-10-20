@@ -252,8 +252,8 @@ Extends:
 */
 type File interface {
 	gonatus.Gobjecter
-	io.Closer
 	FileDescriptor
+	io.Closer
 
 	/*
 		Acquires a storage where the file is stored.
@@ -472,7 +472,18 @@ type StorageDriver interface {
 	Open(path Path, mode FileMode, givenFlags FileFlags, origTime time.Time) (FileDescriptor, error)
 
 	/*
-		Closes a file.
+		Closes one descriptor of a file.
+
+		Parameters:
+		  - descriptor - descriptor to close.
+
+		Returns:
+		  - error if any occurred.
+	*/
+	CloseDescriptor(descriptor FileDescriptor) error
+
+	/*
+		Closes all descriptors of a file.
 
 		Parameters:
 		  - path - path to the file.
@@ -480,7 +491,7 @@ type StorageDriver interface {
 		Returns:
 		  - error if any occurred.
 	*/
-	Close(path Path) error
+	CloseFile(path Path) error
 
 	/*
 		Adds the topology flag to the file.
