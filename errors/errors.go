@@ -29,6 +29,7 @@ Type of the error.
 type ErrorType string
 
 const (
+	TypeNA       ErrorType = "UndeterminedError"    // The type of the error was not specified
 	TypeUnknown  ErrorType = "UnknownError"         // The program got into a state which should theoretically be impossible.
 	TypeNil      ErrorType = "NilError"             // Value missing where expected.
 	TypeValue    ErrorType = "ValueError"           // Value present but not valid.
