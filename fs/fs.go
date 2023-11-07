@@ -177,7 +177,6 @@ func (ego *StorageManager) UnregisterStorage(s Storage) error {
 	defer ego.mutex.Unlock()
 	delete(ego.registeredStorages, index)
 	s.driver().SetId(0)
-	println()
 	return nil
 }
 
@@ -195,7 +194,7 @@ func (ego *StorageManager) Fetch(e gonatus.GId) (Storage, error) {
 	ego.mutex.Lock()
 	defer ego.mutex.Unlock()
 	if ego.registeredStorages[e] == nil {
-		return nil, errors.NewNotFoundError(ego, errors.LevelError, "No storage with index "+fmt.Sprint(e)+".")
+		return nil, errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("no storage with ID %d", e))
 	}
 	return &storageController{ego.registeredStorages[e], Path{}}, nil
 }
@@ -218,7 +217,7 @@ func (ego *StorageManager) GetId(s Storage) (gonatus.GId, error) {
 			return id, nil
 		}
 	}
-	return *new(gonatus.GId), errors.NewNotFoundError(ego, errors.LevelError, "Storage not found.")
+	return *new(gonatus.GId), errors.NewNotFoundError(ego, errors.LevelError, "storage not found")
 }
 
 func (ego *StorageManager) Serialize() gonatus.Conf {

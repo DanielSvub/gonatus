@@ -184,7 +184,7 @@ func (ego *file) Name() string {
 func (ego *file) Copy(dst File) error {
 
 	if ego.Storage() == nil {
-		return errors.NewNilError(ego, errors.LevelError, "Storage not set.")
+		return errors.NewNilError(ego, errors.LevelError, "storage not set")
 	}
 
 	if ego.Storage().driver().Id() == dst.Storage().driver().Id() {
@@ -203,7 +203,7 @@ func (ego *file) Copy(dst File) error {
 func (ego *file) Move(dst File) error {
 
 	if ego.Storage() == nil {
-		return errors.NewNilError(ego, errors.LevelError, "Storage not set.")
+		return errors.NewNilError(ego, errors.LevelError, "storage not set")
 	}
 
 	if ego.Storage().driver().Id() == dst.Storage().driver().Id() {
@@ -241,7 +241,7 @@ func (ego *file) Move(dst File) error {
 
 func (ego *file) Delete() error {
 	if ego.Storage() == nil {
-		return errors.NewNilError(ego, errors.LevelError, "Storage not set.")
+		return errors.NewNilError(ego, errors.LevelError, "storage not set")
 	}
 	if err := ego.Storage().driver().Delete(ego.path); err != nil {
 		return err
@@ -252,11 +252,11 @@ func (ego *file) Delete() error {
 func (ego *file) Open(mode FileMode) error {
 
 	if ego.fd != nil {
-		return errors.NewStateError(ego, errors.LevelError, "The file is already open.")
+		return errors.NewStateError(ego, errors.LevelError, "file already open")
 	}
 
 	if ego.Storage() == nil {
-		return errors.NewNilError(ego, errors.LevelError, "Storage not set.")
+		return errors.NewNilError(ego, errors.LevelError, "storage not set")
 	}
 
 	fd, err := ego.Storage().driver().Open(ego.path, mode, ego.stat.Flags, ego.stat.OrigTime)
@@ -272,7 +272,7 @@ func (ego *file) Open(mode FileMode) error {
 
 func (ego *file) MkDir() error {
 	if ego.Storage() == nil {
-		return errors.NewNilError(ego, errors.LevelError, "Storage not set.")
+		return errors.NewNilError(ego, errors.LevelError, "storage not set")
 	}
 	ego.stat.Flags |= FileTopology
 	return ego.Storage().driver().MkDir(ego.path, ego.stat.OrigTime)
@@ -280,14 +280,14 @@ func (ego *file) MkDir() error {
 
 func (ego *file) Tree(depth Depth) (stream.Producer[File], error) {
 	if ego.Storage() == nil {
-		return nil, errors.NewNilError(ego, errors.LevelError, "Storage not set.")
+		return nil, errors.NewNilError(ego, errors.LevelError, "storage not set")
 	}
 	return ego.Storage().driver().Tree(ego.path, depth)
 }
 
 func (ego *file) Stat() (FileStat, error) {
 	if ego.Storage() == nil {
-		return *new(FileStat), errors.NewNilError(ego, errors.LevelError, "Storage not set.")
+		return *new(FileStat), errors.NewNilError(ego, errors.LevelError, "storage not set")
 	}
 	var err error
 	ego.stat.Flags, err = ego.Storage().driver().Flags(ego.path)
@@ -306,45 +306,45 @@ func (ego *file) SetOrigTime(time time.Time) {
 
 func (ego *file) Read(p []byte) (n int, err error) {
 	if ego.fd == nil {
-		return 0, errors.NewStateError(ego, errors.LevelError, "File not open.")
+		return 0, errors.NewStateError(ego, errors.LevelError, "file not open")
 	}
 	return ego.fd.Read(p)
 }
 
 func (ego *file) ReadFrom(r io.Reader) (n int64, err error) {
 	if ego.fd == nil {
-		return 0, errors.NewStateError(ego, errors.LevelError, "File not open.")
+		return 0, errors.NewStateError(ego, errors.LevelError, "file not open")
 	}
 	return ego.fd.ReadFrom(r)
 }
 
 func (ego *file) ReadAt(p []byte, off int64) (n int, err error) {
 	if ego.fd == nil {
-		return 0, errors.NewStateError(ego, errors.LevelError, "File not open.")
+		return 0, errors.NewStateError(ego, errors.LevelError, "file not open")
 	}
 	return ego.fd.ReadAt(p, off)
 }
 
 func (ego *file) Write(p []byte) (n int, err error) {
 	if ego.fd == nil {
-		return 0, errors.NewStateError(ego, errors.LevelError, "File not open.")
+		return 0, errors.NewStateError(ego, errors.LevelError, "file not open")
 	}
 	return ego.fd.Write(p)
 }
 
 func (ego *file) Seek(offset int64, whence int) (int64, error) {
 	if ego.fd == nil {
-		return 0, errors.NewStateError(ego, errors.LevelError, "File not open.")
+		return 0, errors.NewStateError(ego, errors.LevelError, "file not open")
 	}
 	return ego.fd.Seek(offset, whence)
 }
 
 func (ego *file) Close() error {
 	if ego.fd == nil {
-		return errors.NewStateError(ego, errors.LevelError, "File not open.")
+		return errors.NewStateError(ego, errors.LevelError, "file not open")
 	}
 	if ego.Storage() == nil {
-		return errors.NewNilError(ego, errors.LevelError, "Storage not set.")
+		return errors.NewNilError(ego, errors.LevelError, "storage not set")
 	}
 	ego.stat.ModifTime = time.Now()
 	if err := ego.Storage().driver().CloseDescriptor(ego.fd, ego.path); err != nil {

@@ -175,7 +175,7 @@ func (ego *localCountedStorageDriver) findFile(absPath fs.Path) (*record, error)
 			return nil, err
 		} else {
 			if _, valid, _ := s.Get(); valid {
-				return nil, errors.NewStateError(ego, errors.LevelError, "Multiple records found for a single path "+absPath.String()+".")
+				return nil, errors.NewStateError(ego, errors.LevelError, fmt.Sprintf("multiple records found for a single path %s", absPath.String()))
 			}
 			rec := record(value)
 			return &rec, nil
@@ -276,7 +276,7 @@ func (ego *localCountedStorageDriver) createFile(absPath fs.Path, location strin
 	}
 
 	if parent == nil {
-		err = errors.NewNotFoundError(ego, errors.LevelError, "The path does not exist.")
+		err = errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("the path %s does not exist", absPath.String()))
 		return
 	}
 
@@ -401,13 +401,13 @@ func (ego *localCountedStorageDriver) moveFile(source fs.Path, dest fs.Path) err
 	if rec, err := ego.findFile(dest); err != nil {
 		return err
 	} else if rec != nil {
-		return errors.NewStateError(ego, errors.LevelError, "File of the same name already exists in the destination path.")
+		return errors.NewStateError(ego, errors.LevelError, fmt.Sprintf("file %s already exists in the destination path", dest.String()))
 	}
 
 	if rec, err := ego.findFile(source); err != nil {
 		return err
 	} else if rec == nil {
-		return errors.NewNotFoundError(ego, errors.LevelError, `The file "`+source.Base()+`" does not exist.`)
+		return errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("file %s does not exist", source.String()))
 	} else {
 		if err := ego.files.DeleteRecord(collection.RecordConf{
 			Id: rec.Id,
@@ -454,7 +454,7 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 	if rec, err := ego.findFile(dest); err != nil {
 		return err
 	} else if rec != nil {
-		return errors.NewStateError(ego, errors.LevelError, "File of the same name already exists in the destination path.")
+		return errors.NewStateError(ego, errors.LevelError, fmt.Sprintf("file %s already exists in the destination path", dest.String()))
 	}
 
 	rec, err := ego.findFile(source)
@@ -463,7 +463,7 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 	}
 
 	if rec == nil {
-		return errors.NewNotFoundError(ego, errors.LevelError, `The file "`+source.Base()+`" does not exist.`)
+		return errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("file %s does not exist", source.String()))
 	}
 
 	// Opening the old file
@@ -549,7 +549,7 @@ func (ego *localCountedStorageDriver) exportToStream(absPath fs.Path, depth fs.D
 	if err != nil {
 		return nil, err
 	} else if rec == nil {
-		return nil, errors.NewNotFoundError(ego, errors.LevelError, "The path does not exist.")
+		return nil, errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("file %s does not exist", absPath.String()))
 	}
 
 	pathLen := len(absPath)
@@ -597,10 +597,10 @@ func (ego *localCountedStorageDriver) closeDescriptor(descriptor *localFileDescr
 
 	ego.globalLock.Lock()
 	if fds, exists := ego.openFiles[descriptor.fileId]; !exists {
-		return errors.NewNotFoundError(ego, errors.LevelError, "file not found")
+		return errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("file %s does not exist", path.String()))
 	} else {
 		if fd, exists := fds[descriptor.id]; !exists {
-			return errors.NewNotFoundError(ego, errors.LevelError, "file not found")
+			return errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("file %s does not exist", path.String()))
 		} else {
 			fd.Close()
 			delete(ego.openFiles[descriptor.fileId], descriptor.id)
@@ -615,7 +615,7 @@ func (ego *localCountedStorageDriver) closeDescriptor(descriptor *localFileDescr
 
 	if descriptor.mode != fs.ModeRead {
 		if rec, err := ego.findFile(path); err != nil {
-			return errors.NewNotFoundError(ego, errors.LevelError, "missing entry in the file table")
+			return errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("missing entry in the file table for file %s", path.String()))
 		} else {
 			rec.Cols[fieldModifTime] = collection.FieldConf[time.Time]{Value: time.Now()}
 			if err := ego.files.EditRecord(rec.conf()); err != nil {
@@ -645,7 +645,7 @@ func (ego *localCountedStorageDriver) closeFile(path fs.Path) error {
 	}
 
 	if rec == nil {
-		return errors.NewNotFoundError(ego, errors.LevelError, `The file "`+path.String()+`" does not exist.`)
+		return errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("file %s does not exist", path.String()))
 	}
 
 	ego.globalLock.Lock()
@@ -672,7 +672,7 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 	case fs.ModeRW:
 		modeFlags = os.O_RDWR | os.O_CREATE
 	default:
-		return nil, errors.NewMisappError(ego, "Invalid opening mode.")
+		return nil, errors.NewMisappError(ego, "invalid opening mode")
 	}
 
 	var fd *os.File
@@ -687,7 +687,7 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 
 		ego.globalLock.Lock()
 		if _, exists := ego.openFiles[rec.Id]; exists && modeFlags&os.O_WRONLY > 0 {
-			return nil, errors.NewStateError(ego, errors.LevelError, "cannot read and write to the same file at the same time")
+			return nil, errors.NewStateError(ego, errors.LevelError, "cannot write to an already opened file")
 		}
 		ego.globalLock.Unlock()
 
@@ -720,7 +720,7 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 
 		// If in read mode, error (the file cannot be created without write permission)
 		if mode == fs.ModeRead {
-			return nil, errors.NewNotFoundError(ego, errors.LevelError, `The file "`+path.String()+`" does not exist.`)
+			return nil, errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("file %s does not exist", path.String()))
 		}
 
 		// Checking if the parent file exists, if not, creating it
@@ -790,7 +790,7 @@ func (ego *localCountedStorageDriver) Copy(srcPath fs.Path, dstPath fs.Path) err
 
 func (ego *localCountedStorageDriver) Move(srcPath fs.Path, dstPath fs.Path) error {
 	if srcPath.Equals(dstPath) {
-		errors.NewStateError(ego, errors.LevelWarning, "The source and destination paths are equal.")
+		errors.NewStateError(ego, errors.LevelWarning, "source and destination paths are equal")
 	}
 	return ego.moveFile(srcPath, dstPath)
 }
@@ -840,9 +840,9 @@ func (ego *localCountedStorageDriver) Location(path fs.Path) (location string, e
 	if err == nil {
 
 		if rec == nil {
-			err = errors.NewNotFoundError(ego, errors.LevelError, "The file does not exist.")
+			err = errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("file %s does not exist", path.String()))
 		} else if rec.flags()&fs.FileContent == 0 {
-			err = errors.NewStateError(ego, errors.LevelWarning, "The file does not have content.")
+			err = errors.NewStateError(ego, errors.LevelWarning, fmt.Sprintf("file %s does not have content", path.String()))
 		} else {
 			location = rec.location()
 		}
