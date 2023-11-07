@@ -74,11 +74,7 @@ Returns:
   - created error.
 */
 func NewSrcWrapper(src gonatus.Gobjecter, err error) error {
-	var srcMsg string
-	if err.(gonatusError).level >= thresholdLevel {
-		srcMsg = serializeSource(src)
-	}
-	return Wrap(srcMsg, "SourceWrapper", err)
+	return Wrap(serializeSource(src), "SourceWrapper", err)
 }
 
 /*
