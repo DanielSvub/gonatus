@@ -81,9 +81,7 @@ func NewSrcWrapper(src gonatus.Gobjecter, err error) error {
 Creates a new Gonatus error.
 
 Parameters:
-  - errType - type of the error,
-  - level - how serious the error is,
-  - msg - what happened.
+  - conf - serialized error.
 
 Returns:
   - created error.
@@ -91,7 +89,7 @@ Returns:
 func New(conf ErrorConf) error {
 
 	ego := gonatusError{
-		errType:   conf.ErrType,
+		errType:   conf.Type,
 		msg:       conf.Msg,
 		traceback: conf.Traceback,
 		level:     conf.Level,
@@ -267,7 +265,7 @@ func Serialize(err error) gonatus.Conf {
 		}
 
 		return ErrorConf{
-			ErrType:   gonatusErr.errType,
+			Type:      gonatusErr.errType,
 			Level:     gonatusErr.level,
 			Msg:       gonatusErr.msg,
 			Traceback: traceback,
@@ -281,11 +279,11 @@ func Serialize(err error) gonatus.Conf {
 }
 
 type ErrorConf struct {
-	ErrType   ErrorType
-	Level     ErrorLevel
-	Msg       string
-	Traceback string
-	Wrapped   []ErrorConf
+	Type      ErrorType   `json:"type"`
+	Level     ErrorLevel  `json:"level"`
+	Msg       string      `json:"msg"`
+	Traceback string      `json:"traceback,omitempty"`
+	Wrapped   []ErrorConf `json:"wrapped,omitempty"`
 }
 
 /*
