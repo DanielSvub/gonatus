@@ -281,7 +281,7 @@ func Serialize(err error) gonatus.Conf {
 
 type ErrorConf struct {
 	Type      ErrorType   `json:"type"`
-	Level     ErrorLevel  `json:"level"`
+	Level     ErrorLevel  `json:"level,omitempty"`
 	Msg       string      `json:"msg"`
 	Traceback string      `json:"traceback,omitempty"`
 	Wrapped   []ErrorConf `json:"wrapped,omitempty"`
