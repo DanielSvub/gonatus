@@ -18,6 +18,7 @@ type ErrorLevel int
 
 const (
 	LevelWrapper ErrorLevel = -8 // Not even an error, the actual one is wrapped inside.
+	LevelInfo    ErrorLevel = 0  // Non-standard situation has occurred, but program continues normally.
 	LevelWarning ErrorLevel = 4  // Something did not work out, alternative approach used.
 	LevelError   ErrorLevel = 8  // Normal error level.
 	LevelFatal   ErrorLevel = 12 // Most serious error, impossible to continue.
