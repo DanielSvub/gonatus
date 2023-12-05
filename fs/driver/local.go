@@ -154,19 +154,19 @@ func (ego *localCountedStorageDriver) createRoot() error {
 Acquires the record of the file with the given path.
 
 Parameters:
-  - absPath - absolute path to the file.
+  - path - absolute path to the file.
 
 Returns:
   - pointer to the record of the found file, nil if the path does not exist,
   - error if any occurred.
 */
-func (ego *localCountedStorageDriver) findFile(absPath fs.Path) (*record, error) {
+func (ego *localCountedStorageDriver) findFile(path fs.Path) (*record, error) {
 
 	if s, err := ego.files.Filter(collection.FilterArgument{
 		Limit: collection.NO_LIMIT,
 		QueryConf: collection.QueryAtomConf{
 			Name:      "path",
-			Value:     []string(absPath),
+			Value:     []string(path),
 			MatchType: collection.FullmatchIndexConf[[]string]{},
 		}}); err != nil {
 		return nil, err
@@ -175,7 +175,7 @@ func (ego *localCountedStorageDriver) findFile(absPath fs.Path) (*record, error)
 			return nil, err
 		} else {
 			if _, valid, _ := s.Get(); valid {
-				return nil, errors.NewStateError(ego, errors.LevelError, fmt.Sprintf("multiple records found for a single path %s", absPath.String()))
+				return nil, errors.NewStateError(ego, errors.LevelError, fmt.Sprintf("multiple records found for a single path %s", path.String()))
 			}
 			rec := record(value)
 			return &rec, nil
@@ -241,7 +241,7 @@ Creates a new counted storage location.
 Increments the file counter and creates the directory tree in local file system, if it does not exist.
 
 Returns:
-  - location - destination fullpath (12 numbers splitted by 3 + ".bin"),
+  - location - destination fullpath (12 numbers splitted by 3 + .bin extension),
   - err - error if any occurred.
 */
 func (ego *localCountedStorageDriver) newLocation() (location string, err error) {
@@ -259,7 +259,7 @@ func (ego *localCountedStorageDriver) newLocation() (location string, err error)
 Crates an entry in the file table.
 
 Parameters:
-  - absPath - absolute path to the file,
+  - path - absolute path to the file,
   - location - a physical location of the file on the disk (if the file has content, empty otherwise),
   - givenFlags - flags entered in FileConf,
   - origTime - time when the file was originally created.
@@ -268,15 +268,15 @@ Returns:
   - id - ID of the created file,
   - err - error if any occurred.
 */
-func (ego *localCountedStorageDriver) createFile(absPath fs.Path, location string, givenFlags fs.FileFlags, origTime time.Time) (id collection.CId, err error) {
+func (ego *localCountedStorageDriver) createFile(path fs.Path, location string, givenFlags fs.FileFlags, origTime time.Time) (id collection.CId, err error) {
 
-	parent, err := ego.findFile(absPath.Dir())
+	parent, err := ego.findFile(path.Dir())
 	if err != nil {
 		return
 	}
 
 	if parent == nil {
-		err = errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("the path %s does not exist", absPath.String()))
+		err = errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("the path %s does not exist", path.String()))
 		return
 	}
 
@@ -289,7 +289,7 @@ func (ego *localCountedStorageDriver) createFile(absPath fs.Path, location strin
 		Id: id,
 		Cols: []collection.FielderConf{
 			collection.FieldConf[uint64]{Value: uint64(parent.Id)},
-			collection.FieldConf[[]string]{Value: []string(absPath)},
+			collection.FieldConf[[]string]{Value: []string(path)},
 			collection.FieldConf[uint8]{Value: uint8(givenFlags)},
 			collection.FieldConf[string]{Value: location},
 			collection.FieldConf[time.Time]{Value: origTime},
@@ -306,12 +306,12 @@ Creates a directory (a file with topology).
 If the file already exists, just adds the topology flag, otherwise creates a new one.
 
 Parameters:
-  - absPath - absolute path to the file,
+  - path - absolute path to the file,
   - origTime - time when the file was originally created.
 */
-func (ego *localCountedStorageDriver) createDir(absPath fs.Path, origTime time.Time) (collection.CId, error) {
+func (ego *localCountedStorageDriver) createDir(path fs.Path, origTime time.Time) (collection.CId, error) {
 
-	rec, err := ego.findFile(absPath)
+	rec, err := ego.findFile(path)
 	if err != nil {
 		return 0, err
 	}
@@ -324,10 +324,10 @@ func (ego *localCountedStorageDriver) createDir(absPath fs.Path, origTime time.T
 		return rec.Id, nil
 	}
 
-	if _, err := ego.createDir(absPath.Dir(), origTime); err != nil {
+	if _, err := ego.createDir(path.Dir(), origTime); err != nil {
 		return 0, err
 	}
-	id, err := ego.createFile(absPath, "", fs.FileTopology, origTime)
+	id, err := ego.createFile(path, "", fs.FileTopology, origTime)
 	return id, err
 
 }
@@ -336,16 +336,16 @@ func (ego *localCountedStorageDriver) createDir(absPath fs.Path, origTime time.T
 Deletes a file (with all its descendants and their contents).
 
 Parameters:
-  - absPath - absolute path to the file.
+  - path - absolute path to the file.
 
 Returns:
   - error if any occurred.
 */
-func (ego *localCountedStorageDriver) deleteFile(absPath fs.Path) error {
+func (ego *localCountedStorageDriver) deleteFile(path fs.Path) error {
 
-	return ego.forFilesWithPrefix(absPath, func(rec record) error {
+	return ego.forFilesWithPrefix(path, func(rec record) error {
 
-		if err := ego.CloseFile(absPath); err != nil {
+		if err := ego.CloseFile(path); err != nil {
 			return err
 		}
 
@@ -535,30 +535,30 @@ Exports files to a stream.
 Iterates over all records in the file table and creates a file from each of those that satisfy the depth constraint.
 
 Parameters:
-  - absPath - where to begin the export,
+  - path - where to begin the export,
   - depth - how many levels under the file specified by path to export (0 for only the file itself, 1 for LS).
 
 Returns:
   - the readable stream with result,
   - error if any occurred.
 */
-func (ego *localCountedStorageDriver) exportToStream(absPath fs.Path, depth fs.Depth) (stream.Producer[fs.File], error) {
+func (ego *localCountedStorageDriver) exportToStream(path fs.Path, depth fs.Depth) (stream.Producer[fs.File], error) {
 
-	rec, err := ego.findFile(absPath)
+	rec, err := ego.findFile(path)
 
 	if err != nil {
 		return nil, err
 	} else if rec == nil {
-		return nil, errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("file %s does not exist", absPath.String()))
+		return nil, errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("file %s does not exist", path.String()))
 	}
 
-	pathLen := len(absPath)
+	pathLen := len(path)
 
 	if s, err := ego.files.Filter(collection.FilterArgument{
 		Limit: collection.NO_LIMIT,
 		QueryConf: collection.QueryAtomConf{
 			Name:      "path",
-			Value:     []string(absPath),
+			Value:     []string(path),
 			MatchType: collection.PrefixIndexConf[[]string]{},
 		}}); err != nil {
 
@@ -580,7 +580,7 @@ func (ego *localCountedStorageDriver) exportToStream(absPath fs.Path, depth fs.D
 
 /*
 Closes a file descriptor.
-Invokes closing of file descriptor, deletes the it from opened files and refreshes the modification time in the file table.
+Invokes closing of a file descriptor, deletes it from opened files and refreshes the modification time in the file table.
 
 Parameters:
   - descriptor - file descriptor to close,
