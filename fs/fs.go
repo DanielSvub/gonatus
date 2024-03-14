@@ -177,7 +177,6 @@ func (ego *StorageManager) UnregisterStorage(s Storage) error {
 	defer ego.mutex.Unlock()
 	delete(ego.registeredStorages, index)
 	s.driver().SetId(0)
-	println()
 	return nil
 }
 
@@ -195,7 +194,7 @@ func (ego *StorageManager) Fetch(e gonatus.GId) (Storage, error) {
 	ego.mutex.Lock()
 	defer ego.mutex.Unlock()
 	if ego.registeredStorages[e] == nil {
-		return nil, errors.NewNotFoundError(ego, errors.LevelError, "No storage with index "+fmt.Sprint(e)+".")
+		return nil, errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("no storage with ID %d", e))
 	}
 	return &storageController{ego.registeredStorages[e], Path{}}, nil
 }
@@ -218,7 +217,7 @@ func (ego *StorageManager) GetId(s Storage) (gonatus.GId, error) {
 			return id, nil
 		}
 	}
-	return *new(gonatus.GId), errors.NewNotFoundError(ego, errors.LevelError, "Storage not found.")
+	return *new(gonatus.GId), errors.NewNotFoundError(ego, errors.LevelError, "storage not found")
 }
 
 func (ego *StorageManager) Serialize() gonatus.Conf {
@@ -252,8 +251,8 @@ Extends:
 */
 type File interface {
 	gonatus.Gobjecter
-	io.Closer
 	FileDescriptor
+	io.Closer
 
 	/*
 		Acquires a storage where the file is stored.
@@ -472,7 +471,19 @@ type StorageDriver interface {
 	Open(path Path, mode FileMode, givenFlags FileFlags, origTime time.Time) (FileDescriptor, error)
 
 	/*
-		Closes a file.
+		Closes one descriptor of a file.
+
+		Parameters:
+		  - descriptor - descriptor to close,
+		  - path - path to the file.
+
+		Returns:
+		  - error if any occurred.
+	*/
+	CloseDescriptor(descriptor FileDescriptor, path Path) error
+
+	/*
+		Closes all descriptors of a file.
 
 		Parameters:
 		  - path - path to the file.
@@ -480,7 +491,7 @@ type StorageDriver interface {
 		Returns:
 		  - error if any occurred.
 	*/
-	Close(path Path) error
+	CloseFile(path Path) error
 
 	/*
 		Adds the topology flag to the file.

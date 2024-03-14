@@ -79,7 +79,11 @@ func (ego *nativeStorageDriver) Open(path fs.Path, mode fs.FileMode, givenFlags 
 	}, nil
 }
 
-func (ego *nativeStorageDriver) Close(path fs.Path) error {
+func (ego *nativeStorageDriver) CloseDescriptor(_ fs.FileDescriptor, _ fs.Path) error {
+	return nil
+}
+
+func (ego *nativeStorageDriver) CloseFile(path fs.Path) error {
 	fd := ego.openedR[ego.nativePath(path)]
 	return fd.Close()
 }

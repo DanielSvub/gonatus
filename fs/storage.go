@@ -99,7 +99,7 @@ func (ego *storage) merge(source Storage, prefix Path) error {
 			return err
 		}
 
-		return ego.drv.Close(dstFile.Path())
+		return dstFile.Close()
 
 	})
 

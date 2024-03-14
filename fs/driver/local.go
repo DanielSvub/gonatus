@@ -16,11 +16,16 @@ import (
 	"github.com/SpongeData-cz/gonatus"
 )
 
+type descriptorId uint64
+
 /*
 Gonatus abstraction of the Golang file descriptor.
 */
 type localFileDescriptor struct {
-	fd *os.File
+	id     descriptorId
+	fileId collection.CId
+	mode   fs.FileMode
+	fd     *os.File
 }
 
 func (ego *localFileDescriptor) Read(p []byte) (n int, err error) {
@@ -85,13 +90,14 @@ type LocalCountedStorageConf struct {
 
 type localCountedStorageDriver struct {
 	gonatus.Gobject
-	id            gonatus.GId
-	prefix        string
-	files         collection.Collection
-	openFiles     map[collection.CId]*os.File
-	globalLock    sync.Mutex
-	fileCount     collection.CId
-	locationCount uint64
+	id              gonatus.GId
+	prefix          string
+	files           collection.Collection
+	openFiles       map[collection.CId]map[descriptorId]*os.File
+	globalLock      sync.Mutex
+	fileCount       collection.CId
+	locationCount   uint64
+	descriptorCount descriptorId
 }
 
 func NewLocalCountedStorage(conf LocalCountedStorageConf) fs.Storage {
@@ -116,7 +122,7 @@ func NewLocalCountedStorage(conf LocalCountedStorageConf) fs.Storage {
 			}},
 		},
 	})
-	ego.openFiles = make(map[collection.CId]*os.File)
+	ego.openFiles = make(map[collection.CId]map[descriptorId]*os.File)
 	ego.createRoot()
 	return fs.NewStorage(ego)
 }
@@ -148,19 +154,19 @@ func (ego *localCountedStorageDriver) createRoot() error {
 Acquires the record of the file with the given path.
 
 Parameters:
-  - absPath - absolute path to the file.
+  - path - absolute path to the file.
 
 Returns:
   - pointer to the record of the found file, nil if the path does not exist,
   - error if any occurred.
 */
-func (ego *localCountedStorageDriver) findFile(absPath fs.Path) (*record, error) {
+func (ego *localCountedStorageDriver) findFile(path fs.Path) (*record, error) {
 
 	if s, err := ego.files.Filter(collection.FilterArgument{
 		Limit: collection.NO_LIMIT,
 		QueryConf: collection.QueryAtomConf{
 			Name:      "path",
-			Value:     []string(absPath),
+			Value:     []string(path),
 			MatchType: collection.FullmatchIndexConf[[]string]{},
 		}}); err != nil {
 		return nil, err
@@ -169,7 +175,7 @@ func (ego *localCountedStorageDriver) findFile(absPath fs.Path) (*record, error)
 			return nil, err
 		} else {
 			if _, valid, _ := s.Get(); valid {
-				return nil, errors.NewStateError(ego, errors.LevelError, "Multiple records found for a single path "+absPath.String()+".")
+				return nil, errors.NewStateError(ego, errors.LevelError, fmt.Sprintf("multiple records found for a single path %s", path.String()))
 			}
 			rec := record(value)
 			return &rec, nil
@@ -235,7 +241,7 @@ Creates a new counted storage location.
 Increments the file counter and creates the directory tree in local file system, if it does not exist.
 
 Returns:
-  - location - destination fullpath (12 numbers splitted by 3 + ".bin"),
+  - location - destination fullpath (12 numbers splitted by 3 + .bin extension),
   - err - error if any occurred.
 */
 func (ego *localCountedStorageDriver) newLocation() (location string, err error) {
@@ -253,7 +259,7 @@ func (ego *localCountedStorageDriver) newLocation() (location string, err error)
 Crates an entry in the file table.
 
 Parameters:
-  - absPath - absolute path to the file,
+  - path - absolute path to the file,
   - location - a physical location of the file on the disk (if the file has content, empty otherwise),
   - givenFlags - flags entered in FileConf,
   - origTime - time when the file was originally created.
@@ -262,15 +268,15 @@ Returns:
   - id - ID of the created file,
   - err - error if any occurred.
 */
-func (ego *localCountedStorageDriver) createFile(absPath fs.Path, location string, givenFlags fs.FileFlags, origTime time.Time) (id collection.CId, err error) {
+func (ego *localCountedStorageDriver) createFile(path fs.Path, location string, givenFlags fs.FileFlags, origTime time.Time) (id collection.CId, err error) {
 
-	parent, err := ego.findFile(absPath.Dir())
+	parent, err := ego.findFile(path.Dir())
 	if err != nil {
 		return
 	}
 
 	if parent == nil {
-		err = errors.NewNotFoundError(ego, errors.LevelError, "The path does not exist.")
+		err = errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("the path %s does not exist", path.String()))
 		return
 	}
 
@@ -283,7 +289,7 @@ func (ego *localCountedStorageDriver) createFile(absPath fs.Path, location strin
 		Id: id,
 		Cols: []collection.FielderConf{
 			collection.FieldConf[uint64]{Value: uint64(parent.Id)},
-			collection.FieldConf[[]string]{Value: []string(absPath)},
+			collection.FieldConf[[]string]{Value: []string(path)},
 			collection.FieldConf[uint8]{Value: uint8(givenFlags)},
 			collection.FieldConf[string]{Value: location},
 			collection.FieldConf[time.Time]{Value: origTime},
@@ -300,12 +306,12 @@ Creates a directory (a file with topology).
 If the file already exists, just adds the topology flag, otherwise creates a new one.
 
 Parameters:
-  - absPath - absolute path to the file,
+  - path - absolute path to the file,
   - origTime - time when the file was originally created.
 */
-func (ego *localCountedStorageDriver) createDir(absPath fs.Path, origTime time.Time) (collection.CId, error) {
+func (ego *localCountedStorageDriver) createDir(path fs.Path, origTime time.Time) (collection.CId, error) {
 
-	rec, err := ego.findFile(absPath)
+	rec, err := ego.findFile(path)
 	if err != nil {
 		return 0, err
 	}
@@ -318,10 +324,10 @@ func (ego *localCountedStorageDriver) createDir(absPath fs.Path, origTime time.T
 		return rec.Id, nil
 	}
 
-	if _, err := ego.createDir(absPath.Dir(), origTime); err != nil {
+	if _, err := ego.createDir(path.Dir(), origTime); err != nil {
 		return 0, err
 	}
-	id, err := ego.createFile(absPath, "", fs.FileTopology, origTime)
+	id, err := ego.createFile(path, "", fs.FileTopology, origTime)
 	return id, err
 
 }
@@ -330,14 +336,18 @@ func (ego *localCountedStorageDriver) createDir(absPath fs.Path, origTime time.T
 Deletes a file (with all its descendants and their contents).
 
 Parameters:
-  - absPath - absolute path to the file.
+  - path - absolute path to the file.
 
 Returns:
   - error if any occurred.
 */
-func (ego *localCountedStorageDriver) deleteFile(absPath fs.Path) error {
+func (ego *localCountedStorageDriver) deleteFile(path fs.Path) error {
 
-	return ego.forFilesWithPrefix(absPath, func(rec record) error {
+	return ego.forFilesWithPrefix(path, func(rec record) error {
+
+		if err := ego.CloseFile(path); err != nil {
+			return err
+		}
 
 		if err := ego.files.DeleteRecord(collection.RecordConf{
 			Id: rec.Id,
@@ -391,13 +401,13 @@ func (ego *localCountedStorageDriver) moveFile(source fs.Path, dest fs.Path) err
 	if rec, err := ego.findFile(dest); err != nil {
 		return err
 	} else if rec != nil {
-		return errors.NewStateError(ego, errors.LevelError, "File of the same name already exists in the destination path.")
+		return errors.NewStateError(ego, errors.LevelError, fmt.Sprintf("file %s already exists in the destination path", dest.String()))
 	}
 
 	if rec, err := ego.findFile(source); err != nil {
 		return err
 	} else if rec == nil {
-		return errors.NewNotFoundError(ego, errors.LevelError, `The file "`+source.Base()+`" does not exist.`)
+		return errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("file %s does not exist", source.String()))
 	} else {
 		if err := ego.files.DeleteRecord(collection.RecordConf{
 			Id: rec.Id,
@@ -444,7 +454,7 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 	if rec, err := ego.findFile(dest); err != nil {
 		return err
 	} else if rec != nil {
-		return errors.NewStateError(ego, errors.LevelError, "File of the same name already exists in the destination path.")
+		return errors.NewStateError(ego, errors.LevelError, fmt.Sprintf("file %s already exists in the destination path", dest.String()))
 	}
 
 	rec, err := ego.findFile(source)
@@ -453,7 +463,7 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 	}
 
 	if rec == nil {
-		return errors.NewNotFoundError(ego, errors.LevelError, `The file "`+source.Base()+`" does not exist.`)
+		return errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("file %s does not exist", source.String()))
 	}
 
 	// Opening the old file
@@ -461,7 +471,7 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 	if err != nil {
 		return err
 	}
-	defer ego.Close(source)
+	defer ego.CloseDescriptor(srcFd, source)
 
 	// Creating a new location
 	newLocation, err := ego.newLocation()
@@ -525,30 +535,30 @@ Exports files to a stream.
 Iterates over all records in the file table and creates a file from each of those that satisfy the depth constraint.
 
 Parameters:
-  - absPath - where to begin the export,
+  - path - where to begin the export,
   - depth - how many levels under the file specified by path to export (0 for only the file itself, 1 for LS).
 
 Returns:
   - the readable stream with result,
   - error if any occurred.
 */
-func (ego *localCountedStorageDriver) exportToStream(absPath fs.Path, depth fs.Depth) (stream.Producer[fs.File], error) {
+func (ego *localCountedStorageDriver) exportToStream(path fs.Path, depth fs.Depth) (stream.Producer[fs.File], error) {
 
-	rec, err := ego.findFile(absPath)
+	rec, err := ego.findFile(path)
 
 	if err != nil {
 		return nil, err
 	} else if rec == nil {
-		return nil, errors.NewNotFoundError(ego, errors.LevelError, "The path does not exist.")
+		return nil, errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("file %s does not exist", path.String()))
 	}
 
-	pathLen := len(absPath)
+	pathLen := len(path)
 
 	if s, err := ego.files.Filter(collection.FilterArgument{
 		Limit: collection.NO_LIMIT,
 		QueryConf: collection.QueryAtomConf{
 			Name:      "path",
-			Value:     []string(absPath),
+			Value:     []string(path),
 			MatchType: collection.PrefixIndexConf[[]string]{},
 		}}); err != nil {
 
@@ -569,8 +579,57 @@ func (ego *localCountedStorageDriver) exportToStream(absPath fs.Path, depth fs.D
 }
 
 /*
+Closes a file descriptor.
+Invokes closing of a file descriptor, deletes it from opened files and refreshes the modification time in the file table.
+
+Parameters:
+  - descriptor - file descriptor to close,
+  - path - absolute path to the file.
+
+Returns:
+  - error if any occurred.
+*/
+func (ego *localCountedStorageDriver) closeDescriptor(descriptor *localFileDescriptor, path fs.Path) error {
+
+	if descriptor == nil {
+		return errors.NewNilError(ego, errors.LevelError, "nil file descriptor")
+	}
+
+	ego.globalLock.Lock()
+	if fds, exists := ego.openFiles[descriptor.fileId]; !exists {
+		return errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("file %s does not exist", path.String()))
+	} else {
+		if fd, exists := fds[descriptor.id]; !exists {
+			return errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("file %s does not exist", path.String()))
+		} else {
+			fd.Close()
+			delete(ego.openFiles[descriptor.fileId], descriptor.id)
+			if len(ego.openFiles[descriptor.fileId]) == 0 {
+				delete(ego.openFiles, descriptor.fileId)
+			}
+		}
+	}
+	ego.globalLock.Unlock()
+
+	descriptor.fd.Close()
+
+	if descriptor.mode != fs.ModeRead {
+		if rec, err := ego.findFile(path); err != nil {
+			return errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("missing entry in the file table for file %s", path.String()))
+		} else {
+			rec.Cols[fieldModifTime] = collection.FieldConf[time.Time]{Value: time.Now()}
+			if err := ego.files.EditRecord(rec.conf()); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+/*
 Closes a file.
-Invokes closing of file descriptor, deletes the it from opened files and refreshes the modification time in the file table.
+Invokes closing all file descriptor and deletes the them from opened files.
 
 Parameters:
   - path - absolute path to the file.
@@ -586,17 +645,15 @@ func (ego *localCountedStorageDriver) closeFile(path fs.Path) error {
 	}
 
 	if rec == nil {
-		return errors.NewNotFoundError(ego, errors.LevelError, `The file "`+path.String()+`" does not exist.`)
+		return errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("file %s does not exist", path.String()))
 	}
 
 	ego.globalLock.Lock()
-	ego.openFiles[rec.Id].Close()
+	for _, fd := range ego.openFiles[rec.Id] {
+		fd.Close()
+	}
 	delete(ego.openFiles, rec.Id)
 	ego.globalLock.Unlock()
-	rec.Cols[fieldModifTime] = collection.FieldConf[time.Time]{Value: time.Now()}
-	if err := ego.files.EditRecord(rec.conf()); err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -615,7 +672,7 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 	case fs.ModeRW:
 		modeFlags = os.O_RDWR | os.O_CREATE
 	default:
-		return nil, errors.NewMisappError(ego, "Invalid opening mode.")
+		return nil, errors.NewMisappError(ego, "invalid opening mode")
 	}
 
 	var fd *os.File
@@ -623,8 +680,16 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 
 	// Checking if the file exists
 	if rec, err := ego.findFile(path); err != nil {
+
 		return nil, err
+
 	} else if rec != nil {
+
+		ego.globalLock.Lock()
+		if _, exists := ego.openFiles[rec.Id]; exists && modeFlags&os.O_WRONLY > 0 {
+			return nil, errors.NewStateError(ego, errors.LevelError, "cannot write to an already opened file")
+		}
+		ego.globalLock.Unlock()
 
 		var err error
 		location := rec.location()
@@ -655,7 +720,7 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 
 		// If in read mode, error (the file cannot be created without write permission)
 		if mode == fs.ModeRead {
-			return nil, errors.NewNotFoundError(ego, errors.LevelError, `The file "`+path.String()+`" does not exist.`)
+			return nil, errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("file %s does not exist", path.String()))
 		}
 
 		// Checking if the parent file exists, if not, creating it
@@ -685,16 +750,32 @@ func (ego *localCountedStorageDriver) Open(path fs.Path, mode fs.FileMode, given
 	}
 
 	ego.globalLock.Lock()
-	ego.openFiles[fid] = fd
+	if _, exists := ego.openFiles[fid]; !exists {
+		ego.openFiles[fid] = make(map[descriptorId]*os.File)
+	}
+	id := ego.descriptorCount
+	ego.openFiles[fid][id] = fd
+	ego.descriptorCount++
 	ego.globalLock.Unlock()
 
 	return &localFileDescriptor{
-		fd: fd,
+		id:     id,
+		fileId: fid,
+		mode:   mode,
+		fd:     fd,
 	}, nil
 
 }
 
-func (ego *localCountedStorageDriver) Close(path fs.Path) error {
+func (ego *localCountedStorageDriver) CloseDescriptor(descriptor fs.FileDescriptor, path fs.Path) error {
+	localDescriptor, ok := descriptor.(*localFileDescriptor)
+	if !ok {
+		return errors.NewMisappError(ego, "not a compatible descriptor")
+	}
+	return ego.closeDescriptor(localDescriptor, path)
+}
+
+func (ego *localCountedStorageDriver) CloseFile(path fs.Path) error {
 	return ego.closeFile(path)
 }
 
@@ -709,7 +790,7 @@ func (ego *localCountedStorageDriver) Copy(srcPath fs.Path, dstPath fs.Path) err
 
 func (ego *localCountedStorageDriver) Move(srcPath fs.Path, dstPath fs.Path) error {
 	if srcPath.Equals(dstPath) {
-		errors.NewStateError(ego, errors.LevelWarning, "The source and destination paths are equal.")
+		errors.NewStateError(ego, errors.LevelWarning, "source and destination paths are equal")
 	}
 	return ego.moveFile(srcPath, dstPath)
 }
@@ -724,28 +805,18 @@ func (ego *localCountedStorageDriver) Tree(path fs.Path, depth fs.Depth) (stream
 
 func (ego *localCountedStorageDriver) Size(path fs.Path) (uint64, error) {
 
-	var fd *os.File
-
-	rec, err := ego.findFile(path)
+	_, err := ego.findFile(path)
 	if err != nil {
 		return 0, err
 	}
 
-	ego.globalLock.Lock()
-	if ofd, ok := ego.openFiles[rec.Id]; !ok {
-		ego.globalLock.Unlock()
-		descriptor, err := ego.Open(path, fs.ModeRead, fs.FileUndetermined, *new(time.Time))
-		if err != nil {
-			return 0, err
-		}
-		fd = descriptor.(*localFileDescriptor).fd
-		defer ego.Close(path)
-	} else {
-		ego.globalLock.Unlock()
-		fd = ofd
+	descriptor, err := ego.Open(path, fs.ModeRead, fs.FileUndetermined, *new(time.Time))
+	if err != nil {
+		return 0, err
 	}
+	defer ego.CloseDescriptor(descriptor, path)
 
-	stat, err := fd.Stat()
+	stat, err := descriptor.(*localFileDescriptor).fd.Stat()
 	if err != nil {
 		return 0, err
 	}
@@ -769,9 +840,9 @@ func (ego *localCountedStorageDriver) Location(path fs.Path) (location string, e
 	if err == nil {
 
 		if rec == nil {
-			err = errors.NewNotFoundError(ego, errors.LevelError, "The file does not exist.")
+			err = errors.NewNotFoundError(ego, errors.LevelError, fmt.Sprintf("file %s does not exist", path.String()))
 		} else if rec.flags()&fs.FileContent == 0 {
-			err = errors.NewStateError(ego, errors.LevelWarning, "The file does not have content.")
+			err = errors.NewStateError(ego, errors.LevelWarning, fmt.Sprintf("file %s does not have content", path.String()))
 		} else {
 			location = rec.location()
 		}
@@ -799,10 +870,12 @@ func (ego *localCountedStorageDriver) Clear() error {
 		return err
 	}
 
-	for _, fd := range ego.openFiles {
-		fd.Close()
+	for _, fds := range ego.openFiles {
+		for _, fd := range fds {
+			fd.Close()
+		}
 	}
-	ego.openFiles = make(map[collection.CId]*os.File)
+	ego.openFiles = make(map[collection.CId]map[descriptorId]*os.File)
 
 	ego.createRoot()
 	ego.locationCount = 0

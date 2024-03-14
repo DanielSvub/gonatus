@@ -18,6 +18,7 @@ type ErrorLevel int
 
 const (
 	LevelWrapper ErrorLevel = -8 // Not even an error, the actual one is wrapped inside.
+	LevelInfo    ErrorLevel = 0  // Non-standard situation has occurred, but program continues normally.
 	LevelWarning ErrorLevel = 4  // Something did not work out, alternative approach used.
 	LevelError   ErrorLevel = 8  // Normal error level.
 	LevelFatal   ErrorLevel = 12 // Most serious error, impossible to continue.
@@ -29,6 +30,7 @@ Type of the error.
 type ErrorType string
 
 const (
+	TypeNA       ErrorType = "UndeterminedError"    // The type of the error was not specified
 	TypeUnknown  ErrorType = "UnknownError"         // The program got into a state which should theoretically be impossible.
 	TypeNil      ErrorType = "NilError"             // Value missing where expected.
 	TypeValue    ErrorType = "ValueError"           // Value present but not valid.
@@ -73,20 +75,14 @@ Returns:
   - created error.
 */
 func NewSrcWrapper(src gonatus.Gobjecter, err error) error {
-	var srcMsg string
-	if err.(gonatusError).level >= thresholdLevel {
-		srcMsg = serializeSource(src)
-	}
-	return Wrap(srcMsg, "SourceWrapper", err)
+	return Wrap(serializeSource(src), "SourceWrapper", err)
 }
 
 /*
 Creates a new Gonatus error.
 
 Parameters:
-  - errType - type of the error,
-  - level - how serious the error is,
-  - msg - what happened.
+  - conf - serialized error.
 
 Returns:
   - created error.
@@ -94,7 +90,7 @@ Returns:
 func New(conf ErrorConf) error {
 
 	ego := gonatusError{
-		errType:   conf.ErrType,
+		errType:   conf.Type,
 		msg:       conf.Msg,
 		traceback: conf.Traceback,
 		level:     conf.Level,
@@ -270,7 +266,7 @@ func Serialize(err error) gonatus.Conf {
 		}
 
 		return ErrorConf{
-			ErrType:   gonatusErr.errType,
+			Type:      gonatusErr.errType,
 			Level:     gonatusErr.level,
 			Msg:       gonatusErr.msg,
 			Traceback: traceback,
@@ -284,11 +280,11 @@ func Serialize(err error) gonatus.Conf {
 }
 
 type ErrorConf struct {
-	ErrType   ErrorType
-	Level     ErrorLevel
-	Msg       string
-	Traceback string
-	Wrapped   []ErrorConf
+	Type      ErrorType   `json:"type"`
+	Level     ErrorLevel  `json:"level,omitempty"`
+	Msg       string      `json:"msg"`
+	Traceback string      `json:"traceback,omitempty"`
+	Wrapped   []ErrorConf `json:"wrapped,omitempty"`
 }
 
 /*
