@@ -3,9 +3,9 @@ package fs_test
 import (
 	"testing"
 
-	"github.com/SpongeData-cz/gonatus/errors"
-	. "github.com/SpongeData-cz/gonatus/fs"
-	. "github.com/SpongeData-cz/gonatus/fs/driver"
+	"github.com/DanielSvub/gonatus/errors"
+	. "github.com/DanielSvub/gonatus/fs"
+	. "github.com/DanielSvub/gonatus/fs/driver"
 )
 
 func TestROStorage(t *testing.T) {

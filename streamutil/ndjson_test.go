@@ -1,8 +1,8 @@
 package streamutil_test
 
 import (
-	. "github.com/SpongeData-cz/gonatus/streamutil"
-	"github.com/SpongeData-cz/stream"
+	. "github.com/DanielSvub/gonatus/streamutil"
+	"github.com/DanielSvub/stream"
 
 	"bufio"
 	"encoding/json"

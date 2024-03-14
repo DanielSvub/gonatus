@@ -1,4 +1,4 @@
-github.com/SpongeData-cz/stream v1.0.0 h1:A9Wy2vAKV//ojwe38KeGhcgCqF6P+7U4+JJCAWMOgow=
-github.com/SpongeData-cz/stream v1.0.0/go.mod h1:3GBtfkTJmIF00qy5aZmEgh15PCjlpGV5t6vts1DyDS0=
+github.com/DanielSvub/stream v1.0.0 h1:JhLiCbdZMvKCBnAomyeKDCh8eeTtXB088bw2yKB+hY8=
+github.com/DanielSvub/stream v1.0.0/go.mod h1:pp9AeFVbNa2iL3Abi2MSw3mLjj7ZObEtcOrGIRhBar4=
 github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyuac5Z2hdY=
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=

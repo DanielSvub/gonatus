@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/SpongeData-cz/gonatus/collection"
+	. "github.com/DanielSvub/gonatus/collection"
 )
 
 func TestCollection(t *testing.T) {

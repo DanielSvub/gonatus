@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SpongeData-cz/gonatus"
-	"github.com/SpongeData-cz/gonatus/errors"
-	"github.com/SpongeData-cz/stream"
+	"github.com/DanielSvub/gonatus"
+	"github.com/DanielSvub/gonatus/errors"
+	"github.com/DanielSvub/stream"
 )
 
 /*

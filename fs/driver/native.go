@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SpongeData-cz/gonatus/errors"
-	"github.com/SpongeData-cz/gonatus/fs"
-	"github.com/SpongeData-cz/stream"
+	"github.com/DanielSvub/gonatus/errors"
+	"github.com/DanielSvub/gonatus/fs"
+	"github.com/DanielSvub/stream"
 
-	"github.com/SpongeData-cz/gonatus"
+	"github.com/DanielSvub/gonatus"
 )
 
 type NativeStorageConf struct {

@@ -3,7 +3,7 @@ package gonatus
 import (
 	"log/slog"
 
-	"github.com/SpongeData-cz/gonatus/logging"
+	"github.com/DanielSvub/gonatus/logging"
 )
 
 const ConfSuffix = "Conf" // Suffix of all configuration structures.

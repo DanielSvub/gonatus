@@ -3,7 +3,7 @@ package dynamic_test
 import (
 	"testing"
 
-	. "github.com/SpongeData-cz/gonatus/dynamic"
+	. "github.com/DanielSvub/gonatus/dynamic"
 )
 
 func TestGonatusBase(t *testing.T) {

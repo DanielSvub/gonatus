@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SpongeData-cz/gonatus"
-	"github.com/SpongeData-cz/gonatus/logging"
+	"github.com/DanielSvub/gonatus"
+	"github.com/DanielSvub/gonatus/logging"
 )
 
 //INFO: purpose is just to test correctness of work (setup, switch, ...)  with loggers, not correctnes of logging facility - this has already been done by slog developers

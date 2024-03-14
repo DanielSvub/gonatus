@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"strconv"
 
-	"github.com/SpongeData-cz/gonatus"
+	"github.com/DanielSvub/gonatus"
 )
 
 /*

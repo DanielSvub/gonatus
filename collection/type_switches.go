@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SpongeData-cz/gonatus/errors"
+	"github.com/DanielSvub/gonatus/errors"
 )
 
 // RAM COLLECTION

@@ -3,8 +3,8 @@ package collection
 import (
 	"fmt"
 
-	"github.com/SpongeData-cz/gonatus"
-	"github.com/SpongeData-cz/gonatus/errors"
+	"github.com/DanielSvub/gonatus"
+	"github.com/DanielSvub/gonatus/errors"
 )
 
 // PREFIX INDEX

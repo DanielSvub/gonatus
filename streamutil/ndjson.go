@@ -6,7 +6,7 @@ import (
 	"errors"
 	"os"
 
-	"github.com/SpongeData-cz/stream"
+	"github.com/DanielSvub/stream"
 )
 
 type FileMode uint8

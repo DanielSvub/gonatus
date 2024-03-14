@@ -1,8 +1,8 @@
 package collection
 
 import (
-	"github.com/SpongeData-cz/gonatus"
-	"github.com/SpongeData-cz/gonatus/errors"
+	"github.com/DanielSvub/gonatus"
+	"github.com/DanielSvub/gonatus/errors"
 )
 
 // FULLMATCH INDEX

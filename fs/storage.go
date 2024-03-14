@@ -3,8 +3,8 @@ package fs
 import (
 	"math"
 
-	"github.com/SpongeData-cz/gonatus"
-	"github.com/SpongeData-cz/stream"
+	"github.com/DanielSvub/gonatus"
+	"github.com/DanielSvub/stream"
 )
 
 /*
