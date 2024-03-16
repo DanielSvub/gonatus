@@ -1,4 +1,4 @@
-github.com/DanielSvub/stream v1.0.0 h1:JhLiCbdZMvKCBnAomyeKDCh8eeTtXB088bw2yKB+hY8=
-github.com/DanielSvub/stream v1.0.0/go.mod h1:pp9AeFVbNa2iL3Abi2MSw3mLjj7ZObEtcOrGIRhBar4=
+github.com/DanielSvub/stream v1.0.1 h1:lMoBDZcfchnvMXTFwUm9dVNJ1VkaATHs/z/u6w9bxjU=
+github.com/DanielSvub/stream v1.0.1/go.mod h1:2WPXazc2xizTYIM8uyybVwpTCynt6sRmUrqXXDlfFjI=
 github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyuac5Z2hdY=
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
