@@ -5,6 +5,7 @@ import (
 	pathlib "path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/DanielSvub/gonatus/errors"
@@ -20,10 +21,11 @@ type NativeStorageConf struct {
 
 type nativeStorageDriver struct {
 	gonatus.Gobject
-	id      gonatus.GId
-	prefix  string
-	opened  map[*os.File]fs.FileConf
-	openedR map[string]*os.File
+	id         gonatus.GId
+	prefix     string
+	opened     map[*os.File]fs.FileConf
+	openedR    map[string]*os.File
+	globalLock sync.Mutex
 }
 
 func NewNativeStorage(conf NativeStorageConf) fs.Storage {
@@ -66,12 +68,16 @@ func (ego *nativeStorageDriver) Open(path fs.Path, mode fs.FileMode, givenFlags 
 		return nil, err
 	}
 
+	ego.globalLock.Lock()
+
 	ego.opened[fd] = fs.FileConf{
 		Path:      path,
 		StorageId: ego.id,
 	}
 
 	ego.openedR[npath] = fd
+
+	ego.globalLock.Unlock()
 
 	// TODO: make sharable localFileDescriptor for fs based on local filesystem
 	return &localFileDescriptor{
@@ -84,7 +90,9 @@ func (ego *nativeStorageDriver) CloseDescriptor(_ fs.FileDescriptor, _ fs.Path) 
 }
 
 func (ego *nativeStorageDriver) CloseFile(path fs.Path) error {
+	ego.globalLock.Lock()
 	fd := ego.openedR[ego.nativePath(path)]
+	ego.globalLock.Unlock()
 	return fd.Close()
 }
 

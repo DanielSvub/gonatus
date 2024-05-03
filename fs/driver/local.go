@@ -490,7 +490,7 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 	dstFd.ReadFrom(srcFd)
 
 	// A function for file creation
-	create := func(content bool, path fs.Path, parent collection.CId, id collection.CId, location string) error {
+	create := func(path fs.Path, parent collection.CId, id collection.CId, location string) error {
 		ego.files.AddRecord(collection.RecordConf{
 			Id: id,
 			Cols: []collection.FielderConf{
@@ -526,7 +526,7 @@ func (ego *localCountedStorageDriver) copyFile(source fs.Path, parent collection
 		return ego.copyFile(r.path(), newId, dest.Join(fs.Path{r.path().Base()}))
 	})
 
-	return create(rec.flags()&fs.FileContent > 0, dest, parent, newId, rec.location())
+	return create(dest, parent, newId, rec.location())
 
 }
 
